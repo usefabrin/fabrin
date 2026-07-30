@@ -1,0 +1,180 @@
+# Contributing to Fabrin
+
+AI agent instructions (Claude Code, Codex, Cursor): [AGENTS.md](AGENTS.md).
+`CLAUDE.md` only imports that file — edit `AGENTS.md`, not `CLAUDE.md`.
+Engineering / style standards: [docs/coding-guidelines.md](docs/coding-guidelines.md).
+
+## Principles
+
+- **Test-Driven Development.** Write the failing test first; make it pass;
+  refactor. A behavioural claim in a doc with no test behind it is a wish.
+- **Fabrin is a library.** Every exported symbol is a promise to strangers.
+  Adding one is cheap, removing one breaks their builds. Ship less; add later.
+- **Trunk-based development.** One long-lived branch: `main`. Work on
+  short-lived branches, merge frequently, and hide incomplete work behind
+  feature flags rather than long-running branches.
+
+## Local setup
+
+```bash
+just setup     # deps, pinned tools, git hooks
+just check     # the full local gate
+```
+
+You need Go (version in `go.mod`) and [just](https://github.com/casey/just).
+`just tools` installs the pinned linters; the justfile records the versions CI
+uses, so local and CI run the same ruleset.
+
+## The validation gate
+
+`just check` runs, in order:
+
+| Gate | Command | Enforces |
+|------|---------|----------|
+| Hygiene | `just gates` (`scripts/gates/*.sh`) | Repo invariants no compiler checks |
+| Style | `just lint` (gofmt, `go vet`, golangci-lint) | Formatting and vet checks |
+| Tests | `just test` | Behaviour |
+| Boundaries | `just arch` | depguard layering rules |
+| API surface | `just api-check` | The public API changed only on purpose |
+| Examples | `just examples` | Every example still builds and serves |
+| Specs | `just specs` | Every behaviour has a matrix row and a test |
+
+**`just check` is exactly what CI runs** — the workflow calls `just ci`, an alias
+for `check`, rather than re-listing the commands. A green `check` means a green
+CI. Two things run outside it, because both need a git range a bare recipe cannot
+supply:
+
+- **docs-freshness** (`just docs-check`) — the pre-commit hook runs it on staged
+  files; CI runs it as a separate `docs-guard` job.
+- **benchmarks** (`just bench`) — CI runs these on `main` only.
+
+`just gates` must stay fast enough for the pre-commit hook — keep the whole
+target under a couple of seconds. Add new hygiene checks as a script in
+`scripts/gates/`, and **give each one a header comment saying which failure it
+prevents.** A check whose purpose nobody remembers is the first one deleted.
+
+### Recipes skip, they do not fail
+
+`check`'s recipe list is written once and never grows. A recipe whose target does
+not exist yet prints a skip notice and exits 0. This is what lets every PR leave
+`just check` green without editing `check` in four separate PRs.
+
+### Prove a gate bites
+
+When you add or change a gate or a depguard rule, inject a throwaway violation,
+confirm the gate **fails**, then revert. A rule that matches nothing is
+indistinguishable from a rule that passes. Prefix-matched deny lists in
+particular fail open when a new package lands — that is why
+`scripts/gates/check-depguard-coverage.sh` exists.
+
+## Boundary rules (enforced by depguard, `.golangci.yml`)
+
+- `fabrin/config` must not import Gin or `net/http`. Settings must load from the
+  CLI, from tests, and from a migrate-only process without booting a server.
+- `fabrin/config` and `fabrin/logging` must not import the root package — this
+  prevents import cycles and keeps both usable standalone.
+- `internal/**` must not import the root package.
+
+**Gin containment is not a depguard rule.** `health`'s handlers and `logging`'s
+middleware are `gin.HandlerFunc` by definition, so restricting which packages may
+*import* Gin would make them unwritable. The real invariant is about the
+**exported surface**, and `apicheck --allow` enforces it: Gin may appear in
+exported signatures because it is allowlisted; nothing else may.
+
+## When you change a governed surface
+
+If your change touches the **public API**, a **CLI command**, or anything a
+`*_CONTRACT.md` governs, you must also:
+
+1. Regenerate the API snapshot (`just api`) in the **same commit**, and say why
+   the surface moved in the commit body.
+2. Update the relevant `docs/`, and if a load-bearing behaviour changed, update
+   `specs/system-behavior.yaml` **and** `specs/test-matrix.md`, then run
+   `just specs`.
+
+The `just docs-check` gate (pre-commit hook + CI) fails commits that change a
+governed surface without a docs/specs update. Treat updating docs as the **last
+step** of every change, after implementation and tests.
+
+## Adding a module or a package
+
+1. Add requirements (with IDs) to `docs/requirements/FABRIN_REQUIREMENTS.md`.
+2. Add the behaviour to `specs/system-behavior.yaml` + `specs/test-matrix.md`
+   with `status: planned`.
+3. Write the failing test.
+4. Implement.
+5. If it is a new **public** package, add its depguard entry — `just gates` tells
+   you exactly which entry is missing, because the hand-enumeration in
+   `.golangci.yml` would otherwise fail open.
+6. If it is a new **module**, remember hard rule 3: declare the interfaces you
+   need in your own package. Never import another module.
+7. Flip the spec entry to `status: implemented`; run `just ci`.
+8. Update `docs/DJANGO_PARITY.md` if this moves a parity row.
+
+## Consequential decisions
+
+Choices that are expensive to reverse — blessing another dependency in the public
+API, adding a v0 non-goal, changing the data layer — go in `docs/adr/` as a dated
+record of the decision and its alternatives. Do not open an ADR for a routine
+change; do open one before anything a future contributor would otherwise
+reasonably undo.
+
+## Issues first
+
+Open a GitHub issue **before** writing code (except trivial typos/docs). Use the
+**Feature**, **Bug**, or **Epic** forms under New Issue — they set the title
+prefix and type label; then apply the matching area label.
+
+- **Title prefix:** `[FEATURE]` for new capability, `[BUG]` for defects.
+- **Labels:** type (`enhancement` / `bug` / `epic`) plus an area label (`core`,
+  `router`, `config`, `orm`, `auth`, `admin`, `cli`, `harness`, `docs`, …).
+- **Epics:** large or multi-slice work is an epic issue tracking child issues.
+  Do not implement an epic as one PR.
+- **One small PR per issue:** each issue gets its own focused PR that links it.
+  Aim under ~400 LOC of meaningful change; split further if review would suffer.
+
+## Commits
+
+Conventional Commits. Scopes: `core`, `router`, `config`, `orm`, `migrate`,
+`auth`, `admin`, `cli`, `modules`, `transport`, `render`, `tasks`, `docs`,
+`harness`, `examples`.
+
+```
+type(scope): short imperative summary
+
+What changed and why. Note public-API, behavioural, or operational impact.
+Mention test/spec coverage when relevant.
+```
+
+Let pre-commit hooks run; do not bypass them with `--no-verify` without a
+documented reason.
+
+## Pull requests
+
+Keep PRs small and focused — **one issue per PR**, and link the issue.
+Self-review the diff before merging. **Squash merge**; the PR title becomes the
+squash commit, so it must follow Conventional Commits.
+
+**The author may merge their own PR once CI is green.** Review is not a gate —
+the green checks are. This is a small repo with a heavy agent-assisted workflow,
+and a mandatory-review rule would only ever be satisfied by the same person who
+wrote the change. Request review when a change is genuinely risky or you want a
+second opinion, and resolve review conversations before merging.
+
+What *is* a gate: `just check` locally, green CI, and a governed-surface change
+carrying its `docs/`/`specs/` update. Do not merge red.
+
+## Pull request checklist
+
+- [ ] Linked issue opened first with `[FEATURE]` or `[BUG]` (+ labels).
+- [ ] Followed [docs/coding-guidelines.md](docs/coding-guidelines.md).
+- [ ] `just check` passes locally.
+- [ ] New or changed behaviour is test-covered (TDD).
+- [ ] Public-API change regenerated `api/fabrin.txt` in the same commit, and the
+      commit body says why the surface moved.
+- [ ] No new third-party type in an exported signature (Gin is the only
+      allowlisted entry — a second one needs an ADR).
+- [ ] No module imports another module.
+- [ ] New or changed gate proven to fail on an injected violation.
+- [ ] Governed-surface changes updated `docs/`/`specs/` (`just docs-check` green).
+- [ ] `docs/TODO.md` and `docs/DJANGO_PARITY.md` reflect progress.

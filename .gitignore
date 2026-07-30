@@ -1,0 +1,19 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Local environment
+.env
+.env.local
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Claude Code local overrides (the shared settings.json IS tracked)
+.claude/settings.local.json
