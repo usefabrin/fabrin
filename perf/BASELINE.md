@@ -29,18 +29,36 @@ that shows up identically everywhere.
 
 ## Baseline
 
-_Not yet recorded — the benchmark lands with the core
-([#6](https://github.com/usefabrin/fabrin/issues/6))._
+Recorded from a **local** run, not from CI: shared runners vary enough between
+jobs that their absolute numbers are not comparable over time.
 
-Fill in from a **local** run, not from CI: shared runners vary enough between jobs
-that their absolute numbers are not comparable over time.
+Go 1.26.0 · darwin/arm64 · Apple M3 Pro · `-count=6`, median of six.
 
-| Benchmark | ns/op | B/op | allocs/op | vs raw Gin |
-|---|---|---|---|---|
-| `BenchmarkRawGin_OneRoute` | — | — | — | baseline |
-| `BenchmarkFabrin_OneRoute` | — | — | — | — |
+| Benchmark | ns/op | B/op | allocs/op |
+|---|---|---|---|
+| `BenchmarkRawGin_OneRoute` | 388 | 1040 | **9** |
+| `BenchmarkFabrin_OneRoute` | 416 | 1040 | **9** |
 
-Recorded on: _(Go version, OS, CPU)_
+**Fabrin adds zero allocations and zero bytes per request over raw Gin.**
+
+That is the number that matters, and it is the one to defend. Byte-for-byte
+identical allocation means Fabrin's abstractions — the module registry, the
+per-module route group, the capability map — all resolve at construction time and
+none of them touch the request path. A future change that moves `allocs/op` off 9
+has put work per-request that belongs at startup, and that is a design regression
+whatever the nanosecond figure says.
+
+The ~28 ns spread (about 7%) is within run-to-run noise on this machine: the six
+samples for each benchmark overlap (raw Gin 376–418, Fabrin 386–486). Read it as
+"no measurable per-request cost", not as a precise 7% overhead. Ranking two
+implementations that allocate identically on a laptop with an active desktop is
+not something a six-sample run can do — which is the honest reading and also why
+the allocation count is the tracked metric.
+
+The one structural difference to be aware of: Fabrin mounts each module under its
+own `gin.RouterGroup` so a module can apply middleware scoped to its own routes.
+That is one extra group in the tree, resolved when routes are registered, not per
+request.
 
 ## How to read a change
 

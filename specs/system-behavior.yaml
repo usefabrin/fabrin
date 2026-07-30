@@ -18,39 +18,45 @@ behaviours:
     what: Registering two modules with the same name fails at construction.
     why: A duplicate name means one module's routes silently shadow another's. Failing at first request instead of at construction moves the discovery to production.
     requirement: FR-CORE-2
-    status: planned
+    status: implemented
+    test: module_test.go::TestNew_RejectsDuplicateModuleNames
 
   - id: CORE-002
     what: Optional module interfaces are discovered by type assertion, and the registry reports which ones each module matched.
     why: A mistyped method name means the interface is silently not satisfied — the module simply never runs its Start or contributes its checks.
     requirement: FR-CORE-6
-    status: planned
+    status: implemented
+    test: module_test.go::TestApp_ReportsOptionalInterfacesEachModuleMatched
 
   # ── Core: lifecycle ─────────────────────────────────────────────────────────
   - id: CORE-003
     what: App.Run shuts down gracefully on context cancellation and on SIGINT/SIGTERM, within a bounded window.
     why: An unbounded shutdown hangs a deploy; no shutdown drops in-flight requests.
     requirement: FR-CORE-3
-    status: planned
+    status: implemented
+    test: fabrin_test.go::TestApp_RunReturnsWhenContextCancelled
 
   - id: CORE-004
     what: Lifecycle.Stop runs in reverse registration order.
     why: A module built after its dependency must shut down before it, or it tears down against something already gone. The ORDER is the behaviour — a test that only asserts Stop was called would pass on a broken implementation.
     requirement: FR-CORE-4
-    status: planned
+    status: implemented
+    test: module_test.go::TestApp_StopsLifecycleModulesInReverseRegistrationOrder
 
   # ── Modules: deployment shapes ──────────────────────────────────────────────
   - id: MOD-001
     what: FABRIN_MODULES mounts only the named modules; routes of unmounted modules return 404.
     why: This is the process-slicing claim. One binary, N deployment shapes.
     requirement: FR-MODULES-1
-    status: planned
+    status: implemented
+    test: module_test.go::TestNew_MountsOnlySelectedModules
 
   - id: MOD-002
     what: A name in FABRIN_MODULES matching no registered module is a startup error.
     why: A typo that silently serves nothing is worse than a crash, because the process passes its liveness probe while doing no work.
     requirement: FR-MODULES-2
-    status: planned
+    status: implemented
+    test: module_test.go::TestNew_RejectsSelectionNamingUnregisteredModule
 
   - id: MOD-003
     what: A module depends on another module's capability through an interface it declares itself, never by importing that module.

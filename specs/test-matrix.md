@@ -13,18 +13,23 @@ means the behaviour is specified and not yet built; the spec entry stays
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| CORE-001 | Duplicate module name fails at construction | _planned_ |
-| CORE-002 | Optional interfaces discovered and reported | _planned_ |
-| CORE-003 | Graceful shutdown on cancel and on signal | _planned_ |
-| CORE-004 | `Lifecycle.Stop` runs in reverse order | _planned_ |
+| CORE-001 | Duplicate module name fails at construction | `module_test.go::TestNew_RejectsDuplicateModuleNames` |
+| CORE-002 | Optional interfaces discovered and reported | `module_test.go::TestApp_ReportsOptionalInterfacesEachModuleMatched` |
+| CORE-003 | Graceful shutdown on cancel and on signal | `fabrin_test.go::TestApp_RunReturnsWhenContextCancelled` |
+| CORE-004 | `Lifecycle.Stop` runs in reverse order | `module_test.go::TestApp_StopsLifecycleModulesInReverseRegistrationOrder` |
+
+Also covered, without a spec entry of their own because each is a consequence of
+the four above rather than an independent claim: an empty module name rejected, a
+failed `Start` unwinding what it already started, `Run` refusing a second call, and
+the Gin aliases proving identical in both directions.
 
 ## Modules and deployment shapes
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| MOD-001 | `FABRIN_MODULES` mounts only named modules | _planned_ |
-| MOD-002 | Unknown module name is a startup error | _planned_ |
-| MOD-003 | Cross-module dependency is a locally declared interface | _planned_ |
+| MOD-001 | `FABRIN_MODULES` mounts only named modules | `module_test.go::TestNew_MountsOnlySelectedModules` |
+| MOD-002 | Unknown module name is a startup error | `module_test.go::TestNew_RejectsSelectionNamingUnregisteredModule` |
+| MOD-003 | Cross-module dependency is a locally declared interface | _planned — demonstrated by `examples/hello`_ |
 
 ## Config
 
