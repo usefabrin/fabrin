@@ -36,9 +36,30 @@ const (
 // Options{} is valid.
 //
 // This is a plain struct rather than variadic functional options because it is
-// what a config loader produces: fabrin/config unmarshals into it directly, and
-// an options-function API would force every caller to translate. Fields may
-// therefore only be ADDED, never removed or retyped, without a breaking change.
+// what a config loader produces, and an options-function API would force every
+// caller to translate. Fields may therefore only be ADDED, never removed or
+// retyped, without a breaking change.
+//
+// # Where this type will live
+//
+// Options is declared here for now, and will MOVE to fabrin/config in #7, with
+// this name kept as an alias (type Options = config.Options).
+//
+// The reason is a genuine conflict between two things this repo has committed to.
+// FR-CONFIG says the loader produces Options directly; the config-is-standalone
+// boundary rule forbids fabrin/config from importing the root package. Both cannot
+// hold while Options is declared here — config.Load() (fabrin.Options, error) is
+// exactly the signature the rule rejects, and it is also the obvious thing to
+// write, so it would have been written and then argued about.
+//
+// Settings are a lower-level concern than the application, so the type belongs in
+// config and the dependency runs root → config, which is already the allowed
+// direction. Aliasing keeps fabrin.Options working for every caller and keeps the
+// public surface unchanged — the same technique used for [Context].
+//
+// Rejected: giving config its own Settings struct that main maps onto Options.
+// That is two structs to keep in sync plus per-caller boilerplate, which is the
+// cost this type exists to avoid.
 type Options struct {
 	// Addr is the listen address. Empty means [DefaultAddr].
 	Addr string
@@ -48,6 +69,11 @@ type Options struct {
 	// silent no-op — see [ErrUnknownModule].
 	//
 	// This is the process-slicing mechanism: one binary, many deployment shapes.
+	//
+	// Note the asymmetry with [App.Modules]: this field is the SELECTION (what was
+	// asked for, possibly empty meaning "everything"), while App.Modules reports
+	// what actually got MOUNTED. They differ whenever a selection is in effect,
+	// which is precisely when you are debugging why a route 404s.
 	Modules []string
 
 	// Logger receives Fabrin's own lifecycle messages. Nil means slog.Default().

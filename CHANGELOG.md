@@ -82,8 +82,17 @@ Two defaults differ from the underlying library's, both toward safety:
   slowly.
 
 `Options` is a plain struct rather than functional options because a config loader
-unmarshals into it directly. Consequence: its fields may be **added**, never
-removed or retyped, without a breaking change.
+produces it directly. Consequence: its fields may be **added**, never removed or
+retyped, without a breaking change.
+
+**`Options` will move to `fabrin/config` in #7, keeping `fabrin.Options` as an
+alias.** Declaring it in the root package puts two commitments in direct conflict:
+`FR-CONFIG` says the loader produces `Options`, while the `config-is-standalone`
+boundary rule forbids `fabrin/config` from importing the root package — so
+`config.Load() (fabrin.Options, error)` is both the obvious signature and a rule
+violation. Settings are a lower-level concern than the application, so the type
+belongs in `config` and the dependency runs root → config, which is the allowed
+direction. The alias keeps every caller and the public surface unchanged.
 
 ### Performance
 
