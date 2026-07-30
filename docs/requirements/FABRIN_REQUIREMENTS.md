@@ -35,11 +35,11 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-CONFIG-1 | Settings resolve in the order defaults ← file ← environment ← flags, with later layers winning. | planned |
-| FR-CONFIG-2 | Every resolved value reports which layer set it. A misconfigured deploy is otherwise undebuggable — you can see the wrong value but not where it came from. | planned |
-| FR-CONFIG-3 | An unparseable or unknown-typed value fails at load, not at first use. Failing late means failing in production after a green deploy. | planned |
-| FR-CONFIG-4 | `FABRIN_ADDR` is the listen address, default `:8080`. Named as a requirement because `scripts/smoke-examples.sh` depends on it to give each example its own port. | planned |
-| FR-CONFIG-5 | Settings load without constructing an HTTP stack, so the CLI, tests, and a migrate-only process can read them. | planned |
+| FR-CONFIG-1 | Settings resolve in the order defaults ← file ← environment ← flags, with later layers winning. | done |
+| FR-CONFIG-2 | Every resolved value reports which layer set it. A misconfigured deploy is otherwise undebuggable — you can see the wrong value but not where it came from. | done |
+| FR-CONFIG-3 | An unparseable or unknown-typed value fails at load, not at first use. Failing late means failing in production after a green deploy. | done |
+| FR-CONFIG-4 | `FABRIN_ADDR` is the listen address, default `:8080`. Named as a requirement because `scripts/smoke-examples.sh` depends on it to give each example its own port. | done |
+| FR-CONFIG-5 | Settings load without constructing an HTTP stack, so the CLI, tests, and a migrate-only process can read them. | done |
 
 ## FR-HEALTH — liveness and readiness
 

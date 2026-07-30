@@ -33,7 +33,8 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
       `Stop`. (FR-CORE-1…6, CORE-001…004)
 - [x] Process slicing via `Options.Modules`, unknown name is an error.
       (FR-MODULES-1,2, MOD-001,002)
-- [ ] `fabrin/config` — layered settings with provenance. (FR-CONFIG-1…5, CFG-001…004)
+- [x] `fabrin/config` — layered settings with provenance; owns the `Options`
+      declaration the root package aliases. (FR-CONFIG-1…5, CFG-001…004)
 - [ ] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed.
       (FR-HEALTH-1…3, HLT-001,002)
 - [ ] `fabrin/logging` — slog setup + request ids. (FR-LOG-1,2, LOG-001)

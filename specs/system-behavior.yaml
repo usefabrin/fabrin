@@ -69,25 +69,29 @@ behaviours:
     what: Settings resolve defaults then file then environment then flags, each layer overriding the previous.
     why: The documented precedence is the contract; getting it backwards silently ignores production overrides.
     requirement: FR-CONFIG-1
-    status: planned
+    status: implemented
+    test: config/config_test.go::TestLoad_EachLayerWinsOverThePreviousOne
 
   - id: CFG-002
     what: Each resolved value reports which layer set it.
     why: Without provenance you can see the wrong value but not where it came from, which is most of the debugging time.
     requirement: FR-CONFIG-2
-    status: planned
+    status: implemented
+    test: config/config_test.go::TestLoad_ReportsWhichLayerSetEachValue
 
   - id: CFG-003
     what: An unparseable value fails at load with the key named, not at first use.
     why: Failing late means failing in production after a green deploy.
     requirement: FR-CONFIG-3
-    status: planned
+    status: implemented
+    test: config/config_test.go::TestLoad_RejectsUnparseableValueNamingTheKey
 
   - id: CFG-004
     what: FABRIN_ADDR sets the listen address and defaults to :8080.
     why: scripts/smoke-examples.sh relies on it to give each example its own port; without it every example collides and the smoke gate passes on the first one only.
     requirement: FR-CONFIG-4
-    status: planned
+    status: implemented
+    test: config/config_test.go::TestLoad_DefaultsAddrToDocumentedValue
 
   # ── Health ──────────────────────────────────────────────────────────────────
   - id: HLT-001

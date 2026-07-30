@@ -7,3 +7,4 @@
 # at the same time — a depguard rule, or a comment saying why none is needed.
 
 .
+config

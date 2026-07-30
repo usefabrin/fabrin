@@ -35,10 +35,10 @@ the Gin aliases proving identical in both directions.
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| CFG-001 | Layer precedence: defaults → file → env → flags | _planned_ |
-| CFG-002 | Each value reports its source layer | _planned_ |
-| CFG-003 | Unparseable value fails at load, key named | _planned_ |
-| CFG-004 | `FABRIN_ADDR` sets listen address, default `:8080` | _planned_ |
+| CFG-001 | Layer precedence: defaults → file → env → flags | `config/config_test.go::TestLoad_EachLayerWinsOverThePreviousOne` |
+| CFG-002 | Each value reports its source layer | `config/config_test.go::TestLoad_ReportsWhichLayerSetEachValue` |
+| CFG-003 | Unparseable value fails at load, key named | `config/config_test.go::TestLoad_RejectsUnparseableValueNamingTheKey` |
+| CFG-004 | `FABRIN_ADDR` sets listen address, default `:8080` | `config/config_test.go::TestLoad_DefaultsAddrToDocumentedValue` |
 
 ## Health and logging
 
