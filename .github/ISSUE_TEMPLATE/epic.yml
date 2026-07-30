@@ -1,0 +1,75 @@
+name: Epic
+description: A milestone or multi-slice body of work that tracks child issues
+title: "[EPIC] "
+labels: ["epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An epic **tracks** work; it is never implemented as one PR. Each child gets
+        its own issue and its own small PR.
+
+        The two fields that make an epic useful six months later are **locked
+        decisions** and **out of scope**. Both prevent the same failure: someone
+        reasonably re-opening a settled question, or quietly widening the work.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What is true when this epic closes that is not true now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: |
+        Observable conditions, not activities. "`just check` green and the example
+        serves `/readyz`" beats "implement health checks".
+    validations:
+      required: true
+
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Locked decisions
+      description: |
+        Choices already made, with the reason. This is the field that stops a future
+        contributor — human or agent — from undoing something deliberate because the
+        rationale was never written down.
+      placeholder: |
+        | Decision | Choice |
+        |---|---|
+        | Data layer | GORM behind a fabrin/orm seam — Fabrin owns the metadata registry so admin reads Fabrin metadata, not GORM's |
+    validations:
+      required: true
+
+  - type: textarea
+    id: children
+    attributes:
+      label: Children
+      description: A checklist. Add issue numbers as you open them; order them by merge sequence.
+      placeholder: |
+        - [ ] #12 the thing that must land first
+        - [ ] #13 the thing that depends on it
+    validations:
+      required: true
+
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Invariants across the children
+      description: |
+        Optional. Anything every child PR must preserve — for example "every PR
+        leaves `just check` green". Naming these up front is cheaper than
+        discovering on child four that the gate list has to change.
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+      description: What this epic deliberately does not do, and where that work is tracked instead.
+    validations:
+      required: true

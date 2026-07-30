@@ -1,0 +1,73 @@
+name: Feature
+description: Propose a new capability or an improvement to an existing one
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing something. Two things make a Fabrin feature request
+        easy to act on: the **problem** stated before the solution, and — because
+        Fabrin is Django-inspired — what the **idiomatic Go** answer looks like, not
+        just what Django does.
+
+        Apply an area label after opening (`core`, `router`, `config`, `orm`,
+        `auth`, `admin`, `cli`, `harness`, `docs`, …).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard or impossible today? Describe the situation, not the fix.
+      placeholder: |
+        Every module that needs the database writes its own pool setup, so
+        connection limits are configured in three different places and disagree.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed capability
+      description: What should Fabrin do? Sketch the API if you have one in mind.
+      placeholder: |
+        `fabrin/orm` owns the pool; a module declares `Models()` and receives a
+        handle. Pool size is one config key.
+    validations:
+      required: true
+
+  - type: textarea
+    id: django
+    attributes:
+      label: How Django solves this, and what the Go answer should be
+      description: |
+        Optional but valuable. Fabrin takes Django's *problem statements*, not its
+        implementations — a transliterated Python idiom usually reads badly in Go.
+        If you know the Django equivalent, name it, then say where the direct port
+        would feel wrong.
+      placeholder: |
+        Django: `DATABASES` in settings plus the ORM's implicit global connection.
+        Go: an explicit handle passed in, because an implicit global makes tests
+        order-dependent and hides the dependency from the type system.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including "do nothing" — say what happens if Fabrin does not ship this.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Does this change the public API?
+      description: |
+        Every exported symbol is a promise to strangers. A "yes" is not a problem —
+        it just means the change needs an `api/fabrin.txt` update and a CHANGELOG
+        entry.
+      options:
+        - "No — internal only"
+        - "Yes — adds to the public API"
+        - "Yes — changes or removes existing public API (breaking)"
+        - "Not sure"
+    validations:
+      required: true

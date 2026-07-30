@@ -1,0 +1,62 @@
+name: Bug
+description: Something behaves differently from how it is documented
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Apply an area label after opening (`core`, `router`, `config`, `orm`,
+        `auth`, `admin`, `cli`, `harness`, `docs`, …).
+
+        A note on what counts: **a gate or check that passes while enforcing
+        nothing is a bug**, and one of the more valuable kinds to report. It looks
+        healthy from the outside, which is exactly why it survives.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what said so
+      description: Link the doc, comment, or test that promises the other behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        Smallest thing that shows it. A failing test is ideal — Fabrin is TDD, so a
+        red test is the first half of the fix.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Fabrin version or commit
+      placeholder: "v0.1.0, or the commit SHA"
+    validations:
+      required: true
+
+  - type: input
+    id: goversion
+    attributes:
+      label: Go version
+      description: "`go version`"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Logs, OS, whether it reproduces on a clean checkout.
