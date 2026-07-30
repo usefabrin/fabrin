@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# pre-commit — the fast subset of `just check`, run on every commit.
+#
+# Deliberately NOT the whole gate. A hook slow enough to be annoying is a hook
+# people bypass with --no-verify, and a bypassed hook enforces nothing. So this
+# runs only what is fast and local: formatting, the hygiene gates, and
+# docs-freshness on the staged change. Tests, lint, arch, and the API snapshot
+# are `just check`'s job before you push.
+#
+# Installed by `just install-hooks` as a symlink, so edits here take effect
+# without reinstalling.
+#
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+fail=0
+run() {
+  local label="$1"; shift
+  if ! "$@"; then
+    echo "  ↳ $label failed" >&2
+    fail=1
+  fi
+}
+
+echo "pre-commit: formatting, hygiene gates, docs-freshness"
+
+run "gofmt" bash scripts/check-gofmt.sh
+run "gates" bash scripts/gates/run-all.sh
+run "docs-freshness" bash scripts/check-docs-freshness.sh --staged
+
+if [[ "$fail" -ne 0 ]]; then
+  cat >&2 <<'EOF'
+
+Commit blocked. Fix the above, or — if you have a documented reason — bypass with
+`git commit --no-verify` and say why in the commit body.
+
+Note that this hook is only the fast subset. Run `just check` before pushing.
+EOF
+  exit 1
+fi
+
+echo "pre-commit: ok"

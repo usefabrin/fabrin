@@ -1,0 +1,100 @@
+version: "2"
+
+# Boundary rules and lint config. CONTRIBUTING.md documents the rules for humans;
+# this file is the enforcement. If you change a rule, prove it still bites:
+# inject a throwaway violation, watch `just arch` fail, revert. A rule that
+# matches nothing is indistinguishable from a rule that passes.
+
+linters:
+  enable:
+    - depguard
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unconvert
+    - unused
+
+  settings:
+    depguard:
+      # ── Public package inventory ──────────────────────────────────────────
+      # Every package in scripts/gates/public-packages.txt must be mentioned
+      # somewhere in this file, and check-depguard-coverage.sh enforces that.
+      # The point is to force a recorded decision per package rather than a
+      # silent omission, because depguard's `files:` and `pkg:` entries are
+      # PREFIX matches, not globs — there is no way to write "every root-level
+      # package", so the rules below are a hand-written enumeration, and a
+      # hand-written enumeration fails open.
+      #
+      #   root package (github.com/usefabrin/fabrin)
+      #       No deny rules. It is the one place Gin belongs: fabrin.Context is a
+      #       type alias for gin.Context, so the router surface lives here by
+      #       definition. Its discipline is enforced on the exported surface by
+      #       apicheck, not by import restrictions.
+      #
+      # Packages land as the F0 epic progresses; each arrives with its rule.
+      # ──────────────────────────────────────────────────────────────────────
+      rules:
+        # Settings must load without a server. The CLI parses them, tests build
+        # them, and a migrate-only process needs them — none of which should have
+        # to construct an HTTP stack first. This is also what keeps config
+        # importable from anywhere without dragging in a transport.
+        config-is-transport-free:
+          files:
+            - "**/config/**"
+          deny:
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "config must stay transport-free: settings load without a server (see CONTRIBUTING.md)"
+            - pkg: "net/http"
+              desc: "config must stay transport-free: settings load without a server (see CONTRIBUTING.md)"
+
+        # config and logging sit below the root package. Depending upwards would
+        # create an import cycle the moment the root package needs either of them
+        # — which it does.
+        config-is-standalone:
+          files:
+            - "**/config/**"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "config must not import the root package: it sits below it (import cycle)"
+
+        logging-is-standalone:
+          files:
+            - "**/logging/**"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "logging must not import the root package: it sits below it (import cycle)"
+
+        # internal/ is implementation detail for the public packages, so the
+        # dependency runs public → internal. Reversing it makes the root package
+        # unimportable from its own internals and hides cycles behind the
+        # unexported boundary.
+        #
+        # Scope is internal/** only. fabrintest legitimately imports the root
+        # package — it constructs an App — and must not be caught here.
+        internal-does-not-import-root:
+          files:
+            - "**/internal/**"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "internal/ must not import the root package: the dependency runs public → internal"
+
+  exclusions:
+    rules:
+      # Examples exist to be read. Ignoring an error inline would be the
+      # realistic thing to lint for in application code and the wrong thing to
+      # show a newcomer, so they are held to the same standard as the framework —
+      # no exclusion here on purpose. This block is a placeholder for exclusions
+      # that turn out to be genuinely warranted; add none speculatively.
+      []
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  # A framework's lint output is read by contributors who did not write the code.
+  # Truncating it hides the second half of the work.
+  max-issues-per-linter: 0
+  max-same-issues: 0
