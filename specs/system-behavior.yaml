@@ -1,0 +1,123 @@
+# Fabrin behaviour specification
+#
+# One entry per load-bearing behaviour. Each cites the requirement it satisfies
+# and, once implemented, the test that holds it up. `just specs` fails when an
+# entry marked `implemented` names a test file or function that does not exist,
+# when an id has no row in test-matrix.md, or when the matrix has a row for an id
+# that is not here.
+#
+# The format is deliberately flat and greppable: the gate needs no YAML parser, so
+# it stays fast enough for the pre-commit hook and adds no dependency.
+#
+# status: planned | implemented
+# test:   <file>::<TestFunc>   (required once implemented)
+
+behaviours:
+  # ── Core: registration ──────────────────────────────────────────────────────
+  - id: CORE-001
+    what: Registering two modules with the same name fails at construction.
+    why: A duplicate name means one module's routes silently shadow another's. Failing at first request instead of at construction moves the discovery to production.
+    requirement: FR-CORE-2
+    status: planned
+
+  - id: CORE-002
+    what: Optional module interfaces are discovered by type assertion, and the registry reports which ones each module matched.
+    why: A mistyped method name means the interface is silently not satisfied — the module simply never runs its Start or contributes its checks.
+    requirement: FR-CORE-6
+    status: planned
+
+  # ── Core: lifecycle ─────────────────────────────────────────────────────────
+  - id: CORE-003
+    what: App.Run shuts down gracefully on context cancellation and on SIGINT/SIGTERM, within a bounded window.
+    why: An unbounded shutdown hangs a deploy; no shutdown drops in-flight requests.
+    requirement: FR-CORE-3
+    status: planned
+
+  - id: CORE-004
+    what: Lifecycle.Stop runs in reverse registration order.
+    why: A module built after its dependency must shut down before it, or it tears down against something already gone. The ORDER is the behaviour — a test that only asserts Stop was called would pass on a broken implementation.
+    requirement: FR-CORE-4
+    status: planned
+
+  # ── Modules: deployment shapes ──────────────────────────────────────────────
+  - id: MOD-001
+    what: FABRIN_MODULES mounts only the named modules; routes of unmounted modules return 404.
+    why: This is the process-slicing claim. One binary, N deployment shapes.
+    requirement: FR-MODULES-1
+    status: planned
+
+  - id: MOD-002
+    what: A name in FABRIN_MODULES matching no registered module is a startup error.
+    why: A typo that silently serves nothing is worse than a crash, because the process passes its liveness probe while doing no work.
+    requirement: FR-MODULES-2
+    status: planned
+
+  - id: MOD-003
+    what: A module depends on another module's capability through an interface it declares itself, never by importing that module.
+    why: The declared interface is the seam along which the module can move to another process. A direct import welds them together, invisibly, until someone tries to split them.
+    requirement: FR-MODULES-3
+    status: planned
+
+  # ── Config ──────────────────────────────────────────────────────────────────
+  - id: CFG-001
+    what: Settings resolve defaults then file then environment then flags, each layer overriding the previous.
+    why: The documented precedence is the contract; getting it backwards silently ignores production overrides.
+    requirement: FR-CONFIG-1
+    status: planned
+
+  - id: CFG-002
+    what: Each resolved value reports which layer set it.
+    why: Without provenance you can see the wrong value but not where it came from, which is most of the debugging time.
+    requirement: FR-CONFIG-2
+    status: planned
+
+  - id: CFG-003
+    what: An unparseable value fails at load with the key named, not at first use.
+    why: Failing late means failing in production after a green deploy.
+    requirement: FR-CONFIG-3
+    status: planned
+
+  - id: CFG-004
+    what: FABRIN_ADDR sets the listen address and defaults to :8080.
+    why: scripts/smoke-examples.sh relies on it to give each example its own port; without it every example collides and the smoke gate passes on the first one only.
+    requirement: FR-CONFIG-4
+    status: planned
+
+  # ── Health ──────────────────────────────────────────────────────────────────
+  - id: HLT-001
+    what: /healthz reports liveness and consults no module checks.
+    why: A liveness probe that fails on a slow dependency causes a restart loop that cannot fix the dependency.
+    requirement: FR-HEALTH-1
+    status: planned
+
+  - id: HLT-002
+    what: /readyz aggregates module checks and fails closed, naming the failing module and check.
+    why: Reporting ready while a dependency is unreachable takes traffic the process cannot serve.
+    requirement: FR-HEALTH-2
+    status: planned
+
+  # ── Logging ─────────────────────────────────────────────────────────────────
+  - id: LOG-001
+    what: Every request carries a request id, on the context and in a response header.
+    why: A user reporting an error can quote the header, which is the only way to find their request among thousands.
+    requirement: FR-LOG-2
+    status: planned
+
+  # ── Public API discipline ───────────────────────────────────────────────────
+  - id: API-001
+    what: An exported signature naming a third-party type outside the allowlist fails api-check.
+    why: An unblessed type in the public API makes that dependency's version part of Fabrin's semver contract, permanently and by accident.
+    requirement: INV-1
+    status: planned
+
+  - id: API-002
+    what: A change to the exported surface without a regenerated api/fabrin.txt fails api-check.
+    why: A rename that passes tests and lint still breaks every downstream build.
+    requirement: INV-2
+    status: planned
+
+  - id: API-003
+    what: The snapshot records type aliases unexpanded, so a Gin patch bump does not change api/fabrin.txt.
+    why: Expanding gin.Context's methods would turn api-check red on dependency updates that change nothing about Fabrin. A gate that cries wolf gets ignored.
+    requirement: INV-2
+    status: planned
