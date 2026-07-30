@@ -11,6 +11,13 @@
 # Each example is started on its own port, polled until it answers or the deadline
 # passes, then terminated. Skips cleanly before examples/ exists.
 #
+# FABRIN_ADDR is part of the config contract, not a convention invented here: this
+# script needs each example on its own port or they collide, and a smoke test that
+# passes because only the first example bound is worse than no smoke test. The key
+# is named in the acceptance criteria of the config loader (#7) and the hello
+# example (#9) so the three cannot drift. If you rename it, all three move
+# together. See #14.
+#
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

@@ -44,10 +44,14 @@ tools:
     {{ go }} install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{ golangci_version }}
 
 # Install the git pre-commit hook
+#
+# The hooks directory is resolved with `git rev-parse --git-path`, not assumed to
+# be .git/hooks: in a worktree or a submodule, .git is a FILE pointing elsewhere,
+# so a relative symlink into ".git/hooks" dangles outside the repo root. Git then
+# finds no hook and runs nothing, while this recipe prints its success line. The
+# `test -x` turns that silent no-op into a failure. See #14.
 install-hooks:
-    @mkdir -p .git/hooks
-    @ln -sf ../../scripts/hooks/pre-commit .git/hooks/pre-commit
-    @echo "✓ hooks: pre-commit installed (symlink to scripts/hooks/pre-commit)"
+    @bash scripts/install-hooks.sh
 
 # ----------------------------------------------------------------------------
 # Build & test
