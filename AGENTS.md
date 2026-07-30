@@ -91,8 +91,9 @@ is exactly why `check-depguard-coverage.sh` exists.
 | Command | What it does |
 |---------|--------------|
 | `just setup` | First-time: deps, pinned tools, git hooks |
+| `just install-hooks` | Symlink `scripts/hooks/pre-commit` into `.git/hooks` |
 | `just build` | Build the framework and every app under `examples/` |
-| `just test` | `go test ./...` |
+| `just test` / `just cover` | `go test ./...`, with or without per-package coverage |
 | `just lint` / `just format` | Check / apply style (gofmt, `go vet`, golangci-lint) |
 | `just arch` | Boundary check (depguard) |
 | `just api` / `just api-check` | Regenerate / verify the `api/fabrin.txt` snapshot |
@@ -120,6 +121,10 @@ green CI; there is no second command to remember.
 does not exist yet (`examples`, `specs`, `api-check` early in F0) print a skip
 notice and exit 0. This keeps the invariant that **every PR leaves `just check`
 green** without editing `check` in four separate PRs.
+
+Gates also report **every** failure rather than the first. A fail-fast loop hides
+gates 2..N behind gate 1, so a contributor fixes one thing, re-runs, finds
+another, and pays a full round trip per gate.
 
 ## Architecture
 

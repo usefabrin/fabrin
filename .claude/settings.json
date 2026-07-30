@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "//": "PERMISSIONS ONLY — never rules. Anything that reads as a rule belongs in AGENTS.md. The split matters: rules must be visible to every agent and every human, and a tool-config file is neither reviewed as documentation nor read by other tools.",
+
+  "permissions": {
+    "allow": [
+      "Bash(just)",
+      "Bash(just --list)",
+      "Bash(just -n *)",
+      "Bash(just build)",
+      "Bash(just test)",
+      "Bash(just cover)",
+      "Bash(just lint)",
+      "Bash(just format)",
+      "Bash(just arch)",
+      "Bash(just gates)",
+      "Bash(just api)",
+      "Bash(just api-check)",
+      "Bash(just examples)",
+      "Bash(just specs)",
+      "Bash(just docs-check *)",
+      "Bash(just bench)",
+      "Bash(just check)",
+      "Bash(just ci)",
+      "Bash(just tools)",
+      "Bash(just install-hooks)",
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go doc *)",
+      "Bash(go run ./examples/*)",
+      "Bash(go mod download)",
+      "Bash(go mod tidy)",
+      "Bash(go mod verify)",
+      "Bash(gofmt *)",
+      "Bash(golangci-lint run *)",
+      "Bash(bash scripts/*)",
+      "Bash(curl -fsS http://127.0.0.1:*)",
+      "Bash(curl -sS http://localhost:*)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git switch *)",
+      "Bash(git checkout -b *)",
+      "Bash(git add *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh label list *)"
+    ],
+
+    "//ask": "Outward-facing or hard to reverse. Approval for one of these is not approval for the next.",
+    "ask": [
+      "Bash(git push *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh release *)",
+      "Bash(git tag *)"
+    ],
+
+    "//deny": "Bypasses a gate, or destroys history. --no-verify in particular: the pre-commit hook is the only thing standing between a governed-surface change and undocumented drift.",
+    "deny": [
+      "Bash(git commit --no-verify *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}

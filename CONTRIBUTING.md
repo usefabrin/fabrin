@@ -49,9 +49,32 @@ supply:
 - **benchmarks** (`just bench`) — CI runs these on `main` only.
 
 `just gates` must stay fast enough for the pre-commit hook — keep the whole
-target under a couple of seconds. Add new hygiene checks as a script in
-`scripts/gates/`, and **give each one a header comment saying which failure it
+target under a couple of seconds, and require no Docker, network, or build. Add
+new hygiene checks as a script in `scripts/gates/`, list it in
+`scripts/gates/run-all.sh`, and **give it a header comment saying which failure it
 prevents.** A check whose purpose nobody remembers is the first one deleted.
+
+### The gate scripts
+
+| Script | Prevents |
+|--------|----------|
+| `scripts/gates/check-depguard-coverage.sh` | A new public package landing with nobody having decided whether it needs boundary rules |
+| `scripts/gates/check-agent-docs.sh` | Rules accumulating in `CLAUDE.md`, giving Fabrin two working agreements that disagree |
+| `scripts/gates/check-examples.sh` | An example quietly ceasing to be a runnable program |
+| `scripts/gates/run-all.sh` | A gate script that exists but is not listed, and so never runs |
+| `scripts/check-gofmt.sh` | `gofmt -l` printing filenames and exiting 0, which it does by design |
+| `scripts/check-docs-freshness.sh` | Documentation drifting behind the code it describes |
+| `scripts/specs.sh` | A documented behaviour with nothing executable behind it |
+| `scripts/smoke-examples.sh` | An example that compiles but cannot start |
+| `scripts/api.sh` | A breaking change to the exported surface landing unnoticed |
+
+`run-all.sh` fails on a gate script that is present but unlisted, because a gate
+nobody invokes looks identical to a gate that passes.
+
+The pre-commit hook runs only the fast, local subset — `gofmt`, `gates`, and
+docs-freshness on the staged change. Tests, lint, arch, and the API snapshot are
+`just check`'s job before you push. A hook slow enough to be annoying is a hook
+bypassed with `--no-verify`, and a bypassed hook enforces nothing.
 
 ### Recipes skip, they do not fail
 
