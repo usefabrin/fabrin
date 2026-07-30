@@ -94,6 +94,41 @@ violation. Settings are a lower-level concern than the application, so the type
 belongs in `config` and the dependency runs root → config, which is the allowed
 direction. The alias keeps every caller and the public surface unchanged.
 
+Added — package `fabrin/config`:
+
+- `Load(...Source) (Options, error)`, `MustLoad`, `Resolve(...Source) (*Resolved, error)`.
+- Sources: `FromEnv(Lookup)`, `FromFile(path)`, `FromRequiredFile(path)`,
+  `FromFlags(args)`. `Lookup`, `MapLookup`, `OSEnv()`.
+- `Resolved` with `Get`, `SourceOf`, `String` — **provenance**, because on a
+  misconfigured deploy you can see the wrong value but not where it came from, and
+  that is most of the debugging time.
+- Settings keys as constants (`KeyAddr`, `KeyModules`, …), sentinels
+  (`ErrInvalidValue`, `ErrUnknownKey`, `ErrBadFile`), and the `Default*` constants.
+- `Options` **moved here** from the root package (see above), gaining `Debug`,
+  `LogFormat`, and `LogLevel`, plus an exported `WithDefaults`.
+
+Behaviour worth knowing:
+
+- **Later layers win**: defaults ← file ← env ← flags.
+- **An unknown `FABRIN_`-prefixed key is an error**, with a near-miss suggestion.
+  A silently ignored typo is how a setting "does not work" with no diagnostic
+  anywhere. Unprefixed keys are ignored, since a real environment and a shared
+  `.env` are full of unrelated variables.
+- **A missing `FromFile` is not an error**; a missing `FromRequiredFile` is. The
+  usual deployment has no settings file at all, so requiring one would make the
+  common case the error case — but a path the user named explicitly should not be
+  ignored.
+- **Only flags actually passed contribute.** A flag layer writing its zero values
+  over everything beneath it would let `FromFlags` erase the environment merely by
+  being present.
+
+### Changed
+
+- `fabrin.Options`, `fabrin.DefaultAddr`, `fabrin.DefaultShutdownTimeout`, and
+  `fabrin.DefaultReadHeaderTimeout` are now **aliases** of the `fabrin/config`
+  declarations. Not a breaking change — an alias is the same type and the same
+  constant — and existing code keeps compiling unchanged.
+
 ### Performance
 
 Measured against raw `gin.Engine`: **zero extra allocations and zero extra bytes

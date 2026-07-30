@@ -42,6 +42,12 @@ linters:
       #     lives here by definition. The root package's discipline is enforced on
       #     its exported surface by apicheck, not by import restrictions.
       #
+      # boundary: config — must not import Gin or net/http (config-is-transport-free)
+      #     and must not import the root package (config-is-standalone). Settings
+      #     load from a CLI, a test, or a migrate-only process, none of which should
+      #     have to construct an HTTP stack first. It holds the Options declaration
+      #     that the root package aliases, so the dependency runs root → config.
+      #
       # Packages land as the F0 epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
@@ -58,22 +64,42 @@ linters:
             - pkg: "net/http"
               desc: "config must stay transport-free: settings load without a server (see CONTRIBUTING.md)"
 
-        # config and logging sit below the root package. Depending upwards would
-        # create an import cycle the moment the root package needs either of them
-        # — which it does.
+        # config and logging sit below the root package, which imports them. The
+        # reverse would be an import cycle — and for config it is a tempting one to
+        # write, since it produces fabrin.Options.
+        #
+        # What these rules actually buy, which is not what their names suggest:
+        #
+        # The `pkg` prefix match means "github.com/usefabrin/fabrin" matches every
+        # SUBpackage too, not just the root. Kept deliberately — and it turns out to
+        # be where all the value is. A non-test file in config/ importing the ROOT
+        # package is a genuine import cycle, and the Go compiler rejects it before
+        # any linter runs, so depguard adds nothing there. What the compiler cannot
+        # catch is config importing a SIBLING (fabrin/health, fabrin/orm): no cycle,
+        # compiles cleanly, and quietly makes the settings loader depend on half the
+        # framework. Verified both ways — a sibling import fails this rule while
+        # `go build ./config/` succeeds on the same code.
+        #
+        # The _test.go exclusion fixes a false positive: an external test package
+        # (package config_test) imports the package under test, so
+        # config/config_test.go importing .../fabrin/config trips the prefix. That is
+        # not a library dependency — the test binary is compiled separately — and a
+        # real cycle from an internal test file is still rejected by the compiler.
         config-is-standalone:
           files:
             - "**/config/**"
+            - "!**/*_test.go"
           deny:
             - pkg: "github.com/usefabrin/fabrin"
-              desc: "config must not import the root package: it sits below it (import cycle)"
+              desc: "config must not import the root package or any other Fabrin package: it is a leaf that the root package imports (see CONTRIBUTING.md)"
 
         logging-is-standalone:
           files:
             - "**/logging/**"
+            - "!**/*_test.go"
           deny:
             - pkg: "github.com/usefabrin/fabrin"
-              desc: "logging must not import the root package: it sits below it (import cycle)"
+              desc: "logging must not import the root package or any other Fabrin package: it is a leaf that the root package imports (see CONTRIBUTING.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

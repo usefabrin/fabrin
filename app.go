@@ -4,115 +4,44 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/usefabrin/fabrin/config"
 )
+
+// Options configures an [App]. It is an ALIAS for [config.Options], not a
+// separate type, so a value from [config.Load] passes straight to [New] with no
+// mapping layer.
+//
+// The declaration lives in fabrin/config because the boundary rules forbid that
+// package from importing this one — settings must load from a CLI, a test, or a
+// migrate-only process without constructing an HTTP stack. Declaring Options here
+// would make the obvious signature, config.Load() (fabrin.Options, error), a rule
+// violation. Settings are a lower-level concern than the application, so the
+// dependency runs root → config and the alias keeps this spelling working.
+type Options = config.Options
 
 // Defaults applied by [New] when the corresponding [Options] field is zero.
+// Aliases of the config package's declarations, so there is one list rather than
+// two that can disagree.
 const (
-	// DefaultAddr is the listen address. FABRIN_ADDR overrides it; see
-	// fabrin/config.
-	DefaultAddr = ":8080"
+	// DefaultAddr is the listen address. FABRIN_ADDR overrides it.
+	DefaultAddr = config.DefaultAddr
 
-	// DefaultShutdownTimeout bounds how long Run waits for in-flight requests
-	// after a shutdown signal. Unbounded shutdown hangs a deploy; zero drops
-	// requests that were nearly done.
-	DefaultShutdownTimeout = 15 * time.Second
+	// DefaultShutdownTimeout bounds how long [App.Run] waits for in-flight
+	// requests after a shutdown signal.
+	DefaultShutdownTimeout = config.DefaultShutdownTimeout
 
-	// DefaultReadHeaderTimeout guards against a client that opens a connection
-	// and sends headers slowly, holding a goroutine indefinitely. Go's zero value
-	// for this is "no timeout", which is why it must be set explicitly.
-	DefaultReadHeaderTimeout = 10 * time.Second
+	// DefaultReadHeaderTimeout guards against a client that opens a connection and
+	// sends headers slowly, holding a goroutine indefinitely.
+	DefaultReadHeaderTimeout = config.DefaultReadHeaderTimeout
 )
-
-// Options configures an [App]. Every field has a working default, so
-// Options{} is valid.
-//
-// This is a plain struct rather than variadic functional options because it is
-// what a config loader produces, and an options-function API would force every
-// caller to translate. Fields may therefore only be ADDED, never removed or
-// retyped, without a breaking change.
-//
-// # Where this type will live
-//
-// Options is declared here for now, and will MOVE to fabrin/config in #7, with
-// this name kept as an alias (type Options = config.Options).
-//
-// The reason is a genuine conflict between two things this repo has committed to.
-// FR-CONFIG says the loader produces Options directly; the config-is-standalone
-// boundary rule forbids fabrin/config from importing the root package. Both cannot
-// hold while Options is declared here — config.Load() (fabrin.Options, error) is
-// exactly the signature the rule rejects, and it is also the obvious thing to
-// write, so it would have been written and then argued about.
-//
-// Settings are a lower-level concern than the application, so the type belongs in
-// config and the dependency runs root → config, which is already the allowed
-// direction. Aliasing keeps fabrin.Options working for every caller and keeps the
-// public surface unchanged — the same technique used for [Context].
-//
-// Rejected: giving config its own Settings struct that main maps onto Options.
-// That is two structs to keep in sync plus per-caller boilerplate, which is the
-// cost this type exists to avoid.
-type Options struct {
-	// Addr is the listen address. Empty means [DefaultAddr].
-	Addr string
-
-	// Modules selects which registered modules this process mounts. Empty means
-	// all of them. A name that matches no registered module is an error, not a
-	// silent no-op — see [ErrUnknownModule].
-	//
-	// This is the process-slicing mechanism: one binary, many deployment shapes.
-	//
-	// Note the asymmetry with [App.Modules]: this field is the SELECTION (what was
-	// asked for, possibly empty meaning "everything"), while App.Modules reports
-	// what actually got MOUNTED. They differ whenever a selection is in effect,
-	// which is precisely when you are debugging why a route 404s.
-	Modules []string
-
-	// Logger receives Fabrin's own lifecycle messages. Nil means slog.Default().
-	//
-	// A logger is passed in rather than read from a package-level global so that a
-	// library consumer can silence or redirect Fabrin without affecting anything
-	// else in their process.
-	Logger *slog.Logger
-
-	// ShutdownTimeout bounds graceful shutdown. Zero means
-	// [DefaultShutdownTimeout].
-	ShutdownTimeout time.Duration
-
-	// ReadHeaderTimeout bounds how long a client may take to send request
-	// headers. Zero means [DefaultReadHeaderTimeout].
-	ReadHeaderTimeout time.Duration
-
-	// TrustedProxies is passed to Gin. Nil means trust none, which is the safe
-	// default: Gin's own default trusts every proxy, so a spoofed
-	// X-Forwarded-For becomes the client IP.
-	TrustedProxies []string
-}
-
-// withDefaults returns a copy of o with zero fields replaced by their defaults.
-func (o Options) withDefaults() Options {
-	if o.Addr == "" {
-		o.Addr = DefaultAddr
-	}
-	if o.Logger == nil {
-		o.Logger = slog.Default()
-	}
-	if o.ShutdownTimeout == 0 {
-		o.ShutdownTimeout = DefaultShutdownTimeout
-	}
-	if o.ReadHeaderTimeout == 0 {
-		o.ReadHeaderTimeout = DefaultReadHeaderTimeout
-	}
-	return o
-}
 
 // App is a Fabrin application: a set of mounted modules, an HTTP server, and the
 // lifecycle that ties them together.
@@ -140,7 +69,7 @@ type App struct {
 // discovery is now — at first request, or worse, in production, the same mistake
 // presents as a mysterious 404.
 func New(opts Options, modules ...Module) (*App, error) {
-	opts = opts.withDefaults()
+	opts = opts.WithDefaults()
 
 	reg, err := newRegistry(modules, opts.Modules)
 	if err != nil {
