@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.go text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+justfile text eol=lf
+
+# Generated — collapse in diffs and exclude from language stats. It is still
+# reviewed: a change here means the public API moved.
+api/fabrin.txt linguist-generated=true
+go.sum -diff
