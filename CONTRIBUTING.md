@@ -59,6 +59,7 @@ prevents.** A check whose purpose nobody remembers is the first one deleted.
 | Script | Prevents |
 |--------|----------|
 | `scripts/gates/check-depguard-coverage.sh` | A new public package landing with nobody having decided whether it needs boundary rules |
+| `scripts/install-hooks.sh` | A pre-commit hook that reports installed and enforces nothing |
 | `scripts/gates/check-agent-docs.sh` | Rules accumulating in `CLAUDE.md`, giving Fabrin two working agreements that disagree |
 | `scripts/gates/check-examples.sh` | An example quietly ceasing to be a runnable program |
 | `scripts/gates/run-all.sh` | A gate script that exists but is not listed, and so never runs |
@@ -89,6 +90,18 @@ confirm the gate **fails**, then revert. A rule that matches nothing is
 indistinguishable from a rule that passes. Prefix-matched deny lists in
 particular fail open when a new package lands — that is why
 `scripts/gates/check-depguard-coverage.sh` exists.
+
+**Pair every violation with a negative control.** A gate that fails is only half
+the evidence; you also need to know it fails for the *right reason*. `net/http`
+imported from `config/` must fail **and** the same import in `health/` must pass —
+otherwise a rule that rejects everything looks exactly like a correct one.
+
+This is not hypothetical. The coverage gate shipped in #13 asked "is this package
+mentioned in `.golangci.yml`?" with a substring grep, and `orm` matches
+`formatters:`. It was verified with a name genuinely absent from the file, so the
+test passed and the fail-open hid behind it (#14). The structured
+`# boundary:` marker replaced it, and the regression test is the case the original
+suite could not have caught: a package in the manifest with nothing recorded.
 
 ## Boundary rules (enforced by depguard, `.golangci.yml`)
 
@@ -126,9 +139,12 @@ step** of every change, after implementation and tests.
    with `status: planned`.
 3. Write the failing test.
 4. Implement.
-5. If it is a new **public** package, add its depguard entry — `just gates` tells
-   you exactly which entry is missing, because the hand-enumeration in
-   `.golangci.yml` would otherwise fail open.
+5. If it is a new **public** package, add it to
+   `scripts/gates/public-packages.txt` **and** add a
+   `# boundary: <name> — <decision>` line to the inventory in `.golangci.yml`.
+   "No rules needed" is a valid decision; it just has to be written down, so that
+   *considered* and *forgotten* stay distinguishable. `just gates` names the
+   missing entry, because the hand-enumeration would otherwise fail open.
 6. If it is a new **module**, remember hard rule 3: declare the interfaces you
    need in your own package. Never import another module.
 7. Flip the spec entry to `status: implemented`; run `just ci`.

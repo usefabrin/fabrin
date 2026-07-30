@@ -19,21 +19,30 @@ linters:
   settings:
     depguard:
       # ── Public package inventory ──────────────────────────────────────────
-      # Every package in scripts/gates/public-packages.txt must be mentioned
-      # somewhere in this file, and check-depguard-coverage.sh enforces that.
-      # The point is to force a recorded decision per package rather than a
-      # silent omission, because depguard's `files:` and `pkg:` entries are
-      # PREFIX matches, not globs — there is no way to write "every root-level
-      # package", so the rules below are a hand-written enumeration, and a
-      # hand-written enumeration fails open.
+      # Every package in scripts/gates/public-packages.txt needs one
+      # `# boundary: <name> — <decision>` line below, and
+      # check-depguard-coverage.sh enforces that.
       #
-      #   root package (github.com/usefabrin/fabrin)
-      #       No deny rules. It is the one place Gin belongs: fabrin.Context is a
-      #       type alias for gin.Context, so the router surface lives here by
-      #       definition. Its discipline is enforced on the exported surface by
-      #       apicheck, not by import restrictions.
+      # Why an inventory at all: depguard's `files:` and `pkg:` entries are PREFIX
+      # matches, not globs. "Every root-level package" is inexpressible, so the
+      # rules below are a hand-written enumeration, and a hand-written enumeration
+      # fails open — the package nobody remembered stays unguarded while lint
+      # reports green over a subset of the tree.
       #
-      # Packages land as the F0 epic progresses; each arrives with its rule.
+      # Why the rigid `# boundary:` prefix: the check used to grep for the bare
+      # package name "mentioned anywhere in this file", which fails open on a
+      # substring (`orm` matches `formatters:` below). A marker prose cannot
+      # satisfy is the whole point. See #14.
+      #
+      # Entries. A decision of "no rules" is a valid decision — it just has to be
+      # written down, so that considered and forgotten stay distinguishable.
+      #
+      # boundary: root — no deny rules. This is the one place Gin belongs:
+      #     fabrin.Context is a type alias for gin.Context, so the router surface
+      #     lives here by definition. The root package's discipline is enforced on
+      #     its exported surface by apicheck, not by import restrictions.
+      #
+      # Packages land as the F0 epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
         # Settings must load without a server. The CLI parses them, tests build

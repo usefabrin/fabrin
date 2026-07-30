@@ -14,10 +14,17 @@
 #
 #   1. A public package exists on disk but is missing from the manifest.
 #   2. The manifest lists a package that no longer exists.
-#   3. A manifest entry is not mentioned anywhere in .golangci.yml — the rules
-#      file must record the decision, even when the decision is "no rules needed",
-#      because "we thought about it and it's fine" and "we forgot" are otherwise
-#      indistinguishable six months later.
+#   3. A manifest entry has no `# boundary: <name> — <decision>` line in
+#      .golangci.yml. The rules file must record the decision even when the
+#      decision is "no rules needed", because "we thought about it and it's fine"
+#      and "we forgot" are otherwise indistinguishable six months later.
+#
+#      Check 3 originally grepped for the bare package name "mentioned anywhere"
+#      in the config. That fails open on a substring: `orm` matches `formatters:`,
+#      so fabrin/orm would have landed with no rule recorded, in the very gate
+#      written to prevent unguarded packages. The structured marker below cannot
+#      be satisfied by prose, and the name must be followed by a terminator so
+#      `config` does not match a hypothetical `configx`.
 #
 set -euo pipefail
 
@@ -81,19 +88,20 @@ for l in ${listed[@]+"${listed[@]}"}; do
   fi
 done
 
-# 3. Mentioned in the rules file.
+# 3. Has a recorded boundary decision in the rules file.
+#
+# The marker is `# boundary: <name> — <decision>`. The root package is "." on disk
+# and `root` in the inventory, since "." reads as nothing in a comment.
 for l in ${listed[@]+"${listed[@]}"}; do
-  # The root package is named "." on disk; .golangci.yml refers to it by module
-  # path or as "root", so accept either spelling.
-  if [[ "$l" == "." ]]; then
-    grep -qE 'root package|github\.com/usefabrin/fabrin"' "$config" && continue
-    echo "✗ depguard-coverage: $config never mentions the root package" >&2
-    status=1
-    continue
-  fi
-  if ! grep -q "$l" "$config"; then
-    echo "✗ depguard-coverage: $config never mentions '$l'" >&2
-    echo "    Add a rule for it, or a comment recording why it needs none." >&2
+  marker="$l"
+  [[ "$l" == "." ]] && marker="root"
+
+  # Anchor the name and require a terminator, so `config` cannot be satisfied by
+  # `configx` and no substring of unrelated prose can satisfy anything.
+  if ! grep -qE "^[[:space:]]*#[[:space:]]*boundary:[[:space:]]+${marker}([[:space:]]|$)" "$config"; then
+    echo "✗ depguard-coverage: $config has no boundary decision for '$l'" >&2
+    echo "    Add a line to the inventory:" >&2
+    echo "        # boundary: $marker — <the rule, or why none is needed>" >&2
     status=1
   fi
 done
