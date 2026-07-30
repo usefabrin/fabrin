@@ -1,0 +1,102 @@
+name: CI
+
+# Guards main and every PR targeting it.
+#
+# The one rule for this file: it must NOT re-implement the gates. The `quality`
+# job runs `just ci` and nothing else. Contributors run `just check` locally, `ci`
+# is an alias for `check`, and so a green local check means a green CI — there is
+# no second list of steps to keep in sync, and no way for the two to drift.
+#
+# Only two things run outside `just ci`, and only because each needs a git range a
+# bare recipe cannot supply or a schedule a gate should not have:
+#   docs-guard  needs the PR's base..head range
+#   bench       runs on main only; benchmark numbers from a shared CI runner are
+#               too noisy to gate a PR on, but the trend over main is worth having
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GOFLAGS: -mod=mod
+
+jobs:
+  quality:
+    name: Gates · Lint · Test · Arch · API · Examples · Specs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the version in go.mod. A library should build on the oldest
+      # toolchain it claims to support, so this deliberately is not "stable".
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Pinned for the same reason golangci-lint is: an unpinned command runner can
+      # change recipe semantics with no commit to this repo.
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: '1.57.0'
+
+      # golangci-lint's version lives in the justfile, so local and CI run the
+      # same ruleset. This is the single install path.
+      - name: Install pinned tools
+        run: just tools
+
+      - name: just ci
+        run: just ci
+
+  docs-guard:
+    name: Docs freshness
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 because the check diffs base..head, and a shallow clone
+      # does not contain the base commit — the script would fail on a missing
+      # object rather than on a missing doc update.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Governed-surface changes carry their docs
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            bash scripts/check-docs-freshness.sh "$BASE" "$HEAD"
+          else
+            bash scripts/check-docs-freshness.sh
+          fi
+
+  bench:
+    name: Benchmarks (framework overhead vs raw Gin)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: '1.57.0'
+
+      # Informational, never a gate. Shared runners vary enough between jobs that
+      # a threshold here would fail on neighbours' noise; perf/BASELINE.md is
+      # where a real regression gets recorded and argued about.
+      - name: just bench
+        run: just bench

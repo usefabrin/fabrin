@@ -1,0 +1,16 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/usefabrin/fabrin/discussions
+    about: |
+      For "how do I…", "is this the intended way", or an idea not yet shaped into a
+      proposal. The most useful thing you can bring right now is which Django
+      convenience you miss most in Go, and why the obvious Go answer is not enough.
+
+  - name: Working agreement (contributors and AI agents)
+    url: https://github.com/usefabrin/fabrin/blob/main/AGENTS.md
+    about: How work happens here — hard rules, the one gate command, and where things live.
+
+  - name: Security
+    url: https://github.com/usefabrin/fabrin/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue for one.
