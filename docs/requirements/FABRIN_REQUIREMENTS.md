@@ -16,19 +16,19 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-CORE-1 | An application is composed from a set of modules passed to `fabrin.New`. A module supplies a name and mounts routes; everything else is optional. | planned |
-| FR-CORE-2 | Registering two modules with the same name is an error at construction, not at first request. | planned |
-| FR-CORE-3 | `App.Run` serves until its context is cancelled or the process receives SIGINT/SIGTERM, then shuts down gracefully within a bounded window. | planned |
-| FR-CORE-4 | A module may declare owned resources via `Lifecycle`. `Start` runs in registration order; `Stop` runs in **reverse** registration order, so a module can rely on its dependencies still being alive while it shuts down. | planned |
+| FR-CORE-1 | An application is composed from a set of modules passed to `fabrin.New`. A module supplies a name and mounts routes; everything else is optional. | done |
+| FR-CORE-2 | Registering two modules with the same name is an error at construction, not at first request. | done |
+| FR-CORE-3 | `App.Run` serves until its context is cancelled or the process receives SIGINT/SIGTERM, then shuts down gracefully within a bounded window. | done |
+| FR-CORE-4 | A module may declare owned resources via `Lifecycle`. `Start` runs in registration order; `Stop` runs in **reverse** registration order, so a module can rely on its dependencies still being alive while it shuts down. | done |
 | FR-CORE-5 | A module may declare health checks via `Checker`. The app aggregates them. | planned |
-| FR-CORE-6 | Optional module interfaces are discovered by type assertion at registration, and the registry reports which ones each module matched — a mistyped method name otherwise fails silently. | planned |
+| FR-CORE-6 | Optional module interfaces are discovered by type assertion at registration, and the registry reports which ones each module matched — a mistyped method name otherwise fails silently. | done |
 
 ## FR-MODULES — composition and deployment shapes
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-MODULES-1 | `FABRIN_MODULES` selects which registered modules the process mounts. Unset means all of them. | planned |
-| FR-MODULES-2 | A name in `FABRIN_MODULES` that matches no registered module is a startup **error**. A typo that silently serves nothing is worse than a crash, because the process looks healthy. | planned |
+| FR-MODULES-1 | `Options.Modules` selects which registered modules the process mounts; empty means all of them. `fabrin/config` populates it from `FABRIN_MODULES`. | done (core) |
+| FR-MODULES-2 | A selected name matching no registered module is a startup **error**, and the error lists what *is* registered. A typo that silently serves nothing is worse than a crash, because the process passes its liveness probe while doing no work. | done |
 | FR-MODULES-3 | A module declares its dependencies as interfaces in its own package and receives them as arguments. Fabrin provides no service locator or global registry to fetch another module from. | planned |
 
 ## FR-CONFIG — settings
@@ -99,7 +99,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| NFR-1 | Framework overhead over raw Gin is measured, recorded in `perf/BASELINE.md`, and re-measured on every push to `main`. A "fast framework" claim with no number behind it is marketing. | planned |
+| NFR-1 | Framework overhead over raw Gin is measured, recorded in `perf/BASELINE.md`, and re-measured on every push to `main`. A "fast framework" claim with no number behind it is marketing. | done |
 | NFR-2 | Fabrin builds on the Go version declared in `go.mod`, not merely the newest release. | done |
 | NFR-3 | Dev tooling dependencies never enter the framework's `go.mod`. | done |
 | NFR-4 | Every battery sits behind an interface a user can replace. Defaults exist so you need not choose, not so you cannot. | planned |
@@ -112,7 +112,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 |---|---|---|
 | INV-1 | Gin is the only third-party package permitted in an exported signature. Enforced by `apicheck`'s allowlist; a second entry requires an ADR. | planned |
 | INV-2 | The exported surface changes only deliberately: `api/fabrin.txt` is regenerated in the same commit and `CHANGELOG.md` records it. | planned |
-| INV-3 | No module imports another module. | planned |
+| INV-3 | No module imports another module. Nothing mechanical enforces this yet; `examples/hello` will demonstrate the ports-not-imports pattern, and review carries it until then. | planned |
 | INV-4 | `CLAUDE.md` contains no rules — only the `@AGENTS.md` import. Two working agreements that disagree is worse than one that is incomplete. | done |
 | INV-5 | Every public package has a recorded boundary decision in `.golangci.yml`. | done |
 | INV-6 | Every gate has been proven to fail on an injected violation **and** to pass its negative control. | done |

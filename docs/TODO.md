@@ -29,9 +29,9 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 - [x] Issue forms (feature/bug/epic) + PR template.
 - [x] `ARCHITECTURE.md`, this roadmap, `DJANGO_PARITY.md`, coding guidelines,
       requirements, `specs/`, `CHANGELOG.md`.
-- [ ] `fabrin.App`, module registry, router, graceful shutdown, reverse-order
+- [x] `fabrin.App`, module registry, router, graceful shutdown, reverse-order
       `Stop`. (FR-CORE-1…6, CORE-001…004)
-- [ ] Process slicing via `FABRIN_MODULES`, unknown name is an error.
+- [x] Process slicing via `Options.Modules`, unknown name is an error.
       (FR-MODULES-1,2, MOD-001,002)
 - [ ] `fabrin/config` — layered settings with provenance. (FR-CONFIG-1…5, CFG-001…004)
 - [ ] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed.
@@ -42,7 +42,8 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 - [ ] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate.
       (INV-1,2, API-001…003, NFR-3)
 - [ ] Agent charters in `.claude/agents/` and repo skills.
-- [ ] `perf/BASELINE.md` filled with real numbers vs raw Gin. (NFR-1)
+- [x] `perf/BASELINE.md` filled with real numbers vs raw Gin — **zero extra
+      allocations per request.** (NFR-1)
 
 ## F1 — The `fabrin` CLI
 

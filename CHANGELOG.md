@@ -55,8 +55,42 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 
 ### Public API
 
-No exported symbols yet beyond the package documentation. `api/fabrin.txt` and its
-gate land with the core.
+First exported surface. `api/fabrin.txt` and its gate land with #10; until then
+this section is the record.
+
+Added to package `fabrin`:
+
+- `App`, `New(Options, ...Module) (*App, error)`, `Options`, `Module`, `Lifecycle`,
+  `Router`.
+- `App` methods: `Run`, `Start`, `Stop`, `Handler`, `Engine`, `Addr`, `Modules`,
+  `Capabilities`, `Options`.
+- **Gin aliases** — `Context = gin.Context`, `HandlerFunc = gin.HandlerFunc`,
+  `H = gin.H`. Aliases, not wrappers: a `*fabrin.Context` and a `*gin.Context` are
+  the same type, so every Gin middleware works unmodified. This is what puts Gin's
+  v1 API inside Fabrin's semver contract, deliberately.
+- Sentinels: `ErrDuplicateModule`, `ErrUnknownModule`, `ErrNoModules`,
+  `ErrAlreadyRunning`. Exported so callers branch with `errors.Is` rather than
+  matching message text.
+- Defaults: `DefaultAddr`, `DefaultShutdownTimeout`, `DefaultReadHeaderTimeout`.
+
+Two defaults differ from the underlying library's, both toward safety:
+
+- `TrustedProxies` defaults to **none**. Gin trusts every proxy by default, which
+  makes `ClientIP()` spoofable by any client sending `X-Forwarded-For`.
+- `ReadHeaderTimeout` defaults to 10s. Go's `http.Server` zero value is *no
+  timeout*, so a client can hold a goroutine open indefinitely by sending headers
+  slowly.
+
+`Options` is a plain struct rather than functional options because a config loader
+unmarshals into it directly. Consequence: its fields may be **added**, never
+removed or retyped, without a breaking change.
+
+### Performance
+
+Measured against raw `gin.Engine`: **zero extra allocations and zero extra bytes
+per request** (9 allocs/op, 1040 B/op for both). Fabrin's registry, per-module
+route group, and capability map all resolve at construction. See
+[`perf/BASELINE.md`](perf/BASELINE.md).
 
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
