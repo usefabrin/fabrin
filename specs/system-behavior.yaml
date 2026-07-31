@@ -62,7 +62,8 @@ behaviours:
     what: A module depends on another module's capability through an interface it declares itself, never by importing that module.
     why: The declared interface is the seam along which the module can move to another process. A direct import welds them together, invisibly, until someone tries to split them.
     requirement: FR-MODULES-3
-    status: planned
+    status: implemented
+    test: examples/hello/hello_test.go::TestModules_NeverImportEachOther
 
   # ── Config ──────────────────────────────────────────────────────────────────
   - id: CFG-001

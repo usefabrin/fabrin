@@ -39,8 +39,25 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 - `ARCHITECTURE.md`, roadmap, Django parity table, coding guidelines, numbered
   requirements, and `specs/` with a validating gate.
 
+- `examples/hello` — two modules, ports rather than imports, and process slicing,
+  each covered by an executable test rather than by prose. ([#9])
+
+  `greet` needs the current time and never imports the module that owns it: it
+  declares a one-method `Clock` interface and `main.go` passes in whatever
+  satisfies it. `TestModules_NeverImportEachOther` reads the **import graph**
+  rather than behaviour, which is the only way to prove that negative — it
+  catches even a blank import, which compiles cleanly and which no behavioural
+  test could distinguish from correct code.
+
 ### Fixed
 
+- **The examples smoke gate bound and polled different addresses.** It started
+  each example on `:$port` (wildcard) and polled `127.0.0.1:$port`. A wildcard
+  bind normally accepts loopback, so it usually worked — but if anything on the
+  machine already held that loopback address, `curl` reached *that* server and
+  the gate reported on a process it did not start. Seen for real on `:8080`
+  against an unrelated local app. Now binds loopback explicitly, which also stops
+  CI examples being briefly reachable off-box. ([#9])
 - **`FABRIN_LOG_FORMAT` and `FABRIN_LOG_LEVEL` were inert.** Both resolved from
   the environment and validated, and then `Options.WithDefaults` overwrote
   `Logger` with `slog.Default()` — so neither ever reached a handler. Same defect
@@ -231,6 +248,7 @@ Added — package `fabrin`:
   half of it that survives is stated above and is now the tracked invariant.
 
 [#8]: https://github.com/usefabrin/fabrin/issues/8
+[#9]: https://github.com/usefabrin/fabrin/issues/9
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

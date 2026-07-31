@@ -29,7 +29,7 @@ the Gin aliases proving identical in both directions.
 |----|-----------|------|
 | MOD-001 | `FABRIN_MODULES` mounts only named modules | `module_test.go::TestNew_MountsOnlySelectedModules` |
 | MOD-002 | Unknown module name is a startup error | `module_test.go::TestNew_RejectsSelectionNamingUnregisteredModule` |
-| MOD-003 | Cross-module dependency is a locally declared interface | _planned — demonstrated by `examples/hello`_ |
+| MOD-003 | Cross-module dependency is a locally declared interface | `examples/hello/hello_test.go::TestModules_NeverImportEachOther` |
 
 ## Config
 
