@@ -43,7 +43,9 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
       test rather than by prose. (FR-MODULES-3, MOD-003)
 - [x] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate — snapshot
       drift *and* unblessed types in a signature. (INV-1,2, API-001…003, NFR-3)
-- [ ] Agent charters in `.claude/agents/` and repo skills.
+- [x] Agent charters in `.claude/agents/` and repo skills — six charters, each
+      with a hand-back condition, plus `new-module` and `issue-to-pr`. The
+      `release` skill is deferred until there is a release policy to document.
 - [x] `perf/BASELINE.md` filled with real numbers vs raw Gin — **Fabrin's own
       abstractions add zero allocations**; the default observability stack adds
       13, itemised and justified there. (NFR-1)
