@@ -164,7 +164,7 @@ func New(clock Clock) *Blog { return &Blog{clock: clock} }
 ```go
 // main.go — the only place that knows both sides exist
 clock := systemClock{}
-app := fabrin.New(cfg, blog.New(clock), reports.New(clock))
+app, err := fabrin.New(cfg, blog.New(clock), reports.New(clock))
 ```
 
 That interface is the **extraction seam**. Nothing in `blog` changes when its

@@ -41,20 +41,35 @@ package main
 
 import (
     "context"
+    "log"
+    "os"
 
     "github.com/usefabrin/fabrin"
     "github.com/usefabrin/fabrin/config"
 )
 
 func main() {
-    cfg := config.MustLoad()
+    // Sources are explicit — nothing reads the environment behind your back.
+    // Later layers win: file ← env ← flags.
+    cfg := config.MustLoad(
+        config.FromFile(".env"),
+        config.FromEnv(nil),
+        config.FromFlags(os.Args[1:]),
+    )
 
-    app := fabrin.New(cfg,
+    app, err := fabrin.New(cfg,
         blog.New(),
         auth.New(),
     )
+    if err != nil {
+        log.Fatal(err) // a duplicate module name, or a selection naming nothing
+    }
 
-    app.Run(context.Background()) // graceful shutdown on SIGINT/SIGTERM
+    // Serves your modules' routes plus /healthz and /readyz, logs every request
+    // with an id, and shuts down gracefully on SIGINT/SIGTERM.
+    if err := app.Run(context.Background()); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
