@@ -143,6 +143,41 @@ func TestGenerate_RefusesANonEmptyDirectory(t *testing.T) {
 	}
 }
 
+func TestGenerate_RefusesAParentDirectoryThatDoesNotExist(t *testing.T) {
+	t.Parallel()
+
+	// `-dir` is most often a typo of a path that exists (`-dir ~/projcts`), and
+	// os.MkdirAll would happily materialise the whole chain. Nothing fails, so
+	// nobody looks — the user just has a project somewhere they did not mean.
+	//
+	// The project directory itself must still be creatable; it is the PARENT the
+	// user is naming rather than asking for.
+	root := t.TempDir()
+	missing := filepath.Join(root, "typo", "nested", "demo")
+
+	err := scaffold.Project{Name: "demo", Dir: missing}.Generate()
+	if err == nil {
+		t.Fatal("a parent directory that does not exist must be an error")
+	}
+	if !strings.Contains(err.Error(), "nested") {
+		t.Errorf("the error must name the missing directory, got: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, "typo")); !os.IsNotExist(statErr) {
+		t.Error("nothing should have been created under a rejected parent")
+	}
+}
+
+func TestGenerate_CreatesTheProjectDirectoryItself(t *testing.T) {
+	t.Parallel()
+
+	// The other half of the rule above: `fabrin new demo` must create demo/, and
+	// a relative Dir has "." as its parent, which always exists.
+	root := t.TempDir()
+	if err := (scaffold.Project{Name: "demo", Dir: filepath.Join(root, "demo")}).Generate(); err != nil {
+		t.Errorf("the project directory itself must be creatable: %v", err)
+	}
+}
+
 func TestGenerate_AcceptsAnEmptyExistingDirectory(t *testing.T) {
 	t.Parallel()
 

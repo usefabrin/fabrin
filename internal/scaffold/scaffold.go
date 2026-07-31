@@ -158,7 +158,21 @@ func validModule(module string) error {
 //
 // Anything else is refused by name. Overwriting someone's work is not something a
 // CLI can offer to undo.
+//
+// Its PARENT is held to a stricter rule: it must already exist. The project
+// directory is something the user is asking to be created; the path above it is
+// something they are naming, and -dir is most often a typo of a path that does
+// exist. Letting os.MkdirAll build the chain means nothing fails, so nobody
+// looks, and the project ends up somewhere nobody meant.
 func emptyOrAbsent(dir string) error {
+	if parent := filepath.Dir(dir); parent != dir {
+		if _, err := os.Stat(parent); os.IsNotExist(err) {
+			return fmt.Errorf("fabrin: %s does not exist — create it first, or check the -dir path", parent)
+		} else if err != nil {
+			return fmt.Errorf("fabrin: %s: %w", parent, err)
+		}
+	}
+
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil
