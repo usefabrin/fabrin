@@ -110,7 +110,8 @@ to bless anything else: **no other third-party type may appear in an exported
 signature.** `apicheck`'s allowlist is the single, reviewable record of what
 Fabrin has committed to, and `github.com/gin-gonic/gin` is its only entry.
 Adding a second entry is an architectural decision that needs an ADR, not a
-line edit.
+line edit. The reasoning behind this rule, and the four alternatives that lost
+to it, are in [ADR 0001](docs/adr/0001-gin-as-a-type-alias.md).
 
 Note what this rule does *not* say: it does not restrict which packages may
 *import* Gin. `health`'s handlers and `logging`'s middleware are
@@ -318,7 +319,8 @@ rows, then the package) and `issue-to-pr` (the working agreement as a sequence).
 - Engineering / style standards: `docs/coding-guidelines.md`
 - Architecture detail: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Contribution flow: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Consequential decisions: `docs/adr/`
+- Consequential decisions: [docs/adr/](docs/adr/README.md) — what was decided,
+  and what was rejected
 - Public API snapshot: `api/fabrin.txt`
 - Specialised agents: `.claude/agents/` — charters, not rules. Rules live here.
 - Repeatable procedures: `.claude/skills/`

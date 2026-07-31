@@ -113,6 +113,10 @@ package permitted in an exported signature, and
 [`apicheck`](#the-api-surface-gate)'s allowlist is the single reviewable record
 of that. A second entry needs an ADR.
 
+The decision, and the four alternatives it beat — a wrapper struct, a narrow
+interface, Fabrin's own router, and an import-level restriction — is recorded in
+[ADR 0001](docs/adr/0001-gin-as-a-type-alias.md).
+
 ### Why containment is not an import rule
 
 An early draft restricted which *packages* may import Gin — "only the root

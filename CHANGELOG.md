@@ -77,6 +77,22 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`docs/adr/`** — the directory `AGENTS.md` had been routing decisions to in
+  three places without it existing, plus [ADR 0001](docs/adr/0001-gin-as-a-type-alias.md)
+  recording Gin-as-a-type-alias retroactively. ([#28])
+
+  The decision was already stated in `AGENTS.md`, `ARCHITECTURE.md`,
+  `CONTRIBUTING.md`, and `router.go`; what none of them held is the **four
+  alternatives that lost** — a wrapper struct, a narrow interface, Fabrin's own
+  router, and the import-level restriction that got drafted before it turned out
+  to make `health` and `logging` unwritable. That last one is why `apicheck`
+  exists at all, and it lived nowhere until now.
+
+  `docs/adr/README.md` states the format and, more usefully, what an ADR is
+  **not**: not a changelog, not documentation, and not a retrospective ritual. A
+  directory of ADRs nobody needed teaches people to skip the ones that matter, so
+  backfilling one per past decision is explicitly out of scope.
+
 - **Six agent charters in `.claude/agents/`, plus the `new-module` and
   `issue-to-pr` skills.** ([#11])
 
@@ -302,6 +318,7 @@ Added — package `fabrin`:
 [#9]: https://github.com/usefabrin/fabrin/issues/9
 [#10]: https://github.com/usefabrin/fabrin/issues/10
 [#11]: https://github.com/usefabrin/fabrin/issues/11
+[#28]: https://github.com/usefabrin/fabrin/issues/28
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

@@ -156,10 +156,15 @@ step** of every change, after implementation and tests.
 ## Consequential decisions
 
 Choices that are expensive to reverse — blessing another dependency in the public
-API, adding a v0 non-goal, changing the data layer — go in `docs/adr/` as a dated
-record of the decision and its alternatives. Do not open an ADR for a routine
-change; do open one before anything a future contributor would otherwise
-reasonably undo.
+API, adding a v0 non-goal, changing the data layer — go in
+[`docs/adr/`](docs/adr/README.md) as a dated record of the decision and its
+alternatives. Do not open an ADR for a routine change; do open one before
+anything a future contributor would otherwise reasonably undo.
+
+The **alternatives** section is what makes the file worth keeping. `CHANGELOG.md`
+already records what changed and why; only the ADR records what was rejected, and
+that is the part a future contributor needs before undoing something.
+[ADR 0001](docs/adr/0001-gin-as-a-type-alias.md) is the worked example.
 
 ## Issues first
 
