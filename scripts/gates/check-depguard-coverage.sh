@@ -39,7 +39,14 @@ config=".golangci.yml"
 # Public = the root package plus any root-level directory holding a .go file that
 # users can import. internal/ is unimportable by language rule; the rest are not
 # library surface.
-not_public='^(internal|tools|examples|scripts|docs|specs|perf|api|web|\..*)$'
+#
+# cmd/ holds `package main` binaries. Nothing can import one, so it contributes
+# nothing to api/fabrin.txt and has no boundary to record. It is listed here as a
+# DECISION rather than left to chance: today cmd/ holds no .go files directly —
+# they live in cmd/fabrin/ — so the compgen test below skips it by accident. That
+# accident ends the day someone adds a file one level up, which is exactly the
+# fail-open shape this whole gate exists to prevent.
+not_public='^(internal|tools|examples|scripts|docs|specs|perf|api|web|cmd|\..*)$'
 
 discovered=()
 if compgen -G "*.go" >/dev/null; then

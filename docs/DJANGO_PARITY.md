@@ -18,7 +18,7 @@ Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ 
 |---|---|---|
 | `INSTALLED_APPS` | `fabrin.Module` — a name plus routes; everything else optional | ✅ F0 |
 | `settings.py` | `fabrin/config` — defaults ← file ← env ← flags, each value reporting its source | ✅ F0 |
-| `django-admin startproject` | `fabrin new` | 📋 F1 |
+| `django-admin startproject` | `fabrin new` — go.mod, main, one module, justfile, README; `go mod tidy` run for you | ✅ F1 |
 | `django-admin startapp` | `fabrin startapp` | 📋 F1 |
 | `manage.py runserver` | `./myapp serve` — or no arguments at all — with graceful shutdown | ✅ F1 |
 | `show_urls` (django-extensions) | `./myapp routes` — every mounted route with the module that owns it | ✅ F1 |

@@ -1,0 +1,26 @@
+# {{ .Name }} — run `just` for the list.
+
+default:
+    @just --list
+
+# Serve on FABRIN_ADDR (default :8080)
+run:
+    go run .
+
+# Every mounted route, with the module that owns it
+routes:
+    go run . routes
+
+build:
+    go build -o bin/{{ .Name }} .
+
+test:
+    go test ./...
+
+# Style and vet
+lint:
+    gofmt -l .
+    go vet ./...
+
+# Everything, before you commit
+check: lint test build

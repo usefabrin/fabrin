@@ -32,6 +32,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -109,7 +110,8 @@ func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string)
 		cmd.Flags(fs)
 	}
 
-	if err := fs.Parse(args[1:]); err != nil {
+	positional, err := parseInterspersed(fs, args[1:])
+	if err != nil {
 		// `cmd -h` asks this command for its flags. Same reasoning as above: a
 		// help request is not a failure.
 		if errors.Is(err, flag.ErrHelp) {
@@ -118,7 +120,44 @@ func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string)
 		return fmt.Errorf("fabrin: %s: %w", name, err)
 	}
 
-	return cmd.Run(ctx, out, fs.Args())
+	return cmd.Run(ctx, out, positional)
+}
+
+// parseInterspersed parses flags that appear before, between, or after the
+// positional arguments, and returns the positionals in order.
+//
+// Go's flag package stops at the first non-flag argument, and that is right for
+// a program's own arguments — `go run x.go -v` must hand `-v` to the program
+// rather than to `go`. It is wrong for a subcommand, where the name has already
+// been consumed and everything left belongs to that command. Without this,
+// `fabrin new demo -module example.com/demo` silently treats the module path as
+// a second project name, which is the sort of paper cut that makes a CLI feel
+// hostile.
+//
+// Everything after a bare "--" is positional by definition and is never
+// re-parsed: `mycmd -- -weird` must pass `-weird` through, not fail on it.
+func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
+	var terminated []string
+	if i := slices.Index(args, "--"); i >= 0 {
+		terminated = args[i+1:]
+		args = args[:i]
+	}
+
+	var positional []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		// One positional, then keep parsing: the next element may be a flag again.
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+
+	return append(positional, terminated...), nil
 }
 
 func isHelp(arg string) bool {

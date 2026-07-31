@@ -96,12 +96,15 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-006 | Gin's debug output silenced unless `Debug`; `GIN_MODE` wins | `execute_test.go::TestNew_SilencesGinsDebugOutputUnlessDebugIsSet` |
 | CLI-007 | `Commander` commands collected from *mounted* modules only | `commander_test.go::TestNew_CollectsCommandsFromMountedModulesOnly` |
 | CLI-008 | A colliding command name fails at construction, naming both | `commander_test.go::TestNew_RejectsAModuleCommandThatShadowsABuiltIn` |
+| CLI-009 | Flags parsed wherever they appear; `--` passes the rest through | `cli/cli_test.go::TestDispatch_ParsesFlagsWhereverTheyAppear` |
+| CLI-010 | `fabrin new` writes a project that builds, tests, and boots | `internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds` |
 
 CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command
 type to be Fabrin's own, and forces the package to stand alone from `App`.
-CLI-004/005 cite FR-CLI-3; CLI-006 cites NFR-7; CLI-007/008 cite FR-CLI-4 again,
-this time as the thing itself rather than as the reason the package exists.
+CLI-004/005 cite FR-CLI-3; CLI-006 cites NFR-7; CLI-007/008/009 cite FR-CLI-4
+again, this time as the thing itself rather than as the reason the package
+exists; CLI-010 cites FR-CLI-1.
 
 CLI-006 is here rather than under Config because the CLI is where it bites: Gin's
 construction-time banner and route table land on **stdout**, four lines above the

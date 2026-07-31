@@ -58,7 +58,9 @@ a project shape to generate, and F0 defines that shape.
 - [x] `fabrin/cli` — `Command` and `Dispatch` over stdlib `flag`. A leaf: the root
       package imports it to declare `Commander`, so it can never take an `*App`.
       (CLI-001…003)
-- [ ] `fabrin new <name>` — runnable project scaffold. (FR-CLI-1)
+- [x] `fabrin new <name>` — runnable project scaffold that builds, tests, and
+      boots. Templates live in `internal/scaffold`, so none of them is a public
+      promise. (FR-CLI-1, CLI-010)
 - [ ] `fabrin startapp <name>` — module scaffold, wired in. (FR-CLI-2)
 - [x] `./myapp routes` — mounted routes with owning module. Answered by the app's
       own binary, because Go compiles and no separate tool can introspect an
