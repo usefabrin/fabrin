@@ -77,6 +77,28 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **Six agent charters in `.claude/agents/`, plus the `new-module` and
+  `issue-to-pr` skills.** ([#11])
+
+  Charters, not rules: rules stay in `AGENTS.md`, where every agent and every
+  human sees them. Each file states its charter, its tools, and an explicit
+  **hand-back condition** — an agent with no stated stopping point drifts into
+  the next job, and that drift is invisible in the output.
+
+  Three of them overlap a gate deliberately, and each is written as *what the
+  gate cannot see*. `just docs-check` counts touched files and cannot read them,
+  which is how an undefined `[#8]` link reference and a superseded "zero extra
+  allocations" claim both survived it green. `just api-check` knows the surface
+  moved, not whether it should have. Hard rule 4 says prove a gate bites; the
+  half people skip is the negative control.
+
+  **No gate enforces the charter format, deliberately.** Every gate here checks a
+  machine-decidable property against a single source. A check that frontmatter
+  and a hand-back section *exist* would pass on a charter that says nothing, and
+  no injected violation could prove otherwise — which is precisely the "a rule
+  that silently matches nothing looks identical to a rule that passes" failure
+  hard rule 4 warns about.
+
 ### Fixed
 
 - **The examples smoke gate bound and polled different addresses.** It started
@@ -279,6 +301,7 @@ Added — package `fabrin`:
 [#8]: https://github.com/usefabrin/fabrin/issues/8
 [#9]: https://github.com/usefabrin/fabrin/issues/9
 [#10]: https://github.com/usefabrin/fabrin/issues/10
+[#11]: https://github.com/usefabrin/fabrin/issues/11
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

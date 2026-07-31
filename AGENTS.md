@@ -284,6 +284,32 @@ change. Refresh `docs/`, `specs/`, `ARCHITECTURE.md`, `docs/TODO.md`,
 stop at green tests. Governed-surface updates are mandatory; other doc drift
 should be fixed in the same change whenever you notice it.
 
+## Specialised agents and skills
+
+`.claude/agents/` holds **charters, not rules.** Rules live in this file, because
+a rule must be visible to every agent and every human; a charter says what one
+narrow job is for and when to stop doing it. Each file states its charter, its
+tools, and an explicit **hand-back condition** — the last of those is the part
+that matters, because an agent with no stated stopping point drifts into the next
+job and nobody notices.
+
+| Agent | For |
+|---|---|
+| `api-guardian` | Whether a public-surface change *should* ship — export-worthiness, naming, shapes that lock us in. Blocks on anything needing an ADR. |
+| `test-first` | The failing test, and only that. Hands back red. |
+| `django-parity` | "What problem does Django solve, and what is the idiomatic *Go* answer?" Owns `docs/DJANGO_PARITY.md`. |
+| `boundary-auditor` | Proving a gate bites — one injection per mechanism, plus the negative control. |
+| `docs-syncer` | The last step of every change, checking what `docs-check` cannot read. |
+| `perf-sentinel` | Measuring, and attributing a regression to a cause rather than to "the framework". |
+
+Three of these overlap a gate on purpose, and the charters say where the gate
+stops seeing. `just docs-check` counts touched files and cannot read them;
+`just api-check` knows the surface *moved* but not whether it should have; hard
+rule 4 says prove a gate bites, and the half people skip is the negative control.
+
+`.claude/skills/` holds procedures: `new-module` (port first, failing test, spec
+rows, then the package) and `issue-to-pr` (the working agreement as a sequence).
+
 ## Where things live
 
 - Roadmap / milestones: [docs/TODO.md](docs/TODO.md)
@@ -296,6 +322,7 @@ should be fixed in the same change whenever you notice it.
 - Consequential decisions: `docs/adr/`
 - Public API snapshot: `api/fabrin.txt`
 - Specialised agents: `.claude/agents/` — charters, not rules. Rules live here.
+- Repeatable procedures: `.claude/skills/`
 - Claude Code tool permissions: `.claude/settings.json` — **permissions only,
   never rules.** Anything that reads as a rule belongs in this file. The
   allowlist covers read-only and gate commands (`just check`, `go test`,
