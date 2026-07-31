@@ -50,6 +50,13 @@ pkg github.com/usefabrin/fabrin, var ErrDuplicateModule error
 pkg github.com/usefabrin/fabrin, var ErrNoModules error
 pkg github.com/usefabrin/fabrin, var ErrUnknownModule error
 
+pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string) error
+pkg github.com/usefabrin/fabrin/cli, type Command struct
+pkg github.com/usefabrin/fabrin/cli, type Command struct, Flags func(*flag.FlagSet)
+pkg github.com/usefabrin/fabrin/cli, type Command struct, Name string
+pkg github.com/usefabrin/fabrin/cli, type Command struct, Run func(ctx context.Context, args []string) error
+pkg github.com/usefabrin/fabrin/cli, type Command struct, Short string
+
 pkg github.com/usefabrin/fabrin/config, const DefaultAddr untyped string = ":8080"
 pkg github.com/usefabrin/fabrin/config, const DefaultLogFormat untyped string = "json"
 pkg github.com/usefabrin/fabrin/config, const DefaultLogLevel untyped string = "info"

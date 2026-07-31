@@ -83,3 +83,21 @@ is why it compares exactly rather than checking that particular lines appear.
 
 `tools/` is a separate Go module, so `go test ./...` from the root does not reach
 these tests. `just test`, `just cover`, and `just lint` each invoke it explicitly.
+
+## The command surface
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| CLI-001 | Unknown command is an error naming the closest match | `cli/cli_test.go::TestDispatch_RejectsUnknownCommandNamingTheClosestMatch` |
+| CLI-002 | Each command's flags are its own; nothing registered globally | `cli/cli_test.go::TestDispatch_ParsesFlagsIntoTheCommandsOwnSet` |
+| CLI-003 | `Dispatch` writes to no stream it does not own | `cli/cli_test.go::TestDispatch_WritesNothingToStderrOnAFlagParseError` |
+
+All three cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
+package at all — a module contributing a subcommand is what forces the command
+type to be Fabrin's own, and forces the package to stand alone from `App`.
+
+Also covered without a spec entry, each being a consequence of the three above
+rather than an independent claim: help requests succeed rather than fail,
+`Flags` being optional is not a nil dereference, a command with no `Run` is
+rejected, duplicate names are rejected regardless of which command was asked for,
+and the context reaches the command so a blocking command can be cancelled.

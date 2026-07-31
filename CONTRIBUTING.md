@@ -107,9 +107,17 @@ suite could not have caught: a package in the manifest with nothing recorded.
 
 - `fabrin/config` must not import Gin or `net/http`. Settings must load from the
   CLI, from tests, and from a migrate-only process without booting a server.
-- `fabrin/config` and `fabrin/logging` must not import the root package — this
-  prevents import cycles and keeps both usable standalone.
+- `fabrin/config`, `fabrin/logging`, `fabrin/health`, and `fabrin/cli` must not
+  import the root package **or each other**. The root package imports them, so
+  the root direction is a cycle the compiler already rejects; the rule exists for
+  the *sibling* import, which compiles cleanly and quietly makes a leaf depend on
+  half the framework.
 - `internal/**` must not import the root package.
+
+`fabrin/cli` is a leaf for a concrete reason: the root package imports it to
+declare `Commander` (`Commands() []cli.Command`), and a CLI that cannot print its
+own help without first constructing an `App` is a CLI nobody can test —
+`fabrin new` runs in a directory where no `App` exists at all.
 
 **Gin containment is not a depguard rule.** `health`'s handlers and `logging`'s
 middleware are `gin.HandlerFunc` by definition, so restricting which packages may

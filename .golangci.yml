@@ -59,7 +59,16 @@ linters:
       #     RequestID and Logger are middleware. It is a leaf so that a CLI or a
       #     worker can build the same structured logger without an HTTP stack.
       #
-      # Packages land as the F0 epic progresses; each arrives with its own line.
+      # boundary: cli — must not import the root package or a sibling
+      #     (cli-is-standalone). The root package imports it to declare Commander
+      #     (Commands() []cli.Command), so cli importing root is a genuine cycle
+      #     the compiler already rejects. This rule is for the SIBLING import,
+      #     which compiles cleanly and would make `fabrin -h` require an HTTP
+      #     stack, an ORM, or whatever else got pulled in. It does NOT import Gin:
+      #     unlike health and logging, nothing here is a handler. See ADR 0001 for
+      #     why Command is Fabrin's own type rather than a third-party one.
+      #
+      # Packages land as each epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
         # Settings must load without a server. The CLI parses them, tests build
@@ -125,6 +134,22 @@ linters:
           deny:
             - pkg: "github.com/usefabrin/fabrin"
               desc: "health must not import the root package or any other Fabrin package: the root package imports it to declare Checker (see CONTRIBUTING.md)"
+
+        # cli is a leaf for the same reason health is: the root package imports it
+        # to declare Commander (Commands() []cli.Command). Same division of labour
+        # too — the compiler rejects the root import as a cycle, and this rule is
+        # for the sibling import that compiles cleanly.
+        #
+        # The stake here is specific: a CLI that cannot print its own help without
+        # first constructing an App is a CLI nobody can test, and `fabrin new` runs
+        # in a directory where no App exists at all.
+        cli-is-standalone:
+          files:
+            - "**/cli/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "cli must not import the root package or any other Fabrin package: the root package imports it to declare Commander (see CONTRIBUTING.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

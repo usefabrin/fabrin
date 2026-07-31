@@ -55,6 +55,9 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 The entry point to everything else, so it comes before the ORM: `fabrin new` needs
 a project shape to generate, and F0 defines that shape.
 
+- [x] `fabrin/cli` — `Command` and `Dispatch` over stdlib `flag`. A leaf: the root
+      package imports it to declare `Commander`, so it can never take an `*App`.
+      (CLI-001…003)
 - [ ] `fabrin new <name>` — runnable project scaffold. (FR-CLI-1)
 - [ ] `fabrin startapp <name>` — module scaffold, wired in. (FR-CLI-2)
 - [ ] `fabrin routes` — mounted routes with owning module. (FR-CLI-3)
