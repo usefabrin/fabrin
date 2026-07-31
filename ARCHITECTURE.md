@@ -22,6 +22,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
+├── cli/                 Command + Dispatch        (Django: manage.py commands)
 ├── config/              layered settings          (Django: settings.py)
 ├── health/              liveness + readiness      (Django: system checks)
 ├── logging/             slog setup, request ids

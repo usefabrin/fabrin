@@ -77,6 +77,32 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`fabrin/cli`** — `Command` and `Dispatch`, the command surface `Commander`
+  plugs into. ([#33])
+
+  `Commander` returns `[]cli.Command`, so the **root package imports `cli`** —
+  which means `cli` can never import root without cycling, and therefore cannot
+  take an `*App` or serve anything itself. Assembling Fabrin's built-ins with a
+  module's own commands is root's job, because root is the only layer that sees
+  both. The constraint is a feature: a CLI that needs an HTTP stack constructed
+  before it can print its own help is a CLI nobody can test, and `fabrin new`
+  runs in a directory where no app exists at all.
+
+  `Command` is Fabrin's own struct over stdlib `flag`, not a third-party command
+  type — `apicheck`'s allowlist stays at exactly one entry and no CLI dependency
+  reaches a consumer's `go.sum`. `*flag.FlagSet` is deliberately concrete rather
+  than an interface Fabrin defines; wrapping the standard library for its own
+  sake is the "narrow interface" alternative
+  [ADR 0001](docs/adr/0001-gin-as-a-type-alias.md) rejected, and the accepted
+  cost is that a command's flag definitions are coupled to `flag`'s API.
+
+  Two behaviours worth naming. **An unknown command is an error** that suggests
+  the closest match and lists the rest — a typo that exits 0 is the worst outcome
+  available, because the user believes the command ran. And **`Dispatch` writes
+  to no stream it does not own**: `flag.ContinueOnError` stops a `FlagSet`
+  calling `os.Exit` but not printing to `os.Stderr`, so the set's output is
+  discarded and the error is returned instead.
+
 - **`docs/adr/`** — the directory `AGENTS.md` had been routing decisions to in
   three places without it existing, plus [ADR 0001](docs/adr/0001-gin-as-a-type-alias.md)
   recording Gin-as-a-type-alias retroactively. ([#28])
@@ -147,6 +173,16 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
+
+Added in package `fabrin/cli` ([#33]):
+
+- `Command` — `Name`, `Short`, `Flags func(*flag.FlagSet)`, `Run func(context.Context, []string) error`.
+  A struct of exported fields, so it may gain fields forever and lose none.
+  `Flags` is optional; `Run` is not.
+- `Dispatch(ctx, out io.Writer, cmds []Command, args []string) error`. `out` is a
+  parameter rather than `os.Stdout` because a library must not write to a stream
+  it does not own — and it makes the usage output testable without swapping
+  globals.
 
 Added to package `fabrin`:
 
@@ -319,6 +355,7 @@ Added — package `fabrin`:
 [#10]: https://github.com/usefabrin/fabrin/issues/10
 [#11]: https://github.com/usefabrin/fabrin/issues/11
 [#28]: https://github.com/usefabrin/fabrin/issues/28
+[#33]: https://github.com/usefabrin/fabrin/issues/33
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

@@ -186,3 +186,25 @@ behaviours:
     requirement: INV-2
     status: implemented
     test: tools/apicheck/apicheck_test.go::TestDescribe_RecordsAliasesUnexpanded
+
+  # ── The command surface ─────────────────────────────────────────────────────
+  - id: CLI-001
+    what: An unknown command is an error naming the closest match and listing the rest.
+    why: A typo that exits 0 is the worst outcome available, because the user believes the command ran. Same rule FABRIN_MODULES follows for an unknown module name.
+    requirement: FR-CLI-4
+    status: implemented
+    test: cli/cli_test.go::TestDispatch_RejectsUnknownCommandNamingTheClosestMatch
+
+  - id: CLI-002
+    what: Each command's flags are parsed into a FlagSet of its own; nothing is registered globally.
+    why: Two modules must be able to define -format without colliding, and a module contributing a command must not be able to change another's parsing.
+    requirement: FR-CLI-4
+    status: implemented
+    test: cli/cli_test.go::TestDispatch_ParsesFlagsIntoTheCommandsOwnSet
+
+  - id: CLI-003
+    what: Dispatch writes nothing to a stream it does not own, including on a flag parse error.
+    why: flag.ContinueOnError stops the FlagSet calling os.Exit but not printing to os.Stderr. A library writing there duplicates whatever the caller does with the returned error, and cannot be tested without swapping globals.
+    requirement: FR-CLI-4
+    status: implemented
+    test: cli/cli_test.go::TestDispatch_WritesNothingToStderrOnAFlagParseError
