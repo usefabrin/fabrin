@@ -59,7 +59,19 @@ Your app's main()                    wires modules, satisfies their ports
         │
         ▼
 fabrin.App                           registry, lifecycle, graceful shutdown
-        │  mounts each module's routes
+        │  installs the default middleware, then mounts each module's routes
+        ▼
+gin.Recovery                         a panic becomes a 500, not a dead process
+        │
+        ▼
+logging.RequestID                    X-Request-ID on the context and the response
+        │
+        ▼
+logging.Logger                       one structured line per completed request
+        │
+        ├──────────────▶ /healthz    liveness — consults nothing
+        ├──────────────▶ /readyz     readiness — every mounted module's checks
+        │
         ▼
 Module.Routes(Router)                your code
         │
@@ -68,6 +80,18 @@ gin.Engine                           blessed and public — every Gin middleware
 ```
 
 There is no adapter layer between your handler and Gin. That is deliberate.
+
+**The middleware order is load-bearing.** `Recovery` is outermost so a panic in
+either of the others still produces a response. `RequestID` precedes `Logger`
+because `Logger` reads the id off the request context — reversed, every request is
+logged without one and *nothing fails*, which is the kind of defect that survives
+a refactor. The health routes are mounted before module routes and without any
+module opting in, so an orchestrator's probes work against a stock app; a module
+that declares `/healthz` itself panics at construction, which is Gin's
+duplicate-route behaviour and the right moment to find out.
+
+What this costs per request is measured, itemised, and defended in
+[`perf/BASELINE.md`](perf/BASELINE.md) rather than assumed to be free.
 
 ## Gin is public, on purpose
 
@@ -192,7 +216,7 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 | Rule | Why |
 |---|---|
 | `config` must not import Gin or `net/http` | Settings must load from the CLI, from tests, and from a migrate-only process without constructing an HTTP stack |
-| `config`, `logging` must not import the root package | They sit *below* it; the root package imports them, so the reverse is a cycle |
+| `config`, `logging`, `health` must not import the root package **or a sibling** | They sit *below* it. The root-package direction is a cycle the compiler already rejects; the rule's real work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework |
 | `internal/**` must not import the root package | The dependency runs public → internal |
 
 Every public package needs a `# boundary: <name> — <decision>` line in

@@ -48,16 +48,27 @@ func NewCache(s Store) Cache
 The caller decides what satisfies your parameter; they should not have to guess
 what your return value can do.
 
-### Functional options for anything with more than two knobs
+### Functional options for anything with more than two knobs — except when a loader produces the value
 
 ```go
-// A struct of exported fields cannot gain a required field, cannot validate, and
-// cannot distinguish "unset" from "zero".
-app := fabrin.New(cfg, fabrin.WithLogger(l), fabrin.WithShutdownTimeout(5*time.Second))
+// Default: a struct of exported fields cannot gain a required field, cannot
+// validate, and cannot distinguish "unset" from "zero".
+cache := cache.New(store, cache.WithTTL(time.Minute), cache.WithMaxEntries(1000))
 ```
 
 Exported struct fields are a promise you cannot revise. An `Option` is a function,
 so its internals stay yours.
+
+**`fabrin.Options` is the deliberate exception**, and it is worth knowing why
+before applying the rule elsewhere. `config.Load` *produces* settings from
+defaults, a file, the environment, and flags. Functional options would force every
+caller to translate between two shapes — a loaded struct and a list of
+`Option` functions — so the struct wins. The cost is accepted and written down in
+`CHANGELOG.md`: **fields may be added, never removed or retyped.**
+
+The rule to take from this is not "structs are fine" but: *choose the shape the
+value's producer already has.* Nothing produces a `cache.Option`; something does
+produce an `Options`.
 
 ### Constructors validate; methods assume
 

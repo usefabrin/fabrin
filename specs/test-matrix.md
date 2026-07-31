@@ -44,9 +44,19 @@ the Gin aliases proving identical in both directions.
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| HLT-001 | `/healthz` consults no dependencies | _planned_ |
-| HLT-002 | `/readyz` fails closed, names the failure | _planned_ |
-| LOG-001 | Request id on context and response header | _planned_ |
+| HLT-001 | `/healthz` consults no dependencies | `health_logging_test.go::TestHealthz_StaysUpWhileAModuleCheckIsFailing` |
+| HLT-002 | `/readyz` fails closed, names the failure | `health_logging_test.go::TestReadyz_FailsClosedAndNamesTheFailingModuleAndCheck` |
+| HLT-003 | Readiness consults only *mounted* modules | `health_logging_test.go::TestReadyz_OnlyConsultsMountedModules` |
+| LOG-001 | Request id on context and response header | `health_logging_test.go::TestRequestID_ReachesTheHandlerContext` |
+| LOG-002 | Inbound `X-Request-ID` honoured across a hop | `logging/logging_test.go::TestRequestID_HonoursInboundIDSoTracesSurviveAHop` |
+| LOG-003 | Hostile inbound id discarded, fresh one issued | `logging/logging_test.go::TestRequestID_RejectsHostileInboundValues` |
+| LOG-004 | `FABRIN_LOG_FORMAT` / `FABRIN_LOG_LEVEL` reach the request logger | `health_logging_test.go::TestNew_BuildsTheLoggerFromLogLevel` |
+
+The `health` and `logging` packages carry their own unit tests for the pieces
+these wiring tests exercise end to end — check timeout and concurrency
+(`health/health_test.go`), format and level selection (`logging/logging_test.go`).
+The rows above deliberately name the *wiring* test, because a package that behaves
+correctly while nothing mounts it is the failure mode these IDs exist to prevent.
 
 ## Public API discipline
 

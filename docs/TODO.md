@@ -35,9 +35,10 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
       (FR-MODULES-1,2, MOD-001,002)
 - [x] `fabrin/config` — layered settings with provenance; owns the `Options`
       declaration the root package aliases. (FR-CONFIG-1…5, CFG-001…004)
-- [ ] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed.
-      (FR-HEALTH-1…3, HLT-001,002)
-- [ ] `fabrin/logging` — slog setup + request ids. (FR-LOG-1,2, LOG-001)
+- [x] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed and
+      consulting only *mounted* modules. (FR-HEALTH-1…3, HLT-001…003)
+- [x] `fabrin/logging` — slog setup + request ids, installed by default.
+      (FR-LOG-1,2, LOG-001…004)
 - [ ] `examples/hello` — two modules, ports not imports, slicing demonstrated by a
       test rather than by prose. (FR-MODULES-3, MOD-003)
 - [ ] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate.

@@ -48,6 +48,17 @@ linters:
       #     have to construct an HTTP stack first. It holds the Options declaration
       #     that the root package aliases, so the dependency runs root → config.
       #
+      # boundary: health — must not import the root package or a sibling
+      #     (health-is-standalone). It DOES import Gin, legitimately: its liveness
+      #     and readiness handlers are gin.HandlerFunc by definition, which is the
+      #     carve-out hard rule 1 makes explicit. Containment is about the exported
+      #     surface, enforced by apicheck, not about who may import Gin.
+      #
+      # boundary: logging — must not import the root package or a sibling
+      #     (logging-is-standalone). Imports Gin for the same reason health does:
+      #     RequestID and Logger are middleware. It is a leaf so that a CLI or a
+      #     worker can build the same structured logger without an HTTP stack.
+      #
       # Packages land as the F0 epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
@@ -100,6 +111,20 @@ linters:
           deny:
             - pkg: "github.com/usefabrin/fabrin"
               desc: "logging must not import the root package or any other Fabrin package: it is a leaf that the root package imports (see CONTRIBUTING.md)"
+
+        # health is a leaf for the same reasons, with one extra consequence worth
+        # stating: the root package imports health to declare the Checker interface
+        # (Checks() []health.Check), so health importing root would be a genuine
+        # cycle. The compiler catches that one. What it does not catch — and what
+        # this rule is actually for — is health importing a SIBLING, which compiles
+        # cleanly and quietly makes the readiness endpoint depend on the ORM.
+        health-is-standalone:
+          files:
+            - "**/health/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "health must not import the root package or any other Fabrin package: the root package imports it to declare Checker (see CONTRIBUTING.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package
