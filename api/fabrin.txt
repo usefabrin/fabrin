@@ -1,0 +1,142 @@
+# Fabrin public API surface. GENERATED — regenerate with `just api`.
+#
+# One line per exported symbol. Every line is a promise to strangers: adding
+# one is cheap, removing one breaks their build. A diff here is the review.
+#
+# Type aliases are recorded UNEXPANDED, so a Gin patch bump does not churn this
+# file. A gate that cries wolf gets ignored, and an ignored gate is worse than
+# none. See AGENTS.md, hard rule 2.
+
+pkg github.com/usefabrin/fabrin, const DefaultAddr untyped string = ":8080"
+pkg github.com/usefabrin/fabrin, const DefaultReadHeaderTimeout time.Duration = 10000000000
+pkg github.com/usefabrin/fabrin, const DefaultShutdownTimeout time.Duration = 15000000000
+pkg github.com/usefabrin/fabrin, func New(opts Options, modules ...Module) (*App, error)
+pkg github.com/usefabrin/fabrin, method (*App) Addr() string
+pkg github.com/usefabrin/fabrin, method (*App) Capabilities() map[string][]string
+pkg github.com/usefabrin/fabrin, method (*App) Engine() *github.com/gin-gonic/gin.Engine
+pkg github.com/usefabrin/fabrin, method (*App) Handler() net/http.Handler
+pkg github.com/usefabrin/fabrin, method (*App) Modules() []string
+pkg github.com/usefabrin/fabrin, method (*App) Options() Options
+pkg github.com/usefabrin/fabrin, method (*App) Run(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, method (*App) Start(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, method (*App) Stop(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, type App struct
+pkg github.com/usefabrin/fabrin, type Checker interface
+pkg github.com/usefabrin/fabrin, type Checker interface, Checks() []github.com/usefabrin/fabrin/health.Check
+pkg github.com/usefabrin/fabrin, type Context = github.com/gin-gonic/gin.Context
+pkg github.com/usefabrin/fabrin, type H = github.com/gin-gonic/gin.H
+pkg github.com/usefabrin/fabrin, type HandlerFunc = github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin, type Lifecycle interface
+pkg github.com/usefabrin/fabrin, type Lifecycle interface, Start(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, type Lifecycle interface, Stop(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, type Module interface
+pkg github.com/usefabrin/fabrin, type Module interface, Name() string
+pkg github.com/usefabrin/fabrin, type Module interface, Routes(r Router)
+pkg github.com/usefabrin/fabrin, type Options = github.com/usefabrin/fabrin/config.Options
+pkg github.com/usefabrin/fabrin, type Router interface
+pkg github.com/usefabrin/fabrin, type Router interface, DELETE(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, GET(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, Group(relativePath string, handlers ...HandlerFunc) *github.com/gin-gonic/gin.RouterGroup
+pkg github.com/usefabrin/fabrin, type Router interface, HEAD(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, Handle(httpMethod string, relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, OPTIONS(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, PATCH(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, POST(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, PUT(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, StaticFS(relativePath string, fs net/http.FileSystem) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, type Router interface, Use(middleware ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
+pkg github.com/usefabrin/fabrin, var ErrAlreadyRunning error
+pkg github.com/usefabrin/fabrin, var ErrDuplicateModule error
+pkg github.com/usefabrin/fabrin, var ErrNoModules error
+pkg github.com/usefabrin/fabrin, var ErrUnknownModule error
+
+pkg github.com/usefabrin/fabrin/config, const DefaultAddr untyped string = ":8080"
+pkg github.com/usefabrin/fabrin/config, const DefaultLogFormat untyped string = "json"
+pkg github.com/usefabrin/fabrin/config, const DefaultLogLevel untyped string = "info"
+pkg github.com/usefabrin/fabrin/config, const DefaultReadHeaderTimeout time.Duration = 10000000000
+pkg github.com/usefabrin/fabrin/config, const DefaultShutdownTimeout time.Duration = 15000000000
+pkg github.com/usefabrin/fabrin/config, const KeyAddr untyped string = "FABRIN_ADDR"
+pkg github.com/usefabrin/fabrin/config, const KeyDebug untyped string = "FABRIN_DEBUG"
+pkg github.com/usefabrin/fabrin/config, const KeyLogFormat untyped string = "FABRIN_LOG_FORMAT"
+pkg github.com/usefabrin/fabrin/config, const KeyLogLevel untyped string = "FABRIN_LOG_LEVEL"
+pkg github.com/usefabrin/fabrin/config, const KeyModules untyped string = "FABRIN_MODULES"
+pkg github.com/usefabrin/fabrin/config, const KeyReadHeaderTimeout untyped string = "FABRIN_READ_HEADER_TIMEOUT"
+pkg github.com/usefabrin/fabrin/config, const KeyShutdownTimeout untyped string = "FABRIN_SHUTDOWN_TIMEOUT"
+pkg github.com/usefabrin/fabrin/config, const KeyTrustedProxies untyped string = "FABRIN_TRUSTED_PROXIES"
+pkg github.com/usefabrin/fabrin/config, func Defaults() Source
+pkg github.com/usefabrin/fabrin/config, func FromEnv(lookup Lookup) Source
+pkg github.com/usefabrin/fabrin/config, func FromFile(path string) Source
+pkg github.com/usefabrin/fabrin/config, func FromFlags(args []string) Source
+pkg github.com/usefabrin/fabrin/config, func FromRequiredFile(path string) Source
+pkg github.com/usefabrin/fabrin/config, func Load(sources ...Source) (Options, error)
+pkg github.com/usefabrin/fabrin/config, func MustLoad(sources ...Source) Options
+pkg github.com/usefabrin/fabrin/config, func OSEnv() Lookup
+pkg github.com/usefabrin/fabrin/config, func Resolve(sources ...Source) (*Resolved, error)
+pkg github.com/usefabrin/fabrin/config, func Standard() []Source
+pkg github.com/usefabrin/fabrin/config, method (*Resolved) Get(key string) (string, bool)
+pkg github.com/usefabrin/fabrin/config, method (*Resolved) SourceOf(key string) string
+pkg github.com/usefabrin/fabrin/config, method (*Resolved) String() string
+pkg github.com/usefabrin/fabrin/config, method (MapLookup) All() map[string]string
+pkg github.com/usefabrin/fabrin/config, method (Options) WithDefaults() Options
+pkg github.com/usefabrin/fabrin/config, type Lookup interface
+pkg github.com/usefabrin/fabrin/config, type Lookup interface, All() map[string]string
+pkg github.com/usefabrin/fabrin/config, type MapLookup map[string]string
+pkg github.com/usefabrin/fabrin/config, type Options struct
+pkg github.com/usefabrin/fabrin/config, type Options struct, Addr string
+pkg github.com/usefabrin/fabrin/config, type Options struct, Debug bool
+pkg github.com/usefabrin/fabrin/config, type Options struct, LogFormat string
+pkg github.com/usefabrin/fabrin/config, type Options struct, LogLevel string
+pkg github.com/usefabrin/fabrin/config, type Options struct, Logger *log/slog.Logger
+pkg github.com/usefabrin/fabrin/config, type Options struct, Modules []string
+pkg github.com/usefabrin/fabrin/config, type Options struct, ReadHeaderTimeout time.Duration
+pkg github.com/usefabrin/fabrin/config, type Options struct, ShutdownTimeout time.Duration
+pkg github.com/usefabrin/fabrin/config, type Options struct, TrustedProxies []string
+pkg github.com/usefabrin/fabrin/config, type Resolved struct
+pkg github.com/usefabrin/fabrin/config, type Source interface
+pkg github.com/usefabrin/fabrin/config, var ErrBadFile error
+pkg github.com/usefabrin/fabrin/config, var ErrInvalidValue error
+pkg github.com/usefabrin/fabrin/config, var ErrNoSources error
+pkg github.com/usefabrin/fabrin/config, var ErrUnknownKey error
+
+pkg github.com/usefabrin/fabrin/health, const DefaultTimeout time.Duration = 2000000000
+pkg github.com/usefabrin/fabrin/health, const LivenessPath untyped string = "/healthz"
+pkg github.com/usefabrin/fabrin/health, const ReadinessPath untyped string = "/readyz"
+pkg github.com/usefabrin/fabrin/health, const StatusDown Status = "down"
+pkg github.com/usefabrin/fabrin/health, const StatusUp Status = "up"
+pkg github.com/usefabrin/fabrin/health, func LivenessHandler() github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/health, func Mount(router github.com/gin-gonic/gin.IRouter, r *Registry)
+pkg github.com/usefabrin/fabrin/health, func Named(name string, fn func(ctx context.Context) error) Check
+pkg github.com/usefabrin/fabrin/health, func NewRegistry() *Registry
+pkg github.com/usefabrin/fabrin/health, func ReadinessHandler(r *Registry) github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/health, method (*Registry) Evaluate(ctx context.Context) Report
+pkg github.com/usefabrin/fabrin/health, method (*Registry) Len() int
+pkg github.com/usefabrin/fabrin/health, method (*Registry) Register(module string, checks ...Check) error
+pkg github.com/usefabrin/fabrin/health, method (CheckFunc) Name() string
+pkg github.com/usefabrin/fabrin/health, method (CheckFunc) Probe(ctx context.Context) error
+pkg github.com/usefabrin/fabrin/health, type Check interface
+pkg github.com/usefabrin/fabrin/health, type Check interface, Name() string
+pkg github.com/usefabrin/fabrin/health, type Check interface, Probe(ctx context.Context) error
+pkg github.com/usefabrin/fabrin/health, type CheckFunc struct
+pkg github.com/usefabrin/fabrin/health, type CheckFunc struct, CheckName string
+pkg github.com/usefabrin/fabrin/health, type CheckFunc struct, Fn func(ctx context.Context) error
+pkg github.com/usefabrin/fabrin/health, type Registry struct
+pkg github.com/usefabrin/fabrin/health, type Registry struct, Timeout time.Duration
+pkg github.com/usefabrin/fabrin/health, type Report struct
+pkg github.com/usefabrin/fabrin/health, type Report struct, Checks []Result
+pkg github.com/usefabrin/fabrin/health, type Report struct, Status Status
+pkg github.com/usefabrin/fabrin/health, type Result struct
+pkg github.com/usefabrin/fabrin/health, type Result struct, Check string
+pkg github.com/usefabrin/fabrin/health, type Result struct, DurationMS int64
+pkg github.com/usefabrin/fabrin/health, type Result struct, Error string
+pkg github.com/usefabrin/fabrin/health, type Result struct, Module string
+pkg github.com/usefabrin/fabrin/health, type Result struct, Status Status
+pkg github.com/usefabrin/fabrin/health, type Status string
+
+pkg github.com/usefabrin/fabrin/logging, const HeaderRequestID untyped string = "X-Request-ID"
+pkg github.com/usefabrin/fabrin/logging, const LogKeyRequestID untyped string = "request_id"
+pkg github.com/usefabrin/fabrin/logging, const MsgRequest untyped string = "request"
+pkg github.com/usefabrin/fabrin/logging, func ContextWithRequestID(ctx context.Context, id string) context.Context
+pkg github.com/usefabrin/fabrin/logging, func Logger(log *log/slog.Logger) github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/logging, func New(w io.Writer, format string, level string) *log/slog.Logger
+pkg github.com/usefabrin/fabrin/logging, func RequestID() github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/logging, func RequestIDFromContext(ctx context.Context) string

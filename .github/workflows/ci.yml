@@ -38,10 +38,16 @@ jobs:
 
       # Pinned to the version in go.mod. A library should build on the oldest
       # toolchain it claims to support, so this deliberately is not "stable".
+      # Both go.sum files: `just ci` builds the tools/ module too, and setup-go
+      # keys its cache on the paths listed here. Leaving tools/go.sum out does not
+      # break the build — it just refetches golang.org/x/tools on every run.
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
 
       # Pinned for the same reason golangci-lint is: an unpinned command runner can
       # change recipe semantics with no commit to this repo.

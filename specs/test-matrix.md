@@ -62,13 +62,24 @@ correctly while nothing mounts it is the failure mode these IDs exist to prevent
 
 ## Public API discipline
 
-These three are enforced by `apicheck` rather than by a Go test, so their "test"
-is the gate invocation plus the injected-violation evidence recorded in the PR
-that lands them. A gate counts as coverage only once it has been proven to fail on
-a violation *and* to pass its negative control.
-
 | ID | Behaviour | Test |
 |----|-----------|------|
-| API-001 | Unblessed third-party type in exported signature fails | _planned_ |
-| API-002 | Surface change without regenerated snapshot fails | _planned_ |
-| API-003 | Aliases recorded unexpanded; Gin bump does not churn snapshot | _planned_ |
+| API-001 | Unblessed third-party type in exported signature fails | `tools/apicheck/apicheck_test.go::TestLeak_FindsUnblessedTypesInEveryPosition` |
+| API-002 | Surface change without regenerated snapshot fails | `scripts/api.sh` (gate; see below) |
+| API-003 | Aliases recorded unexpanded; Gin bump does not churn snapshot | `tools/apicheck/apicheck_test.go::TestDescribe_RecordsAliasesUnexpanded` |
+
+API-002 is the one row here whose test is a script rather than a Go test, and
+deliberately: the mechanism that fails is `diff -u` inside `scripts/api.sh`, so a
+Go test wrapping it would be testing `diff`. A gate counts as coverage only once
+it has been proven to fail on a violation *and* to pass its negative control —
+the transcript for this one (`func Sneaky() string` added, snapshot untouched,
+gate red; reverted, gate green) is recorded in the PR that landed it.
+
+What `diff` cannot check is whether the snapshot it compares is *faithful*: a
+symbol the renderer silently drops can be deleted from the API without api-check
+saying a word. `apicheck_test.go::TestDescribe_RecordsEveryExportedKindAndNothingUnexported`
+asserts the whole rendered output for a package holding one of every kind, which
+is why it compares exactly rather than checking that particular lines appear.
+
+`tools/` is a separate Go module, so `go test ./...` from the root does not reach
+these tests. `just test`, `just cover`, and `just lint` each invoke it explicitly.
