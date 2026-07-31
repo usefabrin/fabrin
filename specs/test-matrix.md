@@ -100,13 +100,21 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-010 | `fabrin new` writes a project that builds, tests, and boots | `internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds` |
 | CLI-011 | `fabrin startapp` writes the module *and* wires it in | `internal/scaffold/module_test.go::TestModule_WiresItselfIntoNewApp` |
 | CLI-012 | The edit keeps the user's formatting and stays gofmt-clean | `internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean` |
+| CLI-013 | The scaffold's output builds, tests, boots — offline | `scripts/check-scaffold.sh` (gate; see below) |
 
 CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command
 type to be Fabrin's own, and forces the package to stand alone from `App`.
 CLI-004/005 cite FR-CLI-3; CLI-006 cites NFR-7; CLI-007/008/009 cite FR-CLI-4
 again, this time as the thing itself rather than as the reason the package
-exists; CLI-010 cites FR-CLI-1; CLI-011/012 cite FR-CLI-2.
+exists; CLI-010 cites FR-CLI-1; CLI-011/012 cite FR-CLI-2; CLI-013 cites NFR-5.
+
+CLI-013 is the second row in this file whose test is a script rather than a
+Go test, and for the same reason as API-002: what fails is `go build` inside a
+generated project, and a Go test wrapping that would be testing the toolchain.
+Its four injected-violation transcripts are in the PR that landed it — a
+template that does not compile, one that panics, one that compiles and passes
+its tests but cannot start, and an import inserted out of sorted order.
 
 CLI-012 compares against `format.Source` rather than asserting the imports are
 sorted, because the two failures are not the same size. An unsorted import is

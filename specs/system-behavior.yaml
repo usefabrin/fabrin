@@ -271,3 +271,10 @@ behaviours:
     requirement: FR-CLI-2
     status: implemented
     test: internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean
+
+  - id: CLI-013
+    what: The scaffold's own output is generated, built, tested, extended with startapp, and booted by `just check` — offline, against the working tree.
+    why: The templates are .tmpl text, invisible to the compiler, so a change to fabrin.New or the Module interface can break them with every other gate green. Resolving from the proxy would test the last published commit rather than the working tree, and would make the gate fail on someone else's outage.
+    requirement: NFR-5
+    status: implemented
+    test: scripts/check-scaffold.sh
