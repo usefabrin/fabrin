@@ -114,8 +114,11 @@ suite could not have caught: a package in the manifest with nothing recorded.
 **Gin containment is not a depguard rule.** `health`'s handlers and `logging`'s
 middleware are `gin.HandlerFunc` by definition, so restricting which packages may
 *import* Gin would make them unwritable. The real invariant is about the
-**exported surface**, and `apicheck --allow` enforces it: Gin may appear in
-exported signatures because it is allowlisted; nothing else may.
+**exported surface**, and `just api-check` enforces it: Gin may appear in
+exported signatures because `apicheck`'s allowlist says so; nothing else may.
+That allowlist is a `map` in `tools/apicheck/main.go` with one entry, and a test
+asserts it has exactly one — so a second entry fails the build until the ADR that
+hard rule 1 requires actually happens.
 
 ## When you change a governed surface
 

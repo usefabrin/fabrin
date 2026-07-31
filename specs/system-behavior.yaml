@@ -164,16 +164,25 @@ behaviours:
     what: An exported signature naming a third-party type outside the allowlist fails api-check.
     why: An unblessed type in the public API makes that dependency's version part of Fabrin's semver contract, permanently and by accident.
     requirement: INV-1
-    status: planned
+    status: implemented
+    test: tools/apicheck/apicheck_test.go::TestLeak_FindsUnblessedTypesInEveryPosition
 
+  # The failing mechanism here is `diff -u` in scripts/api.sh, so the script IS the
+  # test — a Go test wrapping diff would be testing diff. What needs proving in Go
+  # is the half diff cannot check: that the rendered snapshot is faithful, since a
+  # symbol the renderer drops can be removed from the API without a word. That is
+  # TestDescribe_RecordsEveryExportedKindAndNothingUnexported, and the gate's own
+  # failure is evidenced by the injected-violation transcript in the PR (#10).
   - id: API-002
     what: A change to the exported surface without a regenerated api/fabrin.txt fails api-check.
     why: A rename that passes tests and lint still breaks every downstream build.
     requirement: INV-2
-    status: planned
+    status: implemented
+    test: scripts/api.sh
 
   - id: API-003
     what: The snapshot records type aliases unexpanded, so a Gin patch bump does not change api/fabrin.txt.
     why: Expanding gin.Context's methods would turn api-check red on dependency updates that change nothing about Fabrin. A gate that cries wolf gets ignored.
     requirement: INV-2
-    status: planned
+    status: implemented
+    test: tools/apicheck/apicheck_test.go::TestDescribe_RecordsAliasesUnexpanded

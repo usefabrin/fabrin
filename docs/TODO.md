@@ -41,11 +41,12 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
       (FR-LOG-1,2, LOG-001…004)
 - [x] `examples/hello` — two modules, ports not imports, slicing demonstrated by a
       test rather than by prose. (FR-MODULES-3, MOD-003)
-- [ ] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate.
-      (INV-1,2, API-001…003, NFR-3)
+- [x] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate — snapshot
+      drift *and* unblessed types in a signature. (INV-1,2, API-001…003, NFR-3)
 - [ ] Agent charters in `.claude/agents/` and repo skills.
-- [x] `perf/BASELINE.md` filled with real numbers vs raw Gin — **zero extra
-      allocations per request.** (NFR-1)
+- [x] `perf/BASELINE.md` filled with real numbers vs raw Gin — **Fabrin's own
+      abstractions add zero allocations**; the default observability stack adds
+      13, itemised and justified there. (NFR-1)
 
 ## F1 — The `fabrin` CLI
 

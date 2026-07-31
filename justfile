@@ -63,12 +63,18 @@ build:
     @just _build-examples
 
 # Run the test suite
+#
+# tools/ is a SEPARATE module, so `go test ./...` from the root does not reach it
+# — apicheck's tests would simply never run, in CI or locally, while this recipe
+# printed success. Hence the second invocation. Same reason `lint` vets it too.
 test:
     {{ go }} test ./...
+    @if [ -d tools ]; then {{ go }} -C tools test ./...; else echo "→ tools: no tools/ module yet, skipping."; fi
 
 # Run the test suite with coverage reported per package
 cover:
     {{ go }} test -cover ./...
+    @if [ -d tools ]; then {{ go }} -C tools test -cover ./...; else echo "→ tools: no tools/ module yet, skipping."; fi
 
 # ----------------------------------------------------------------------------
 # Quality gates
@@ -78,12 +84,18 @@ cover:
 lint:
     @bash scripts/check-gofmt.sh
     {{ go }} vet ./...
+    @if [ -d tools ]; then {{ go }} -C tools vet ./...; else echo "→ tools: no tools/ module yet, skipping."; fi
     {{ golangci }} run
 
 # Apply style fixes
+#
+# check-gofmt.sh walks the whole tree, so an unformatted file under tools/ fails
+# `lint`. If this recipe only reached the root module, the advice that gate
+# prints — "run `just format`" — would be a lie for exactly those files.
 format:
     {{ go }} fmt ./...
     {{ go }} mod tidy
+    @if [ -d tools ]; then {{ go }} -C tools fmt ./... && {{ go }} -C tools mod tidy; else echo "→ tools: no tools/ module yet, skipping."; fi
 
 # Boundary check (depguard rules in .golangci.yml)
 arch:

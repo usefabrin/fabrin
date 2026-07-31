@@ -110,9 +110,9 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Invariant | Status |
 |---|---|---|
-| INV-1 | Gin is the only third-party package permitted in an exported signature. Enforced by `apicheck`'s allowlist; a second entry requires an ADR. | planned |
-| INV-2 | The exported surface changes only deliberately: `api/fabrin.txt` is regenerated in the same commit and `CHANGELOG.md` records it. | planned |
-| INV-3 | No module imports another module. Nothing mechanical enforces this yet; `examples/hello` will demonstrate the ports-not-imports pattern, and review carries it until then. | planned |
+| INV-1 | Gin is the only third-party package permitted in an exported signature. Enforced by `apicheck`'s allowlist; a second entry requires an ADR. | done |
+| INV-2 | The exported surface changes only deliberately: `api/fabrin.txt` is regenerated in the same commit and `CHANGELOG.md` records it. | done |
+| INV-3 | No module imports another module. `examples/hello` demonstrates the ports-not-imports pattern, and `TestModules_NeverImportEachOther` reads the import graph to prove it. Nothing enforces it repo-wide for user code; review carries that. | planned |
 | INV-4 | `CLAUDE.md` contains no rules — only the `@AGENTS.md` import. Two working agreements that disagree is worse than one that is incomplete. | done |
 | INV-5 | Every public package has a recorded boundary decision in `.golangci.yml`. | done |
 | INV-6 | Every gate has been proven to fail on an injected violation **and** to pass its negative control. | done |

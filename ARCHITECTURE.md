@@ -239,6 +239,18 @@ gate is worse than none.
 The tradeoff accepted: the snapshot will not show Gin's own breaking changes.
 Gin's release notes cover that.
 
+**The gate answers a second question.** Before comparing snapshots it fails on an
+unblessed third-party type anywhere in an exported signature — result, parameter,
+variadic, struct field, interface method, method signature, package variable, type
+argument, or nested inside containers to any depth. That last part is the one
+worth stating: `type Options struct { DB *gorm.DB }` puts GORM's version into
+Fabrin's semver contract exactly as surely as a function returning one, and is far
+likelier to happen, because a field gets added without anyone rereading the rules.
+
+The two checks are different failures with different fixes. Drift means *record
+the change*; a leak means *do not make it* — accept an interface you declare, or
+return your own type. So the leak check runs first, and its message says so.
+
 ## Prove a gate bites
 
 When you add or change a gate or rule: inject a throwaway violation, watch it
