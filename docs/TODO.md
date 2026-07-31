@@ -60,8 +60,11 @@ a project shape to generate, and F0 defines that shape.
       (CLI-001…003)
 - [ ] `fabrin new <name>` — runnable project scaffold. (FR-CLI-1)
 - [ ] `fabrin startapp <name>` — module scaffold, wired in. (FR-CLI-2)
-- [ ] `fabrin routes` — mounted routes with owning module. (FR-CLI-3)
-- [ ] `fabrin version`, `fabrin serve`.
+- [x] `./myapp routes` — mounted routes with owning module. Answered by the app's
+      own binary, because Go compiles and no separate tool can introspect an
+      application it did not build. (FR-CLI-3, CLI-004…005)
+- [x] `version`, `serve`, and `App.Execute` as the entry point a `main` hands
+      `os.Args[1:]` to. No arguments still means serve.
 - [ ] `Commander` — modules contribute subcommands. Django's management commands.
       (FR-CLI-4)
 - [ ] Scaffold output is itself an `examples/` entry, so `just check` proves the

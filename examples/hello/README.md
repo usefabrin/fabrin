@@ -5,7 +5,14 @@ The smallest Fabrin app that demonstrates the two claims F0 makes.
 ```bash
 go run ./examples/hello                       # both modules
 FABRIN_MODULES=greet go run ./examples/hello  # only greet — /time is a 404
+
+go run ./examples/hello routes                # who owns which URL
+go run ./examples/hello version
 ```
+
+No arguments means *serve*. `main.go` hands `os.Args[1:]` to `app.Execute`, so the
+binary that has the modules linked in is the one that answers `routes` — Go
+compiles, and no separate tool can introspect an application it did not build.
 
 ```bash
 curl 'localhost:8080/greet?name=you'
@@ -36,8 +43,24 @@ client adapter here and changing nothing in `greet`.
 ## 2. Process slicing
 
 `FABRIN_MODULES=greet` mounts only `greet`. `/time` is not a handler returning
-404 — the route is never registered, which you can see in the startup route
-table. One binary, N deployment shapes.
+404 — the route is **never registered**, which `routes` shows directly:
+
+```console
+$ go run ./examples/hello routes
+GET  /greet    greet
+GET  /healthz  (framework)
+GET  /readyz   (framework)
+GET  /time     clock
+
+$ FABRIN_MODULES=greet go run ./examples/hello routes
+GET  /greet    greet
+GET  /healthz  (framework)
+GET  /readyz   (framework)
+```
+
+One binary, N deployment shapes. Note that `routes` describes *this* process
+rather than the binary's full catalogue — listing what is not mounted would be
+actively misleading in exactly the deployment shape slicing exists to serve.
 
 ## Both claims are tested, not just described
 

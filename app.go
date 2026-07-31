@@ -55,6 +55,10 @@ type App struct {
 	registry *registry
 	engine   *gin.Engine
 
+	// routeOwner maps "METHOD /path" to the module that mounted it. Built once in
+	// New and never written again, so Routes may read it without the mutex below.
+	routeOwner map[string]string
+
 	mu      sync.Mutex
 	running bool
 	// addr is the resolved listen address, known only after the listener binds.
@@ -88,6 +92,29 @@ func New(opts Options, modules ...Module) (*App, error) {
 		return nil, err
 	}
 
+	// Gin's zero configuration is DEBUG mode: constructing an engine prints a
+	// warning banner and the whole route table to STDOUT. That is noise in a
+	// container log, garbage in the middle of a `routes` listing, and a needless
+	// disclosure of internal handler paths. Same shape as ReadHeaderTimeout —
+	// differ from the library's default when the library's default is unsafe.
+	//
+	// This is also what finally makes Options.Debug do something. Until now it
+	// resolved and validated and changed nothing, which is the defect class
+	// LOG-004 exists to catch.
+	//
+	// GIN_MODE wins over both. gin.SetMode is process-global, so a caller who set
+	// the environment variable — or one App in a process with two — has said
+	// something more specific than an application default, and silently
+	// overriding it would make construction order matter to code that has nothing
+	// to do with it.
+	if os.Getenv(gin.EnvGinMode) == "" {
+		if opts.Debug {
+			gin.SetMode(gin.DebugMode)
+		} else {
+			gin.SetMode(gin.ReleaseMode)
+		}
+	}
+
 	engine := gin.New()
 
 	// Gin trusts all proxies by default, which makes ClientIP() spoofable by any
@@ -115,12 +142,38 @@ func New(opts Options, modules ...Module) (*App, error) {
 	// the right moment to find out, and is Gin's behaviour rather than ours.
 	health.Mount(engine, checks)
 
-	app := &App{opts: opts, registry: reg, engine: engine}
+	app := &App{opts: opts, registry: reg, engine: engine, routeOwner: map[string]string{}}
+
+	// Everything already registered belongs to the framework: health.Mount ran
+	// above, without any module opting in. Attributing /healthz to whichever
+	// module happens to mount first would be a lie that surfaces only when
+	// someone goes looking for the owner.
+	claimed := make(map[string]bool)
+	for _, ri := range engine.Routes() {
+		claimed[routeKey(ri.Method, ri.Path)] = true
+	}
 
 	for _, m := range reg.modules {
 		// Each module gets a root-level group rather than the engine itself, so it
 		// can Use middleware scoped to its own routes without affecting others.
 		m.Routes(engine.Group(""))
+
+		// Whatever is new after this call belongs to this module — that is what
+		// makes `routes` able to answer "which module owns this URL", which the
+		// engine alone cannot: Gin records a handler NAME, and for a closure that
+		// is an unhelpful `pkg.func1`.
+		//
+		// A set difference rather than a slice of the tail. Gin builds Routes() by
+		// walking one radix tree per HTTP method, so the order is neither
+		// registration order nor sorted, and `after[len(before):]` would hand
+		// routes to the wrong module as soon as two of them use different verbs.
+		for _, ri := range engine.Routes() {
+			k := routeKey(ri.Method, ri.Path)
+			if !claimed[k] {
+				claimed[k] = true
+				app.routeOwner[k] = m.Name()
+			}
+		}
 	}
 
 	opts.Logger.Debug("fabrin: modules mounted",

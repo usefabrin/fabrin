@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/usefabrin/fabrin"
 	"github.com/usefabrin/fabrin/config"
@@ -34,9 +35,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Serves the mounted modules plus /healthz and /readyz, logs every request
-	// with an id, and shuts down gracefully on SIGINT or SIGTERM.
-	if err := app.Run(context.Background()); err != nil {
+	// With no arguments this serves — the mounted modules plus /healthz and
+	// /readyz, every request logged with an id, and a graceful shutdown on SIGINT
+	// or SIGTERM. With arguments it runs the named command.
+	//
+	// Execute rather than Run because Go compiles: no separate tool can introspect
+	// an application it did not build, so `routes` has to be answered by the
+	// binary that already has the modules linked in.
+	if err := app.Execute(context.Background(), os.Stdout, os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
 }

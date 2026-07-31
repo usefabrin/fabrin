@@ -25,8 +25,14 @@ Once v1 lands, breaking changes wait for a major version like anywhere else.
 
 ## [Unreleased]
 
-Milestone **F0** — repository, harness, agent system, and runnable core.
-Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
+Milestone **F0** — repository, harness, agent system, and runnable core — is
+**complete** ([#1](https://github.com/usefabrin/fabrin/issues/1)). Milestone
+**F1**, the `fabrin` command, is in progress
+([#32](https://github.com/usefabrin/fabrin/issues/32)).
+
+Nothing is released yet, so both sit under `[Unreleased]` and entries are tagged
+with their milestone rather than split into sections. Cutting a version is
+[#27](https://github.com/usefabrin/fabrin/issues/27).
 
 ### Added
 
@@ -76,6 +82,43 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
   `tools/` module explicitly. A separate module is not reached by `go test ./...`
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
+
+- **`(*App).Execute`** — the entry point a `main` hands `os.Args[1:]` to, with
+  built-in `routes`, `serve`, and `version`. ([#34])
+
+  Django's `manage.py` imports the project at runtime. Go compiles, so a separate
+  tool cannot introspect an application it did not build — the binary that
+  already has the modules linked in is the only one that can answer "which module
+  owns this URL", and `Execute` is where it answers. `examples/hello` now uses
+  it, so the path is exercised by `just check` rather than described in prose.
+
+  **No arguments still means serve**, deliberately: anything else silently
+  changes what `./myapp` does the moment its `main` switches from `Run`, and a
+  container that used to serve would print usage and exit 0 — which every
+  orchestrator reads as a successful run. A *leading flag* also still serves,
+  because `config.Standard()` already parsed `-addr` and friends out of
+  `os.Args`; dispatching it would break `./myapp -addr :9000`.
+
+  `App.Routes()` attributes each route to its module by set-difference around
+  each module's mount call. Not a slice of the tail: Gin builds its listing by
+  walking one radix tree per HTTP method, so the order is neither registration
+  order nor sorted, and slicing would hand routes to the wrong module as soon as
+  two used different verbs. Output is sorted by path then method, because
+  unstable output makes `routes` useless for diffing two deployments.
+
+- **Gin's debug output is silenced unless `FABRIN_DEBUG` is set.** ([#34])
+
+  Gin's zero configuration is debug mode: constructing an engine prints a warning
+  banner and the entire route table to **stdout**. That was four lines of garbage
+  above every `routes` listing, and in a container log it is a needless
+  disclosure of internal handler paths. Same shape as `ReadHeaderTimeout` and
+  `TrustedProxies` — differ from the library's default when the library's default
+  is unsafe, now recorded as **NFR-7**.
+
+  It is also what finally makes `Options.Debug` *do* something. Until now it
+  resolved, validated, and changed nothing — the defect class `LOG-004` exists to
+  catch. `GIN_MODE` overrides both, because `gin.SetMode` is process-global and a
+  caller who set it has said something more specific than an application default.
 
 - **`fabrin/cli`** — `Command` and `Dispatch`, the command surface `Commander`
   plugs into. ([#33])
@@ -183,6 +226,13 @@ Added in package `fabrin/cli` ([#33]):
   parameter rather than `os.Stdout` because a library must not write to a stream
   it does not own — and it makes the usage output testable without swapping
   globals.
+
+Added to package `fabrin` ([#34]):
+
+- `Route` — `Method`, `Path`, `Module`. `Module` is empty for a route the
+  framework mounted itself, which is `/healthz` and `/readyz`.
+- `(*App).Routes() []Route` and
+  `(*App).Execute(ctx, out io.Writer, args []string) error`.
 
 Added to package `fabrin`:
 
@@ -356,6 +406,7 @@ Added — package `fabrin`:
 [#11]: https://github.com/usefabrin/fabrin/issues/11
 [#28]: https://github.com/usefabrin/fabrin/issues/28
 [#33]: https://github.com/usefabrin/fabrin/issues/33
+[#34]: https://github.com/usefabrin/fabrin/issues/34
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

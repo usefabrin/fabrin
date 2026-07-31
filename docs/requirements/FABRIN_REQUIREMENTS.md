@@ -29,7 +29,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 |---|---|---|
 | FR-MODULES-1 | `Options.Modules` selects which registered modules the process mounts; empty means all of them. `fabrin/config` populates it from `FABRIN_MODULES`. | done (core) |
 | FR-MODULES-2 | A selected name matching no registered module is a startup **error**, and the error lists what *is* registered. A typo that silently serves nothing is worse than a crash, because the process passes its liveness probe while doing no work. | done |
-| FR-MODULES-3 | A module declares its dependencies as interfaces in its own package and receives them as arguments. Fabrin provides no service locator or global registry to fetch another module from. | planned |
+| FR-MODULES-3 | A module declares its dependencies as interfaces in its own package and receives them as arguments. Fabrin provides no service locator or global registry to fetch another module from. | done |
 
 ## FR-CONFIG — settings
 
@@ -45,16 +45,16 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-HEALTH-1 | `/healthz` reports process liveness and consults **no** dependencies. A liveness probe that fails on a slow database causes a restart loop that cannot fix anything. | planned |
-| FR-HEALTH-2 | `/readyz` aggregates every mounted module's checks and **fails closed**: unknown or errored means not ready. Reporting ready while a dependency is unreachable takes traffic the process cannot serve. | planned |
-| FR-HEALTH-3 | A failing readiness check names which module and check failed. | planned |
+| FR-HEALTH-1 | `/healthz` reports process liveness and consults **no** dependencies. A liveness probe that fails on a slow database causes a restart loop that cannot fix anything. | done |
+| FR-HEALTH-2 | `/readyz` aggregates every mounted module's checks and **fails closed**: unknown or errored means not ready. Reporting ready while a dependency is unreachable takes traffic the process cannot serve. | done |
+| FR-HEALTH-3 | A failing readiness check names which module and check failed. | done |
 
 ## FR-LOG — observability
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-LOG-1 | Structured logging via `log/slog`, JSON or text by configuration. | planned |
-| FR-LOG-2 | Every request carries a request id, available on the context and returned in a response header, so a user-reported error can be found in the logs. | planned |
+| FR-LOG-1 | Structured logging via `log/slog`, JSON or text by configuration. | done |
+| FR-LOG-2 | Every request carries a request id, available on the context and returned in a response header, so a user-reported error can be found in the logs. | done |
 
 ## FR-CLI — the `fabrin` command (F1)
 
@@ -62,7 +62,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 |---|---|---|
 | FR-CLI-1 | `fabrin new <name>` scaffolds a runnable project. | planned |
 | FR-CLI-2 | `fabrin startapp <name>` scaffolds a module wired into the project. | planned |
-| FR-CLI-3 | `fabrin routes` lists mounted routes with their module, so "which module owns this URL" is answerable without reading the source. | planned |
+| FR-CLI-3 | `fabrin routes` lists mounted routes with their module, so "which module owns this URL" is answerable without reading the source. | done |
 | FR-CLI-4 | A module may contribute subcommands via `Commander` (Django's management commands). | planned |
 
 ## FR-ORM — data layer (F2)
@@ -105,6 +105,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | NFR-4 | Every battery sits behind an interface a user can replace. Defaults exist so you need not choose, not so you cannot. | planned |
 | NFR-5 | Every example compiles **and boots** in CI. | done |
 | NFR-6 | One command — `just check` — is the whole local gate, and is exactly what CI runs. | done |
+| NFR-7 | Where an underlying library's default is unsafe or noisy, Fabrin's differs and the reason is written at the call site. A setting that resolves and validates must change behaviour — one that does not is the same defect as one referenced but never implemented. | done |
 
 ## INV — invariants
 
@@ -116,4 +117,4 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | INV-4 | `CLAUDE.md` contains no rules — only the `@AGENTS.md` import. Two working agreements that disagree is worse than one that is incomplete. | done |
 | INV-5 | Every public package has a recorded boundary decision in `.golangci.yml`. | done |
 | INV-6 | Every gate has been proven to fail on an injected violation **and** to pass its negative control. | done |
-| INV-7 | `/healthz` never consults a dependency; `/readyz` always fails closed. | planned |
+| INV-7 | `/healthz` never consults a dependency; `/readyz` always fails closed. | done |

@@ -14,9 +14,11 @@ pkg github.com/usefabrin/fabrin, func New(opts Options, modules ...Module) (*App
 pkg github.com/usefabrin/fabrin, method (*App) Addr() string
 pkg github.com/usefabrin/fabrin, method (*App) Capabilities() map[string][]string
 pkg github.com/usefabrin/fabrin, method (*App) Engine() *github.com/gin-gonic/gin.Engine
+pkg github.com/usefabrin/fabrin, method (*App) Execute(ctx context.Context, out io.Writer, args []string) error
 pkg github.com/usefabrin/fabrin, method (*App) Handler() net/http.Handler
 pkg github.com/usefabrin/fabrin, method (*App) Modules() []string
 pkg github.com/usefabrin/fabrin, method (*App) Options() Options
+pkg github.com/usefabrin/fabrin, method (*App) Routes() []Route
 pkg github.com/usefabrin/fabrin, method (*App) Run(ctx context.Context) error
 pkg github.com/usefabrin/fabrin, method (*App) Start(ctx context.Context) error
 pkg github.com/usefabrin/fabrin, method (*App) Stop(ctx context.Context) error
@@ -33,6 +35,10 @@ pkg github.com/usefabrin/fabrin, type Module interface
 pkg github.com/usefabrin/fabrin, type Module interface, Name() string
 pkg github.com/usefabrin/fabrin, type Module interface, Routes(r Router)
 pkg github.com/usefabrin/fabrin, type Options = github.com/usefabrin/fabrin/config.Options
+pkg github.com/usefabrin/fabrin, type Route struct
+pkg github.com/usefabrin/fabrin, type Route struct, Method string
+pkg github.com/usefabrin/fabrin, type Route struct, Module string
+pkg github.com/usefabrin/fabrin, type Route struct, Path string
 pkg github.com/usefabrin/fabrin, type Router interface
 pkg github.com/usefabrin/fabrin, type Router interface, DELETE(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes
 pkg github.com/usefabrin/fabrin, type Router interface, GET(relativePath string, handlers ...HandlerFunc) github.com/gin-gonic/gin.IRoutes

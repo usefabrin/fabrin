@@ -20,11 +20,12 @@ Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ 
 | `settings.py` | `fabrin/config` — defaults ← file ← env ← flags, each value reporting its source | ✅ F0 |
 | `django-admin startproject` | `fabrin new` | 📋 F1 |
 | `django-admin startapp` | `fabrin startapp` | 📋 F1 |
-| `manage.py runserver` | `fabrin serve`, with graceful shutdown | 🚧 F0 — `App.Run` serves and shuts down gracefully; the `serve` *command* waits for the CLI in F1 |
+| `manage.py runserver` | `./myapp serve` — or no arguments at all — with graceful shutdown | ✅ F1 |
+| `show_urls` (django-extensions) | `./myapp routes` — every mounted route with the module that owns it | ✅ F1 |
 | Management commands | `Commander` on a module | 📋 F1 |
 | `python manage.py check` | `Checker` on a module → `/readyz` | ✅ F0 |
 | `LOGGING` (dictConfig) | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
-| `settings.DEBUG` | `config` debug flag | ✅ F0 |
+| `settings.DEBUG` | `FABRIN_DEBUG` — off by default, and off means Gin's construction-time route dump is silenced | ✅ F1 |
 | `AppConfig.ready()` | `Lifecycle.Start` / `Stop`, reverse order on the way down | ✅ F0 |
 
 **Where the port would read badly.** Django's settings are a *module you import*,
