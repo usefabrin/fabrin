@@ -257,3 +257,17 @@ behaviours:
     requirement: FR-CLI-1
     status: implemented
     test: internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds
+
+  - id: CLI-011
+    what: `fabrin startapp <name>` writes the module package and wires it into the existing main.go, keeping every module already wired.
+    why: A scaffold that leaves the user to find the wiring point has done the easy half — the module compiles, serves nothing, and nothing says why.
+    requirement: FR-CLI-2
+    status: implemented
+    test: internal/scaffold/module_test.go::TestModule_WiresItselfIntoNewApp
+
+  - id: CLI-012
+    what: The wiring edit locates the fabrin.New call with go/ast and splices text at the offsets it reports, leaving the user's formatting and comments untouched and the file gofmt-clean.
+    why: A regex is fragile against a user who reformatted or added a comment, and re-printing with go/format would reformat code the user owns — turning "add a module" into a diff nobody wants to review. Inserting an import in the wrong sorted position is not a compile error, so only a gofmt comparison catches it.
+    requirement: FR-CLI-2
+    status: implemented
+    test: internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean

@@ -31,8 +31,8 @@ var templates embed.FS
 var files = []struct{ tmpl, path string }{
 	{"go.mod.tmpl", "go.mod"},
 	{"main.go.tmpl", "main.go"},
-	{"home.go.tmpl", filepath.Join("home", "home.go")},
-	{"home_test.go.tmpl", filepath.Join("home", "home_test.go")},
+	{"module.go.tmpl", filepath.Join("home", "home.go")},
+	{"module_test.go.tmpl", filepath.Join("home", "home_test.go")},
 	{"justfile.tmpl", "justfile"},
 	{"gitignore.tmpl", ".gitignore"},
 	{"README.md.tmpl", "README.md"},
@@ -79,11 +79,12 @@ func (p Project) Generate() error {
 		return err
 	}
 
-	data := struct{ Name, Module, Go string }{
-		Name:   p.Name,
-		Module: module,
-		Go:     goDirective,
-	}
+	// One data map for every template, so `new` and `startapp` render the module
+	// templates from the same fields. home is simply the first module `new`
+	// generates, at "/" rather than at its own path.
+	data := moduleData("home", module, p.Name, "/")
+	data["Name"] = p.Name
+	data["Go"] = goDirective
 
 	for _, f := range files {
 		out := filepath.Join(dir, f.path)

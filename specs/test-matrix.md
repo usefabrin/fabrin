@@ -98,13 +98,21 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-008 | A colliding command name fails at construction, naming both | `commander_test.go::TestNew_RejectsAModuleCommandThatShadowsABuiltIn` |
 | CLI-009 | Flags parsed wherever they appear; `--` passes the rest through | `cli/cli_test.go::TestDispatch_ParsesFlagsWhereverTheyAppear` |
 | CLI-010 | `fabrin new` writes a project that builds, tests, and boots | `internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds` |
+| CLI-011 | `fabrin startapp` writes the module *and* wires it in | `internal/scaffold/module_test.go::TestModule_WiresItselfIntoNewApp` |
+| CLI-012 | The edit keeps the user's formatting and stays gofmt-clean | `internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean` |
 
 CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command
 type to be Fabrin's own, and forces the package to stand alone from `App`.
 CLI-004/005 cite FR-CLI-3; CLI-006 cites NFR-7; CLI-007/008/009 cite FR-CLI-4
 again, this time as the thing itself rather than as the reason the package
-exists; CLI-010 cites FR-CLI-1.
+exists; CLI-010 cites FR-CLI-1; CLI-011/012 cite FR-CLI-2.
+
+CLI-012 compares against `format.Source` rather than asserting the imports are
+sorted, because the two failures are not the same size. An unsorted import is
+not a compile error — it is a file `gofmt -l` flags on the user's next commit,
+blaming their edit rather than the tool's. The parse check alone stays green
+through it, which is how the bug reached a manual run before a test caught it.
 
 CLI-006 is here rather than under Config because the CLI is where it bites: Gin's
 construction-time banner and route table land on **stdout**, four lines above the
