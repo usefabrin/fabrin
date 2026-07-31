@@ -11,6 +11,11 @@ Also follow:
 - [CONTRIBUTING.md](CONTRIBUTING.md) — TDD, trunk-based git, the validation gate
 - [docs/coding-guidelines.md](docs/coding-guidelines.md) — engineering / style standards
 - [ARCHITECTURE.md](ARCHITECTURE.md) — package map and the Module/port model
+- `AGENTS.local.md` — **if this file exists, read it before starting.** It holds
+  machine-local context: reference material available on this machine, local
+  paths, anything specific to one developer's environment rather than to the
+  project. It is gitignored, and deliberately so — never copy its contents into a
+  tracked file. Most clones will not have one, and skipping it is correct then.
 
 > **F0 is in progress** ([#1](https://github.com/usefabrin/fabrin/issues/1)).
 > Some paths below land over the course of that epic. If a command or file this
@@ -37,6 +42,63 @@ are correct in application repositories:
   breaks strangers' builds. Prefer to ship less and add later.
 - The most valuable boundary rule is not layering, it is **API-surface
   discipline** (hard rule 2 below).
+
+## What to optimise for
+
+**Security first, then performance, then everything else.** Both are top-tier
+concerns and most changes serve both. When they genuinely conflict, **security
+wins** — and the trade is written down rather than made quietly.
+
+This ordering is sharper for a framework than it would be for an application. A
+default here is inherited by every application built on Fabrin, and almost nobody
+revisits a framework default. A slow framework costs its users milliseconds they
+can measure and fix. An unsafe default costs every downstream application at
+once, invisibly, and they have no reason to go looking.
+
+### What it already means here
+
+The rule is a description of decisions already made, not a new aspiration. Each
+of these is documented at its own call site; this is the principle they share:
+
+- **Defaults differ from the underlying library's when the library's is unsafe.**
+  `TrustedProxies` defaults to *none*, because Gin trusts every proxy and that
+  makes `ClientIP()` spoofable by any client sending `X-Forwarded-For`
+  (`app.go`). `ReadHeaderTimeout` is 10s, because Go's `http.Server` zero value
+  is *no timeout* (`config/options.go`).
+- **Untrusted input that reaches a log file or a response header is rejected,
+  not escaped.** An inbound request id is dropped unless it is already safe, and
+  bounded at 64 characters — it is a header-injection and log-forging vector, and
+  generating a fresh id is always a valid answer (`logging/logging.go`).
+- **Fail closed.** `/readyz` reports not-ready when a check fails or times out.
+  Serving traffic this process cannot handle is worse than leaving the pool
+  (`health/health.go`).
+
+### The canonical example
+
+`crypto/rand` for request ids costs ~200 ns per request — roughly a fifth of the
+middleware budget, and its single largest *time* component. `math/rand` would
+recover nearly all of it.
+
+It stays. Request ids reach logs and some systems that consume them treat them as
+unguessable. That is the trade this section exists to make, and
+[`perf/BASELINE.md`](perf/BASELINE.md) records both the cost and the reason, so
+the next person optimising the request path finds the decision instead of
+rediscovering the option.
+
+### Performance is measured, never asserted
+
+A framework that says "fast" without a number is marketing. `just bench` and
+[`perf/BASELINE.md`](perf/BASELINE.md) hold the numbers; a regression lands with
+a written justification, per that file's own rule. Allocations per request are
+the tracked metric, because nanoseconds vary with the machine and an allocation
+in the hot path shows up identically everywhere.
+
+### When they conflict
+
+A change that trades a security property for speed must **name the property it
+weakens, and why that is acceptable, in the commit body.** Never silently. If you
+cannot state the property clearly enough to write the sentence, that is the
+answer: do not make the change.
 
 ## Hard rules (never violate)
 
