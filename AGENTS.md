@@ -17,11 +17,6 @@ Also follow:
   project. It is gitignored, and deliberately so — never copy its contents into a
   tracked file. Most clones will not have one, and skipping it is correct then.
 
-> **F0 is in progress** ([#1](https://github.com/usefabrin/fabrin/issues/1)).
-> Some paths below land over the course of that epic. If a command or file this
-> document names does not exist yet, check the epic's checklist before assuming
-> the document is wrong. Delete this note when F0 closes.
-
 ## What this is
 
 **Fabrin** is a **batteries-included web framework for Go**, built on
@@ -179,10 +174,14 @@ green CI; there is no second command to remember.
 
 ### Recipes skip, they do not fail
 
-`check`'s recipe list is written **once** and never grows. Recipes whose target
-does not exist yet (`examples`, `specs`, `api-check` early in F0) print a skip
-notice and exit 0. This keeps the invariant that **every PR leaves `just check`
-green** without editing `check` in four separate PRs.
+`check`'s recipe list is written **once** and never grows. A recipe whose target
+does not exist yet prints a skip notice and exits 0. This keeps the invariant that
+**every PR leaves `just check` green** without editing `check` in four separate
+PRs — `examples`, `specs`, and `api-check` each spent part of F0 skipping, and
+none of them do now.
+
+Keep the mechanism when you add a recipe. The next milestone lands `cmd/fabrin`
+and `fabrin/orm`, and their gates will need it for exactly the same reason.
 
 Gates also report **every** failure rather than the first. A fail-fast loop hides
 gates 2..N behind gate 1, so a contributor fixes one thing, re-runs, finds
