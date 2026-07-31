@@ -25,6 +25,17 @@ var (
 
 	// ErrBadFile means a settings file could not be read or parsed.
 	ErrBadFile = errors.New("config: bad file")
+
+	// ErrNoSources means [Load] or [Resolve] was called with no sources, so it
+	// would have read nothing.
+	//
+	// An error rather than "just the defaults" because the failure is otherwise
+	// silent: the process starts, serves, and ignores every FABRIN_ variable, with
+	// the only symptom being a setting that mysteriously "does not work". That is
+	// the same defect this package already refuses to ship for an unknown key, and
+	// the same one the root package refuses for an unknown module name. Say
+	// [Defaults] out loud when defaults are genuinely what you want.
+	ErrNoSources = errors.New("config: no sources")
 )
 
 // keyPrefix scopes which environment keys this package claims. The environment of
@@ -77,6 +88,52 @@ func OSEnv() Lookup {
 	}
 	return out
 }
+
+// Standard is the conventional source stack for a main function:
+//
+//	defaults ← .env file ← environment ← command-line flags
+//
+//	cfg := config.MustLoad(config.Standard()...)
+//
+// This is the batteries-included answer, and the one the error from [ErrNoSources]
+// points at. Spelled as a helper rather than as the behaviour of an empty [Load]
+// so that reading the environment stays something the caller asked for — visible
+// at the call site, not a hidden default.
+//
+// It returns a SLICE rather than one composite source on purpose. Provenance is
+// recorded per source, so collapsing three layers into one would report every
+// value as coming from "standard" and throw away the ability to answer *which
+// layer set this*, which is most of the value of [Resolve].
+//
+// Two consequences of the flag layer, both intentional:
+//
+//   - It reads os.Args, so this belongs in main, not in a library or a test. In a
+//     test binary os.Args carries go test's own -test.* flags, which the flag
+//     layer rejects. Build the stack explicitly there, or use [Defaults].
+//   - Append to it freely — config.Standard() is just a slice:
+//     append(config.Standard(), config.FromRequiredFile(path))...
+func Standard() []Source {
+	return []Source{
+		FromFile(".env"),
+		FromEnv(nil),
+		FromFlags(os.Args[1:]),
+	}
+}
+
+// Defaults is a source that supplies nothing, so [Load] applies only its built-in
+// defaults.
+//
+// It exists so that "defaults only" is something a caller can *say*. Load with no
+// sources at all is [ErrNoSources], because an empty argument list is far more
+// often an oversight than a decision — and this is how a test asks for a
+// deterministic configuration without the machine's environment leaking into it.
+func Defaults() Source { return defaultsSource{} }
+
+type defaultsSource struct{}
+
+func (defaultsSource) name() string { return "defaults" }
+
+func (defaultsSource) values() (map[string]string, error) { return map[string]string{}, nil }
 
 // Source is one layer of settings. Layers are applied in the order given to
 // [Load], each overriding the previous.
@@ -260,6 +317,14 @@ func (r *Resolved) String() string {
 // Resolve applies sources in order and reports the winning value and origin for
 // each key. It fails on an unrecognised FABRIN_ key.
 func Resolve(sources ...Source) (*Resolved, error) {
+	// Checked here rather than in Load so that both public entry points get the
+	// same answer from one implementation.
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("%w: nothing would be read, so every FABRIN_ setting would be silently ignored. "+
+			"Pass config.Standard()... for the conventional stack (.env, environment, flags), "+
+			"or config.Defaults() if defaults really are what you want", ErrNoSources)
+	}
+
 	known := make(map[string]bool, len(knownKeys))
 	for _, k := range knownKeys {
 		known[k] = true
@@ -327,14 +392,22 @@ func commonPrefixLen(a, b string) int {
 
 // Load resolves sources into [Options] with defaults applied.
 //
-// With no sources it returns the defaults, which is a usable configuration. The
-// conventional production call is:
+// The conventional production call is [Standard]:
+//
+//	cfg, err := config.Load(config.Standard()...)
+//
+// which is the same as spelling the layers out, and you should when you want
+// something other than the convention:
 //
 //	cfg, err := config.Load(
 //	    config.FromFile(".env"),
 //	    config.FromEnv(nil),
 //	    config.FromFlags(os.Args[1:]),
 //	)
+//
+// With NO sources it fails with [ErrNoSources] rather than returning the
+// defaults. Reading nothing is a legitimate thing to want and an illegitimate
+// thing to want by accident, so it has to be said out loud — [Defaults].
 //
 // Every parse failure is reported at load, naming the key and the layer. Failing
 // at first use instead means failing in production after a green deploy.

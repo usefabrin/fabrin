@@ -108,12 +108,37 @@ Added — package `fabrin/config`:
 - `Resolved` with `Get`, `SourceOf`, `String` — **provenance**, because on a
   misconfigured deploy you can see the wrong value but not where it came from, and
   that is most of the debugging time.
+- `Standard() []Source` — the conventional stack (`.env` ← environment ← flags)
+  as one value: `config.MustLoad(config.Standard()...)`. A **slice**, not a
+  composite source, so per-layer provenance survives; collapsing the three would
+  report every value as coming from "standard" and discard the answer to *which
+  layer set this*. Reads `os.Args`, so it belongs in `main` — in a test binary the
+  flag layer rejects `go test`'s own `-test.*` flags.
+- `Defaults() Source` — a source supplying nothing, so "defaults only" is
+  something a caller can say out loud.
 - Settings keys as constants (`KeyAddr`, `KeyModules`, …), sentinels
-  (`ErrInvalidValue`, `ErrUnknownKey`, `ErrBadFile`), and the `Default*` constants.
+  (`ErrInvalidValue`, `ErrUnknownKey`, `ErrBadFile`, `ErrNoSources`), and the
+  `Default*` constants.
 - `Options` **moved here** from the root package (see above), gaining `Debug`,
   `LogFormat`, and `LogLevel`, plus an exported `WithDefaults`.
 
 Behaviour worth knowing:
+
+- **`Load()` and `Resolve()` with NO sources are an error** (`ErrNoSources`),
+  not a defaults-only load. ([#22])
+
+  This is the one place the package's own "explicit sources" rule was working
+  against its users. `config.MustLoad()` is the shape a reader reaches for first;
+  it compiled, started, served, and ignored every `FABRIN_` variable with no
+  diagnostic anywhere. Running the README's own example with
+  `FABRIN_ADDR=127.0.0.1:18099` bound `:8080` instead — the only symptom being a
+  port collision with an unrelated process.
+
+  Sources stay explicit, because "nothing reads the environment behind your back"
+  is worth keeping and a test needs a configuration the machine cannot influence.
+  What changed is that the empty call now *says so*, and its error names both
+  fixes. That matches how this codebase already treats an unknown settings key and
+  an unknown module name: an error, never a silent no-op.
 
 - **Later layers win**: defaults ← file ← env ← flags.
 - **An unknown `FABRIN_`-prefixed key is an error**, with a near-miss suggestion.
@@ -199,15 +224,16 @@ Added — package `fabrin`:
   are per-request work by definition. Attribution benchmarks now live in
   `logging/` so a future move is a reading rather than a bisect.
 
-### Performance
+  This supersedes the earlier entry for #18, which read "zero extra allocations
+  and zero extra bytes per request (9 allocs/op, 1040 B/op for both)". That was
+  true when the only thing between a request and a handler was the router; it
+  stopped being true the moment request ids and a log line became defaults. The
+  half of it that survives is stated above and is now the tracked invariant.
 
-Measured against raw `gin.Engine`: **zero extra allocations and zero extra bytes
-per request** (9 allocs/op, 1040 B/op for both). Fabrin's registry, per-module
-route group, and capability map all resolve at construction. See
-[`perf/BASELINE.md`](perf/BASELINE.md).
-
+[#8]: https://github.com/usefabrin/fabrin/issues/8
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
 [#15]: https://github.com/usefabrin/fabrin/pull/15
 [#16]: https://github.com/usefabrin/fabrin/pull/16
+[#22]: https://github.com/usefabrin/fabrin/issues/22

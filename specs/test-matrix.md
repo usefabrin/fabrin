@@ -39,6 +39,8 @@ the Gin aliases proving identical in both directions.
 | CFG-002 | Each value reports its source layer | `config/config_test.go::TestLoad_ReportsWhichLayerSetEachValue` |
 | CFG-003 | Unparseable value fails at load, key named | `config/config_test.go::TestLoad_RejectsUnparseableValueNamingTheKey` |
 | CFG-004 | `FABRIN_ADDR` sets listen address, default `:8080` | `config/config_test.go::TestLoad_DefaultsAddrToDocumentedValue` |
+| CFG-005 | No sources is an error, not a silent defaults-only load | `config/config_test.go::TestLoad_RejectsAnEmptySourceList` |
+| CFG-006 | `Standard()` keeps per-layer provenance | `config/config_test.go::TestStandard_KeepsPerLayerProvenance` |
 
 ## Health and logging
 

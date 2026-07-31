@@ -42,20 +42,15 @@ package main
 import (
     "context"
     "log"
-    "os"
 
     "github.com/usefabrin/fabrin"
     "github.com/usefabrin/fabrin/config"
 )
 
 func main() {
-    // Sources are explicit — nothing reads the environment behind your back.
-    // Later layers win: file ← env ← flags.
-    cfg := config.MustLoad(
-        config.FromFile(".env"),
-        config.FromEnv(nil),
-        config.FromFlags(os.Args[1:]),
-    )
+    // The conventional stack, later layers winning: defaults ← .env ← env ← flags.
+    // Sources are explicit — Load with none is an error, never a silent no-op.
+    cfg := config.MustLoad(config.Standard()...)
 
     app, err := fabrin.New(cfg,
         blog.New(),
