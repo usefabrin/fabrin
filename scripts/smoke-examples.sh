@@ -58,7 +58,12 @@ for d in "${dirs[@]}"; do
 
   "$go" build -o "$out/$name" "./$d"
 
-  FABRIN_ADDR=":$port" "$out/$name" >"$log" 2>&1 &
+  # 127.0.0.1, not ":$port". The poll below is loopback-specific, and a wildcard
+  # bind means the two can disagree: if anything else on the machine already holds
+  # 127.0.0.1:$port, curl reaches THAT server and this gate reports on a process it
+  # did not start. Observed for real on :8080 against an unrelated local app.
+  # Binding loopback also keeps CI examples from being briefly reachable off-box.
+  FABRIN_ADDR="127.0.0.1:$port" "$out/$name" >"$log" 2>&1 &
   pid=$!
   pids+=("$pid")
 
