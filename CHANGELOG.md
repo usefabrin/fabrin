@@ -83,6 +83,39 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`fabrin startapp <name>`** — a module, wired in. ([#37])
+
+  ```console
+  $ fabrin startapp billing
+  created billing/ and wired it into main.go
+
+  $ go run . routes
+  GET  /           home
+  GET  /billing    billing
+  GET  /healthz    (framework)
+  ```
+
+  Django's `startapp` scaffolds the app and leaves `INSTALLED_APPS` to you,
+  because it is a list of strings. Fabrin's wiring is Go code, so the scaffold
+  can finish the job — and must: a module that exists and is never registered
+  compiles, serves nothing, and says nothing about why.
+
+  **The AST locates; the edit is a splice.** `go/ast` finds the real
+  `fabrin.New` call rather than a string that looks like one — a regex is
+  fragile against a user who reformatted, added a comment, or wired a port, all
+  of which the generated file's own comments encourage. But re-printing with
+  `go/format` would reformat code the user owns and can move their comments,
+  turning "add a module" into a diff nobody wants to review. So the parser is
+  used only to find *where*, and the edit inserts at the byte offsets it
+  reports: the correctness of a parser with the diff of a one-line insert.
+
+  The edit is then **verified rather than assumed** — the result is re-parsed
+  and checked for the `fabrin.New` call before anything is written, so a bug
+  here cannot leave a broken `main.go` behind.
+
+  `startapp` and `new` render the **same module templates**; `home` is simply
+  the first module `new` generates, at `/` rather than at its own path.
+
 - **`fabrin new <name>`** — a project that builds, tests, and boots. ([#36])
 
   ```console
@@ -492,6 +525,7 @@ Added — package `fabrin`:
 [#34]: https://github.com/usefabrin/fabrin/issues/34
 [#35]: https://github.com/usefabrin/fabrin/issues/35
 [#36]: https://github.com/usefabrin/fabrin/issues/36
+[#37]: https://github.com/usefabrin/fabrin/issues/37
 [#45]: https://github.com/usefabrin/fabrin/issues/45
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13

@@ -81,6 +81,28 @@ func commands() []cli.Command {
 			},
 		},
 		{
+			Name:  "startapp",
+			Short: "scaffold a module into this project and wire it in",
+			Flags: func(fs *flag.FlagSet) {
+				fs.StringVar(&dir, "dir", ".", "project root")
+			},
+			Run: func(_ context.Context, out io.Writer, args []string) error {
+				if len(args) != 1 {
+					return fmt.Errorf("fabrin: startapp takes exactly one name — try `fabrin startapp billing`")
+				}
+				name := args[0]
+
+				if err := (scaffold.Module{Name: name, Dir: dir}).Generate(); err != nil {
+					return err
+				}
+
+				_, err := fmt.Fprintf(out,
+					"created %s/ and wired it into %s\n\n    go run . routes\n",
+					filepath.Join(dir, name), filepath.Join(dir, "main.go"))
+				return err
+			},
+		},
+		{
 			Name:  "version",
 			Short: "print this tool's version",
 			Run: func(_ context.Context, out io.Writer, _ []string) error {

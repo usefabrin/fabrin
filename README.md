@@ -174,6 +174,7 @@ go install github.com/usefabrin/fabrin/cmd/fabrin@main
 
 fabrin new demo
 cd demo
+fabrin startapp billing  # a module, wired into main.go for you
 just run                 # serves on :8080
 
 curl localhost:8080/

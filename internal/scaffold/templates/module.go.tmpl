@@ -1,0 +1,44 @@
+// Package {{ .Package }} is a Fabrin module: a self-contained slice of {{ .App }}
+// that owns its own routes.
+//
+// # Modules never import each other
+//
+// If this module needs something another module owns, declare the interface it
+// needs HERE and take it as a constructor argument. main.go is then the only
+// place that knows who provides it:
+//
+//	type Clock interface{ Now() time.Time }
+//
+//	func New(clock Clock) *Module { return &Module{clock: clock} }
+//
+// That interface is the seam along which this module can later move into its own
+// process. A direct import welds the two together permanently, and the weld stays
+// invisible until someone tries to split them.
+package {{ .Package }}
+
+import (
+	"net/http"
+
+	"github.com/usefabrin/fabrin"
+)
+
+// Module serves {{ .Package }}.
+type Module struct{}
+
+// New returns the module.
+//
+// Take dependencies as arguments rather than reaching for them: a missing one is
+// then a compile error in main, not a nil dereference on the first request.
+func New() *Module { return &Module{} }
+
+// Name identifies the module. It is how FABRIN_MODULES selects this module for a
+// process, and how a failing readiness check names it — so it is the one string
+// here with behaviour attached.
+func (m *Module) Name() string { return "{{ .Package }}" }
+
+// Routes mounts this module's routes.
+func (m *Module) Routes(r fabrin.Router) {
+	r.GET("{{ .Route }}", func(c *fabrin.Context) {
+		c.JSON(http.StatusOK, fabrin.H{"module": "{{ .Package }}"})
+	})
+}
