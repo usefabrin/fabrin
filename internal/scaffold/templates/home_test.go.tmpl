@@ -1,0 +1,28 @@
+package home_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/usefabrin/fabrin"
+
+	"{{ .Module }}/home"
+)
+
+// Mount the module on a real App and assert on the response, rather than calling
+// the handler directly. A handler that works while nothing mounts it is the
+// failure mode this shape of test exists to catch.
+func TestHome_Answers(t *testing.T) {
+	app, err := fabrin.New(fabrin.Options{}, home.New())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("GET / = %d, want 200", rec.Code)
+	}
+}

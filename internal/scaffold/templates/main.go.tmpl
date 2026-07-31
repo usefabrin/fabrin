@@ -1,0 +1,50 @@
+// Command {{ .Name }} is a Fabrin application.
+//
+// With no arguments it serves. With arguments it runs the named command:
+//
+//	go run .            # serve on FABRIN_ADDR, default :8080
+//	go run . routes     # every mounted route, and the module that owns it
+//	go run . help       # everything this binary can do
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+
+	"github.com/usefabrin/fabrin"
+	"github.com/usefabrin/fabrin/config"
+
+	"{{ .Module }}/home"
+)
+
+func main() {
+	// defaults ← .env ← environment ← flags, later layers winning. Loading with
+	// no sources at all is an error rather than a silent no-op.
+	opts := config.MustLoad(config.Standard()...)
+
+	app, err := newApp(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Execute rather than Run: Go compiles, so no separate tool can introspect an
+	// application it did not build. This binary has the modules linked in, so this
+	// binary is what answers `routes`.
+	if err := app.Execute(context.Background(), os.Stdout, os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// newApp is the wiring, kept out of main so a test can exercise the same
+// construction the binary does. A test that builds a different app proves
+// nothing about the app anyone runs.
+//
+// This is also the only place that knows which modules exist. A module never
+// imports another: it declares the interface it needs, and this function passes
+// in whatever satisfies it.
+func newApp(opts fabrin.Options) (*fabrin.App, error) {
+	return fabrin.New(opts,
+		home.New(),
+	)
+}

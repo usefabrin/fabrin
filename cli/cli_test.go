@@ -79,6 +79,75 @@ func TestDispatch_ParsesFlagsIntoTheCommandsOwnSet(t *testing.T) {
 	}
 }
 
+func TestDispatch_ParsesFlagsWhereverTheyAppear(t *testing.T) {
+	t.Parallel()
+
+	// Go's flag package stops at the first non-flag argument, which is right for a
+	// program's own arguments and wrong for a subcommand: the name has already
+	// been consumed, so everything after it belongs to that command. Without the
+	// interspersed handling, `fabrin new demo -module example.com/demo` treats the
+	// module path as a second project name and says "takes exactly one name".
+	tests := []struct {
+		name string
+		args []string
+		want []string // positional arguments, in order
+	}{
+		{"flags first", []string{"new", "-module", "m", "demo"}, []string{"demo"}},
+		{"flags last", []string{"new", "demo", "-module", "m"}, []string{"demo"}},
+		{"flags between", []string{"new", "demo", "-module", "m", "extra"}, []string{"demo", "extra"}},
+		{"no flags", []string{"new", "demo"}, []string{"demo"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var module string
+			var got []string
+
+			cmds := []cli.Command{{
+				Name:  "new",
+				Flags: func(fs *flag.FlagSet) { fs.StringVar(&module, "module", "", "module path") },
+				Run: func(_ context.Context, _ io.Writer, args []string) error {
+					got = args
+					return nil
+				},
+			}}
+
+			if err := cli.Dispatch(t.Context(), io.Discard, cmds, tc.args); err != nil {
+				t.Fatalf("Dispatch: %v", err)
+			}
+			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("positional args = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDispatch_TreatsEverythingAfterADoubleDashAsPositional(t *testing.T) {
+	t.Parallel()
+
+	// The escape hatch the interspersed parsing needs: `mycmd -- -weird` must pass
+	// -weird through rather than fail on an undefined flag. Re-parsing after the
+	// terminator would take that away.
+	var got []string
+	cmds := []cli.Command{{
+		Name:  "run",
+		Flags: func(fs *flag.FlagSet) { fs.String("format", "", "") },
+		Run: func(_ context.Context, _ io.Writer, args []string) error {
+			got = args
+			return nil
+		},
+	}}
+
+	err := cli.Dispatch(t.Context(), io.Discard, cmds,
+		[]string{"run", "-format", "json", "--", "-weird", "-format=nope"})
+	if err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	if strings.Join(got, ",") != "-weird,-format=nope" {
+		t.Errorf("args after -- = %v, want them passed through untouched", got)
+	}
+}
+
 func TestDispatch_RejectsUnknownCommandNamingTheClosestMatch(t *testing.T) {
 	t.Parallel()
 

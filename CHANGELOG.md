@@ -83,6 +83,44 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`fabrin new <name>`** — a project that builds, tests, and boots. ([#36])
+
+  ```console
+  $ fabrin new demo
+  created demo
+  resolving dependencies (go mod tidy)…
+
+      cd demo
+      just run
+  ```
+
+  It emits `go.mod`, a `main.go` ending in `app.Execute`, one module (`home/`)
+  with a passing test, a `justfile`, `.gitignore`, and a README, then runs
+  `go mod tidy` so the project resolves Fabrin from the proxy. The generated
+  `go.mod` names **no** dependency versions of its own: a version pinned in a
+  template is wrong the first time Fabrin is tagged, and nothing fails when it
+  is.
+
+  Templates live in **`internal/scaffold`**, not a public package. Every exported
+  symbol is a permanent promise, and a template's shape is the least stable thing
+  in the repository; `cmd/fabrin` is `package main` and contributes nothing to
+  `api/fabrin.txt`, so the whole scaffold stays off the public surface.
+
+  The generated `go` directive is **Fabrin's own**, not the toolchain that
+  happened to run the scaffold. Emitting the newer one would pin a project to
+  whatever the generating developer had installed, so it stops building for a
+  colleague on the older toolchain with nothing in the diff to say why. A test
+  reads Fabrin's `go.mod` and fails if the two drift.
+
+- **Flags are parsed wherever they appear in a command's arguments.** ([#36])
+
+  Go's `flag` package stops at the first non-flag argument. That is right for a
+  program's own arguments — `go run x.go -v` must hand `-v` to the program — and
+  wrong for a subcommand, whose name has already been consumed. Without this,
+  `fabrin new demo -module example.com/demo` treats the module path as a second
+  project name and reports "takes exactly one name". Everything after a bare
+  `--` is still passed through untouched.
+
 - **`Commander`** — a module contributes subcommands to the application's own
   binary. Django's management commands. ([#35])
 
@@ -445,6 +483,7 @@ Added — package `fabrin`:
 [#33]: https://github.com/usefabrin/fabrin/issues/33
 [#34]: https://github.com/usefabrin/fabrin/issues/34
 [#35]: https://github.com/usefabrin/fabrin/issues/35
+[#36]: https://github.com/usefabrin/fabrin/issues/36
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

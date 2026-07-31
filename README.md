@@ -165,9 +165,31 @@ Full table with rationale: [docs/DJANGO_PARITY.md](docs/DJANGO_PARITY.md).
 
 ## Getting started
 
-Nothing to install yet — F0 is
-[in progress](https://github.com/usefabrin/fabrin/issues/1). To work on Fabrin
-itself:
+**Pre-1.0 and unreleased** — there is no tagged version yet, so `fabrin new`
+resolves the framework from `main`. The API will break; the
+[CHANGELOG](CHANGELOG.md) records every change to the exported surface.
+
+```bash
+go install github.com/usefabrin/fabrin/cmd/fabrin@main
+
+fabrin new demo
+cd demo
+just run                 # serves on :8080
+
+curl localhost:8080/
+curl localhost:8080/healthz    # liveness — consults nothing
+curl localhost:8080/readyz     # readiness — fails closed
+```
+
+Your app's own binary is the CLI, because Go compiles and no separate tool can
+introspect an application it did not build:
+
+```bash
+go run . routes          # every mounted route, and the module that owns it
+go run . help
+```
+
+To work on Fabrin itself:
 
 ```bash
 git clone https://github.com/usefabrin/fabrin

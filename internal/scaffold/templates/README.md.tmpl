@@ -1,0 +1,54 @@
+# {{ .Name }}
+
+A [Fabrin](https://github.com/usefabrin/fabrin) application.
+
+```bash
+just run                 # serve on :8080
+curl localhost:8080/
+curl localhost:8080/healthz   # liveness — consults nothing
+curl localhost:8080/readyz    # readiness — aggregates module checks, fails closed
+```
+
+## What this binary can do
+
+```bash
+go run . help
+go run . routes          # every mounted route, and the module that owns it
+go run . version
+```
+
+No arguments means *serve*.
+
+## Modules
+
+A module owns its routes and, optionally, its health checks, commands, models,
+and lifecycle. `home/` is the one this project started with; add more with
+`fabrin startapp <name>` and wire them in `main.go`.
+
+**A module never imports another module.** If `orders` needs something `billing`
+owns, `orders` declares the interface it needs in its own package and `main.go`
+passes in whatever satisfies it. That interface is the seam along which the
+module can later move into its own process.
+
+## Deployment shapes
+
+```bash
+FABRIN_MODULES=home go run .    # mount only these modules
+```
+
+One binary, N deployment shapes. An unknown module name is a startup error, never
+a silent no-op.
+
+## Settings
+
+Resolved as defaults ← `.env` ← environment ← flags, later layers winning.
+
+| Key | Default | |
+|---|---|---|
+| `FABRIN_ADDR` | `:8080` | listen address |
+| `FABRIN_MODULES` | *(all)* | which modules this process mounts |
+| `FABRIN_LOG_FORMAT` | `json` | `json` or `text` |
+| `FABRIN_LOG_LEVEL` | `info` | |
+| `FABRIN_DEBUG` | `false` | development conveniences; leave off in production |
+
+Every one also works as a flag: `go run . -addr :9000`.

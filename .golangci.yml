@@ -158,9 +158,17 @@ linters:
         #
         # Scope is internal/** only. fabrintest legitimately imports the root
         # package — it constructs an App — and must not be caught here.
+        #
+        # The _test.go exclusion is the same false positive config-is-standalone
+        # documents: an EXTERNAL test package (package scaffold_test) imports the
+        # package under test, and the `pkg` prefix match sees
+        # .../fabrin/internal/scaffold as "the root package". It is not a library
+        # dependency — that test binary is compiled separately — and a real cycle
+        # from an internal test file is still rejected by the compiler.
         internal-does-not-import-root:
           files:
             - "**/internal/**"
+            - "!**/*_test.go"
           deny:
             - pkg: "github.com/usefabrin/fabrin"
               desc: "internal/ must not import the root package: the dependency runs public → internal"

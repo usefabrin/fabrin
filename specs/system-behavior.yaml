@@ -243,3 +243,17 @@ behaviours:
     requirement: FR-CLI-4
     status: implemented
     test: commander_test.go::TestNew_RejectsAModuleCommandThatShadowsABuiltIn
+
+  - id: CLI-009
+    what: Flags are parsed wherever they appear relative to a command's positional arguments, and everything after a bare "--" is passed through untouched.
+    why: Go's flag package stops at the first non-flag argument, which is right for a program's own arguments and wrong for a subcommand whose name has already been consumed. Without this, `fabrin new demo -module example.com/demo` treats the module path as a second project name.
+    requirement: FR-CLI-4
+    status: implemented
+    test: cli/cli_test.go::TestDispatch_ParsesFlagsWhereverTheyAppear
+
+  - id: CLI-010
+    what: `fabrin new <name>` writes a project that builds, tests, and boots, refusing a non-empty directory and an unusable name.
+    why: A scaffold whose output does not run is worse than no scaffold — the user debugs a framework they have not learned yet. Validation happens before the first write, because a half-written project is harder to recover from than none.
+    requirement: FR-CLI-1
+    status: implemented
+    test: internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds

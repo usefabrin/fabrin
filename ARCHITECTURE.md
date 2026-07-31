@@ -35,9 +35,9 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── forms/               binding and validation    (F5)
 ├── signals/             event bus                 (F6)
 ├── tasks/               background jobs, cron      (F6)
-├── cmd/fabrin/          the CLI                   (F1)
+├── cmd/fabrin/          the CLI — `new`, `startapp`, `version`
 │
-├── internal/            implementation detail — unimportable by users
+├── internal/scaffold/   go:embed project templates — unimportable by users
 ├── examples/            runnable apps, built and smoked by `just check`
 ├── api/fabrin.txt       checked-in snapshot of the exported surface
 ├── specs/               behaviour spec + test matrix
