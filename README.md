@@ -1,3 +1,5 @@
+<img width="1280" height="640" alt="fabrin-banner Large-1280x640" src="https://github.com/user-attachments/assets/8cb44f47-f422-4b5f-a2cf-816bf021264e" />
+
 <h1>Fabrin</h1>
 
 **A batteries-included web framework for Go, built on [Gin](https://github.com/gin-gonic/gin)
