@@ -17,3 +17,8 @@
 
 # Claude Code local overrides (the shared settings.json IS tracked)
 .claude/settings.local.json
+
+# Machine-local agent context: reference material and paths specific to one
+# developer's machine rather than to the project. Untracked by design — AGENTS.md
+# points at it without describing what any given machine puts there.
+AGENTS.local.md
