@@ -208,3 +208,24 @@ behaviours:
     requirement: FR-CLI-4
     status: implemented
     test: cli/cli_test.go::TestDispatch_WritesNothingToStderrOnAFlagParseError
+
+  - id: CLI-004
+    what: Every mounted route is attributed to the module that mounted it, with framework routes marked as such.
+    why: "Which module owns this URL" cannot be answered from the engine alone — Gin records a handler name, which for a closure is an unhelpful pkg.func1. Attributing /healthz to whichever module mounted first would be a lie that surfaces only when someone goes looking.
+    requirement: FR-CLI-3
+    status: implemented
+    test: execute_test.go::TestApp_RoutesAttributesEachRouteToItsModule
+
+  - id: CLI-005
+    what: Execute with no arguments serves, and a leading flag is treated as a setting rather than a command.
+    why: Anything else silently changes what ./myapp does the moment its main switches from Run to Execute. A container that used to serve would print usage and exit 0, which every orchestrator reads as a successful run.
+    requirement: FR-CLI-3
+    status: implemented
+    test: execute_test.go::TestApp_ExecuteWithNoArgumentsServes
+
+  - id: CLI-006
+    what: Gin's debug output is silenced unless Options.Debug is set, and GIN_MODE overrides both.
+    why: Gin's zero configuration prints a warning banner and the whole route table to stdout on construction — four lines of garbage above a routes listing, and a needless disclosure of internal handler paths in a container log. Differ from the library's default when the library's default is unsafe. It is also what finally makes Options.Debug change behaviour rather than merely resolve.
+    requirement: NFR-7
+    status: implemented
+    test: execute_test.go::TestNew_SilencesGinsDebugOutputUnlessDebugIsSet

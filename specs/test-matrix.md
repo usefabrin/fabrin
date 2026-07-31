@@ -91,13 +91,28 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-001 | Unknown command is an error naming the closest match | `cli/cli_test.go::TestDispatch_RejectsUnknownCommandNamingTheClosestMatch` |
 | CLI-002 | Each command's flags are its own; nothing registered globally | `cli/cli_test.go::TestDispatch_ParsesFlagsIntoTheCommandsOwnSet` |
 | CLI-003 | `Dispatch` writes to no stream it does not own | `cli/cli_test.go::TestDispatch_WritesNothingToStderrOnAFlagParseError` |
+| CLI-004 | Every route attributed to its module; framework routes marked | `execute_test.go::TestApp_RoutesAttributesEachRouteToItsModule` |
+| CLI-005 | `Execute` with no arguments serves; a leading flag is a setting | `execute_test.go::TestApp_ExecuteWithNoArgumentsServes` |
+| CLI-006 | Gin's debug output silenced unless `Debug`; `GIN_MODE` wins | `execute_test.go::TestNew_SilencesGinsDebugOutputUnlessDebugIsSet` |
 
-All three cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
+CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command
 type to be Fabrin's own, and forces the package to stand alone from `App`.
+CLI-004/005 cite FR-CLI-3; CLI-006 cites NFR-7.
 
-Also covered without a spec entry, each being a consequence of the three above
+CLI-006 is here rather than under Config because the CLI is where it bites: Gin's
+construction-time banner and route table land on **stdout**, four lines above the
+answer `routes` was asked for. The same output has always been in a Fabrin app's
+container log — the command is what made it impossible to ignore.
+
+Also covered without a spec entry, each being a consequence of the six above
 rather than an independent claim: help requests succeed rather than fail,
 `Flags` being optional is not a nil dereference, a command with no `Run` is
 rejected, duplicate names are rejected regardless of which command was asked for,
-and the context reaches the command so a blocking command can be cancelled.
+the context reaches the command so a blocking one can be cancelled, `Routes()` is
+sorted stably, an unmounted module contributes no routes, and `version` reads
+build info rather than a constant.
+
+`TestNew_PanicsWhenTwoModulesClaimTheSamePath` has no spec entry on purpose: it
+records what Gin does today rather than a behaviour Fabrin promises. Improving
+that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/issues/40).
