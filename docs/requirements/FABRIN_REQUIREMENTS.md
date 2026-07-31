@@ -63,7 +63,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-CLI-1 | `fabrin new <name>` scaffolds a runnable project. | planned |
 | FR-CLI-2 | `fabrin startapp <name>` scaffolds a module wired into the project. | planned |
 | FR-CLI-3 | `fabrin routes` lists mounted routes with their module, so "which module owns this URL" is answerable without reading the source. | done |
-| FR-CLI-4 | A module may contribute subcommands via `Commander` (Django's management commands). | planned |
+| FR-CLI-4 | A module may contribute subcommands via `Commander` (Django's management commands). | done |
 
 ## FR-ORM — data layer (F2)
 

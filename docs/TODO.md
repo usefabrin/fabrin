@@ -65,8 +65,9 @@ a project shape to generate, and F0 defines that shape.
       application it did not build. (FR-CLI-3, CLI-004…005)
 - [x] `version`, `serve`, and `App.Execute` as the entry point a `main` hands
       `os.Args[1:]` to. No arguments still means serve.
-- [ ] `Commander` — modules contribute subcommands. Django's management commands.
-      (FR-CLI-4)
+- [x] `Commander` — modules contribute subcommands. Django's management commands.
+      Collected from *mounted* modules only, and a colliding name fails at
+      construction. (FR-CLI-4, CLI-007…008)
 - [ ] Scaffold output is itself an `examples/` entry, so `just check` proves the
       generator emits something that builds and boots.
 

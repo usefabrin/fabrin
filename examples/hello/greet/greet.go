@@ -16,10 +16,14 @@
 package greet
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/usefabrin/fabrin"
+	"github.com/usefabrin/fabrin/cli"
 )
 
 // Clock is the capability greet needs, declared in the package that needs it.
@@ -45,6 +49,32 @@ func New(clock Clock) *Module { return &Module{clock: clock} }
 
 // Name implements [fabrin.Module].
 func (m *Module) Name() string { return "greet" }
+
+// Commands implements the optional fabrin.Commander interface — Django's
+// management commands.
+//
+// Note what it reaches for: [Module.clock], the same port the HTTP handler uses.
+// A module's command is the module, not a second implementation that happens to
+// live nearby, so a swapped-out Clock changes both at once.
+//
+// It writes to the io.Writer Fabrin hands it rather than to os.Stdout. That is
+// what lets `hello_test.go` assert on the output without capturing a
+// process-global stream.
+func (m *Module) Commands() []cli.Command {
+	return []cli.Command{{
+		Name:  "greet",
+		Short: "print a greeting without starting a server",
+		Run: func(_ context.Context, out io.Writer, args []string) error {
+			name := "world"
+			if len(args) > 0 {
+				name = args[0]
+			}
+			_, err := fmt.Fprintf(out, "hello, %s (at %s)\n",
+				name, m.clock.Now().Format(time.RFC3339))
+			return err
+		},
+	}}
+}
 
 // Routes implements [fabrin.Module].
 func (m *Module) Routes(r fabrin.Router) {

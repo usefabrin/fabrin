@@ -22,7 +22,7 @@ Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ 
 | `django-admin startapp` | `fabrin startapp` | 📋 F1 |
 | `manage.py runserver` | `./myapp serve` — or no arguments at all — with graceful shutdown | ✅ F1 |
 | `show_urls` (django-extensions) | `./myapp routes` — every mounted route with the module that owns it | ✅ F1 |
-| Management commands | `Commander` on a module | 📋 F1 |
+| Management commands | `Commander` on a module — collected from *mounted* modules, so slicing drops them with the routes | ✅ F1 |
 | `python manage.py check` | `Checker` on a module → `/readyz` | ✅ F0 |
 | `LOGGING` (dictConfig) | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
 | `settings.DEBUG` | `FABRIN_DEBUG` — off by default, and off means Gin's construction-time route dump is silenced | ✅ F1 |

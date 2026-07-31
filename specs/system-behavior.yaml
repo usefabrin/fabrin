@@ -229,3 +229,17 @@ behaviours:
     requirement: NFR-7
     status: implemented
     test: execute_test.go::TestNew_SilencesGinsDebugOutputUnlessDebugIsSet
+
+  - id: CLI-007
+    what: A module contributes subcommands through Commander, collected from the mounted modules only.
+    why: Django's management commands, and the reason fabrin/cli is its own package. A module this process did not mount registered nothing, so offering its command would advertise work this process cannot do.
+    requirement: FR-CLI-4
+    status: implemented
+    test: commander_test.go::TestNew_CollectsCommandsFromMountedModulesOnly
+
+  - id: CLI-008
+    what: A command name colliding with a built-in or with another module's command fails at construction, naming both sides.
+    why: Found at dispatch instead, a shadowed `routes` is a command that suddenly does something else, and which of the two wins depends on slice order — correct on the machine where it was written.
+    requirement: FR-CLI-4
+    status: implemented
+    test: commander_test.go::TestNew_RejectsAModuleCommandThatShadowsABuiltIn

@@ -83,6 +83,23 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`Commander`** — a module contributes subcommands to the application's own
+  binary. Django's management commands. ([#35])
+
+  Collected from the **mounted** modules only, the same process-slicing rule
+  `collectChecks` follows for readiness: a module this process did not mount
+  registered nothing, and offering its command would advertise work this process
+  cannot do. `examples/hello` gains a `greet` command that reaches the clock
+  through the same `Clock` port its HTTP handler uses — a module's command *is*
+  the module, not a second implementation living nearby.
+
+  A command name colliding with a built-in, or with another module's command, is
+  an **error at construction**, naming both sides. Found at dispatch instead, a
+  shadowed `routes` is a command that suddenly does something else, and which of
+  the two wins depends on slice order. The reserved names are read from the
+  built-in set itself rather than a second list, so the check cannot drift from
+  what is actually dispatchable.
+
 - **`(*App).Execute`** — the entry point a `main` hands `os.Args[1:]` to, with
   built-in `routes`, `serve`, and `version`. ([#34])
 
@@ -231,6 +248,9 @@ Added to package `fabrin` ([#34]):
 
 - `Route` — `Method`, `Path`, `Module`. `Module` is empty for a route the
   framework mounted itself, which is `/healthz` and `/readyz`.
+- `Commander` — `Commands() []cli.Command`, the sixth optional module interface,
+  asserted at registration alongside `Checker` and `Lifecycle` and reported
+  through `App.Capabilities()` like them ([#35]).
 - `(*App).Routes() []Route` and
   `(*App).Execute(ctx, out io.Writer, args []string) error`.
 
@@ -355,6 +375,23 @@ Added — package `fabrin`:
 
 ### Changed
 
+- **BREAKING — `cli.Command.Run` gained an `io.Writer`.** ([#35])
+
+  ```diff
+  -Run func(ctx context.Context, args []string) error
+  +Run func(ctx context.Context, out io.Writer, args []string) error
+  ```
+
+  Shipped one PR earlier in #33, revised here. Without it, `Execute`'s writer
+  reached the built-ins and stopped: a module's command that printed anything had
+  to reach for `os.Stdout` itself, which is the least appropriate place in the
+  whole framework to be writing to a process-global stream, and made the command
+  untestable without capturing one. Django hands its management commands
+  `self.stdout` and Cobra hands them `cmd.OutOrStdout()` for the same reason.
+
+  Mechanical to fix: add the parameter, ignore it with `_` if the command prints
+  nothing.
+
 - **`fabrin.New` now installs three middleware and mounts two routes by default:**
   `gin.Recovery`, `logging.RequestID`, `logging.Logger`, plus `/healthz` and
   `/readyz`. Batteries included — an orchestrator's probes work against a stock
@@ -407,6 +444,7 @@ Added — package `fabrin`:
 [#28]: https://github.com/usefabrin/fabrin/issues/28
 [#33]: https://github.com/usefabrin/fabrin/issues/33
 [#34]: https://github.com/usefabrin/fabrin/issues/34
+[#35]: https://github.com/usefabrin/fabrin/issues/35
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

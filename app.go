@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/usefabrin/fabrin/cli"
 	"github.com/usefabrin/fabrin/config"
 	"github.com/usefabrin/fabrin/health"
 	"github.com/usefabrin/fabrin/logging"
@@ -58,6 +59,10 @@ type App struct {
 	// routeOwner maps "METHOD /path" to the module that mounted it. Built once in
 	// New and never written again, so Routes may read it without the mutex below.
 	routeOwner map[string]string
+
+	// moduleCommands is what the mounted modules contributed through Commander,
+	// collected once in New for the same reason and read the same way.
+	moduleCommands []cli.Command
 
 	mu      sync.Mutex
 	running bool
@@ -174,6 +179,12 @@ func New(opts Options, modules ...Module) (*App, error) {
 				app.routeOwner[k] = m.Name()
 			}
 		}
+	}
+
+	// After the mount loop, so it sees the same mounted set the routes above came
+	// from. A collision here fails construction rather than surfacing at dispatch.
+	if err := app.collectCommands(); err != nil {
+		return nil, err
 	}
 
 	opts.Logger.Debug("fabrin: modules mounted",
