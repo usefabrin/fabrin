@@ -413,6 +413,14 @@ Added — package `fabrin`:
 
 ### Changed
 
+- **`fabrin new -dir` no longer creates a mistyped parent path.** ([#45])
+
+  `os.MkdirAll` was building the whole chain, so `-dir ~/projcts` produced a
+  project under a directory nobody meant and nothing failed, which is why
+  nobody would look. The project directory itself is still created — that is
+  what the user asked for; its parent is something they *named*, and a name
+  that does not resolve is a typo worth reporting.
+
 - **BREAKING — `cli.Command.Run` gained an `io.Writer`.** ([#35])
 
   ```diff
@@ -484,6 +492,7 @@ Added — package `fabrin`:
 [#34]: https://github.com/usefabrin/fabrin/issues/34
 [#35]: https://github.com/usefabrin/fabrin/issues/35
 [#36]: https://github.com/usefabrin/fabrin/issues/36
+[#45]: https://github.com/usefabrin/fabrin/issues/45
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
