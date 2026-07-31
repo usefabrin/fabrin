@@ -41,6 +41,12 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 
 ### Fixed
 
+- **`FABRIN_LOG_FORMAT` and `FABRIN_LOG_LEVEL` were inert.** Both resolved from
+  the environment and validated, and then `Options.WithDefaults` overwrote
+  `Logger` with `slog.Default()` — so neither ever reached a handler. Same defect
+  class as `FABRIN_ADDR` below: a settings key the surface advertises and nothing
+  implements. `WithDefaults` now leaves `Logger` nil, documented, and
+  `fabrin.New` builds the logger from both fields. ([#8])
 - Three fail-open defects in the harness, all of which reported success while
   enforcing nothing. ([#15], [#14])
   - The public-package coverage gate matched **substrings**: `orm` matched
@@ -122,12 +128,76 @@ Behaviour worth knowing:
   over everything beneath it would let `FromFlags` erase the environment merely by
   being present.
 
+Added — package `fabrin/health`:
+
+- `Check` (the interface a module implements), `CheckFunc`, `Named(name, fn)`.
+- `Registry` with `NewRegistry`, `Register`, `Len`, `Evaluate`; `Report`,
+  `Result`, `Status` with `StatusUp` / `StatusDown`.
+- `LivenessHandler()`, `ReadinessHandler(*Registry)`, `Mount(gin.IRouter, *Registry)`.
+- `LivenessPath` (`/healthz`), `ReadinessPath` (`/readyz`), `DefaultTimeout` (2s).
+
+**Liveness and readiness answer different questions, and conflating them is how a
+deployment becomes a restart loop.** `/healthz` consults *nothing*: restarting is
+the only remedy a liveness failure has, so the probe must fail only when
+restarting would help. `/readyz` consults every mounted module's checks and
+**fails closed** — a ready-but-broken instance takes traffic it cannot serve and
+hides the fault behind a load balancer.
+
+Added — package `fabrin/logging`:
+
+- `New(io.Writer, format, level) *slog.Logger` — returned, never installed into a
+  package-level global, so a consumer can silence or redirect Fabrin without
+  affecting anything else in their process.
+- `RequestID()` and `Logger(*slog.Logger)` middleware.
+- `RequestIDFromContext(ctx)`, `ContextWithRequestID(ctx, id)`.
+- `HeaderRequestID` (`X-Request-ID`), `LogKeyRequestID` (`request_id`),
+  `MsgRequest` (`request`).
+
+Added — package `fabrin`:
+
+- `Checker` — the optional `Module` interface contributing `[]health.Check` to
+  readiness. Reported by `App.Capabilities` like `Lifecycle`.
+
 ### Changed
 
+- **`fabrin.New` now installs three middleware and mounts two routes by default:**
+  `gin.Recovery`, `logging.RequestID`, `logging.Logger`, plus `/healthz` and
+  `/readyz`. Batteries included — an orchestrator's probes work against a stock
+  app, and every response carries a request id a user can quote. A module that
+  declares `/healthz` itself now panics at construction, which is Gin's duplicate-
+  route behaviour and the right moment to find out.
+- **Readiness consults only the modules this process *mounted*.** With
+  `FABRIN_MODULES` in effect, an unmounted module's failing dependency does not
+  gate this process — process slicing extends to readiness.
+- **The request log message is now the constant `"request"`**, with method and
+  path as attributes, rather than an interpolated `"GET /users/123"`. An
+  interpolated message makes every distinct path its own message string, which
+  defeats grouping and alerting in every aggregator.
+- **`RequestID` no longer calls `c.Set(LogKeyRequestID, id)`.** It allocated Gin's
+  `Keys` map on every request to hold a second copy of a string already reachable
+  through `RequestIDFromContext`. `LogKeyRequestID` remains exported — it is the
+  slog attribute key.
+- **`config.Options.WithDefaults` leaves `Logger` nil.** Its default is not a
+  constant but a logger built from `LogFormat` and `LogLevel`, and
+  `config-is-standalone` forbids `fabrin/config` from importing `fabrin/logging`.
+  `fabrin.New` fills it. A caller using `config.Load()` *without* going through
+  `fabrin.New` must now supply a logger or check for nil before using
+  `Options.Logger`.
 - `fabrin.Options`, `fabrin.DefaultAddr`, `fabrin.DefaultShutdownTimeout`, and
   `fabrin.DefaultReadHeaderTimeout` are now **aliases** of the `fabrin/config`
   declarations. Not a breaking change — an alias is the same type and the same
   constant — and existing code keeps compiling unchanged.
+
+### Performance
+
+- The per-request baseline moved from **9 allocations to 22**, recorded with
+  itemised attribution in [`perf/BASELINE.md`](perf/BASELINE.md). The framework's
+  own machinery still adds **zero** — `BenchmarkFabrin_OneRoute` and
+  `BenchmarkRequestIDAndLogger` land on the same 22 allocs and 1794 B, which is
+  the evidence that the registry, route groups, and capability map all resolve at
+  construction time. The 13 belong to request ids and structured logging, which
+  are per-request work by definition. Attribution benchmarks now live in
+  `logging/` so a future move is a reading rather than a bisect.
 
 ### Performance
 

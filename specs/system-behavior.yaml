@@ -98,20 +98,51 @@ behaviours:
     what: /healthz reports liveness and consults no module checks.
     why: A liveness probe that fails on a slow dependency causes a restart loop that cannot fix the dependency.
     requirement: FR-HEALTH-1
-    status: planned
+    status: implemented
+    test: health_logging_test.go::TestHealthz_StaysUpWhileAModuleCheckIsFailing
 
   - id: HLT-002
     what: /readyz aggregates module checks and fails closed, naming the failing module and check.
     why: Reporting ready while a dependency is unreachable takes traffic the process cannot serve.
     requirement: FR-HEALTH-2
-    status: planned
+    status: implemented
+    test: health_logging_test.go::TestReadyz_FailsClosedAndNamesTheFailingModuleAndCheck
+
+  - id: HLT-003
+    what: Readiness consults only the modules this process MOUNTED, not every registered one.
+    why: Process slicing must extend to readiness; otherwise one deployment shape is gated on a dependency it has no stake in.
+    requirement: FR-HEALTH-2
+    status: implemented
+    test: health_logging_test.go::TestReadyz_OnlyConsultsMountedModules
 
   # ── Logging ─────────────────────────────────────────────────────────────────
   - id: LOG-001
     what: Every request carries a request id, on the context and in a response header.
     why: A user reporting an error can quote the header, which is the only way to find their request among thousands.
     requirement: FR-LOG-2
-    status: planned
+    status: implemented
+    test: health_logging_test.go::TestRequestID_ReachesTheHandlerContext
+
+  - id: LOG-002
+    what: An inbound X-Request-ID is honoured rather than replaced.
+    why: A trace started by an upstream proxy or another service must survive the hop, or a request becomes uncorrelatable the moment it crosses a service boundary.
+    requirement: FR-LOG-2
+    status: implemented
+    test: logging/logging_test.go::TestRequestID_HonoursInboundIDSoTracesSurviveAHop
+
+  - id: LOG-003
+    what: A hostile inbound X-Request-ID is discarded and replaced with a fresh one.
+    why: The id reaches log files and response headers, so an unvalidated one is a header-injection and log-forging vector; generating a fresh id is always a valid answer.
+    requirement: FR-LOG-2
+    status: implemented
+    test: logging/logging_test.go::TestRequestID_RejectsHostileInboundValues
+
+  - id: LOG-004
+    what: FABRIN_LOG_FORMAT and FABRIN_LOG_LEVEL reach the logger that serves requests.
+    why: A settings key that resolves and validates but changes nothing is the same defect class as one referenced but never implemented.
+    requirement: FR-LOG-1
+    status: implemented
+    test: health_logging_test.go::TestNew_BuildsTheLoggerFromLogLevel
 
   # ── Public API discipline ───────────────────────────────────────────────────
   - id: API-001

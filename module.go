@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/usefabrin/fabrin/health"
 )
 
 // Module is Fabrin's answer to Django's INSTALLED_APPS: a self-contained slice of
@@ -38,6 +40,16 @@ type Module interface {
 
 	// Routes mounts the module's HTTP routes.
 	Routes(r Router)
+}
+
+// Checker is an optional [Module] interface for a module that has a dependency
+// whose availability decides whether this process should receive traffic.
+//
+// The checks contribute to /readyz, never to /healthz. See [health] for why the
+// two must not be conflated: readiness answers "should I get traffic", and
+// liveness answers "would restarting help".
+type Checker interface {
+	Checks() []health.Check
 }
 
 // Lifecycle is an optional [Module] interface for a module owning a resource that
@@ -190,6 +202,9 @@ func quoteAll(ss []string) []string {
 // stays the one place that answers "what did this module actually contribute".
 func capabilitiesOf(m Module) []string {
 	var caps []string
+	if _, ok := m.(Checker); ok {
+		caps = append(caps, "Checker")
+	}
 	if _, ok := m.(Lifecycle); ok {
 		caps = append(caps, "Lifecycle")
 	}

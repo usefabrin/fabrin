@@ -3,6 +3,8 @@ package fabrin_test
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -240,9 +242,22 @@ func BenchmarkRawGin_OneRoute(b *testing.B) {
 	benchServe(b, e)
 }
 
+// BenchmarkFabrin_OneRoute measures what Fabrin's default stack costs over the
+// router it wraps: module mounting, the request-id middleware, and one
+// structured log line per request.
+//
+// The logger writes to io.Discard, which is not cheating — it is what makes the
+// comparison mean anything. Against raw Gin, which logs nothing at all, a
+// stderr-backed logger would measure the terminal (or the CI runner's pipe
+// buffer) rather than the framework, and the number would move with the machine
+// instead of with the code. The cost of the sink is the deployment's to choose;
+// the cost of the stack is ours to keep honest.
 func BenchmarkFabrin_OneRoute(b *testing.B) {
 	gin.SetMode(gin.ReleaseMode)
-	app, err := fabrin.New(fabrin.Options{}, route("m", "/x"))
+	app, err := fabrin.New(
+		fabrin.Options{Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))},
+		route("m", "/x"),
+	)
 	if err != nil {
 		b.Fatalf("New: %v", err)
 	}

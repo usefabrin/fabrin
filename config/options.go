@@ -73,7 +73,10 @@ type Options struct {
 	// Debug enables development conveniences. Env: FABRIN_DEBUG.
 	Debug bool
 
-	// Logger receives Fabrin's own lifecycle messages. Nil means slog.Default().
+	// Logger receives Fabrin's own lifecycle messages, and is the logger the
+	// request-logging middleware writes to. Nil means one built from [Options.LogFormat]
+	// and [Options.LogLevel] — see [Options.WithDefaults] for why that happens in the
+	// root package rather than here.
 	//
 	// Passed in rather than read from a package-level global so a consumer can
 	// silence or redirect Fabrin without affecting anything else in their process.
@@ -107,12 +110,23 @@ type Options struct {
 // Exported because the root package applies it too: a caller who builds Options
 // by hand rather than through [Load] must get the same defaults, and duplicating
 // the list in two packages is how they drift.
+//
+// # Logger is the one field left zero, deliberately
+//
+// A nil Logger stays nil here. Its default is not a constant — it is a logger
+// built from [Options.LogFormat] and [Options.LogLevel] by fabrin/logging, and
+// the boundary rules forbid this package from importing that one (settings must
+// load without dragging in half the framework). So the root package fills it
+// immediately after calling this, and [github.com/usefabrin/fabrin.New] is the
+// only place a Logger is constructed.
+//
+// This used to read `o.Logger = slog.Default()`, which looked like a harmless
+// default and quietly made LogFormat and LogLevel inert: both resolved from the
+// environment, both validated, and neither ever reached a handler. Restoring
+// that line reintroduces the bug.
 func (o Options) WithDefaults() Options {
 	if o.Addr == "" {
 		o.Addr = DefaultAddr
-	}
-	if o.Logger == nil {
-		o.Logger = slog.Default()
 	}
 	if o.LogFormat == "" {
 		o.LogFormat = DefaultLogFormat

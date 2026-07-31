@@ -129,6 +129,7 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 | `settings.py` | `fabrin/config` (defaults ← file ← env ← flags) | ✅ F0 |
 | `runserver`, graceful shutdown | `fabrin.App.Run` | ✅ F0 |
 | System checks | `Module.Checks()` → `/readyz` | ✅ F0 |
+| `LOGGING` | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
 | `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | F1 |
 | Management commands | `Module.Commands()` | F1 |
 | Models + `makemigrations` / `migrate` | `fabrin/orm` (GORM) + `fabrin migrate` | F2 |

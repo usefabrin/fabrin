@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -13,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/usefabrin/fabrin/config"
+	"github.com/usefabrin/fabrin/health"
+	"github.com/usefabrin/fabrin/logging"
 )
 
 // Options configures an [App]. It is an ALIAS for [config.Options], not a
@@ -71,19 +74,46 @@ type App struct {
 func New(opts Options, modules ...Module) (*App, error) {
 	opts = opts.WithDefaults()
 
+	// WithDefaults deliberately leaves Logger nil: its default depends on
+	// LogFormat and LogLevel, and fabrin/config may not import fabrin/logging. This
+	// is the layer that can see both, so it is the only place a logger is built.
+	if opts.Logger == nil {
+		// Stderr, matching what slog.Default() writes to, so redirecting Fabrin's
+		// output is not a behaviour change for anyone already capturing it.
+		opts.Logger = logging.New(os.Stderr, opts.LogFormat, opts.LogLevel)
+	}
+
 	reg, err := newRegistry(modules, opts.Modules)
 	if err != nil {
 		return nil, err
 	}
 
 	engine := gin.New()
-	engine.Use(gin.Recovery())
 
 	// Gin trusts all proxies by default, which makes ClientIP() spoofable by any
 	// client sending X-Forwarded-For. Nil here means trust none.
 	if err := engine.SetTrustedProxies(opts.TrustedProxies); err != nil {
 		return nil, fmt.Errorf("fabrin: trusted proxies: %w", err)
 	}
+
+	// Order is load-bearing in all three positions. Recovery outermost, so a panic
+	// in either of the others still produces a response. RequestID before Logger,
+	// because Logger reads the id off the request context — reversed, it silently
+	// logs every request without one, and nothing fails.
+	engine.Use(gin.Recovery())
+	engine.Use(logging.RequestID())
+	engine.Use(logging.Logger(opts.Logger))
+
+	checks, err := collectChecks(reg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Mounted before the module loop and without any module opting in: an
+	// orchestrator's probes must work against a stock app. A module that declares
+	// /healthz itself now panics here, at wiring time, naming the path — which is
+	// the right moment to find out, and is Gin's behaviour rather than ours.
+	health.Mount(engine, checks)
 
 	app := &App{opts: opts, registry: reg, engine: engine}
 
@@ -95,9 +125,34 @@ func New(opts Options, modules ...Module) (*App, error) {
 
 	opts.Logger.Debug("fabrin: modules mounted",
 		"modules", reg.names(),
-		"capabilities", reg.capabilities)
+		"capabilities", reg.capabilities,
+		"checks", checks.Len())
 
 	return app, nil
+}
+
+// collectChecks builds the readiness registry from the MOUNTED modules that
+// implement [Checker].
+//
+// Mounted, not registered: with a selection in effect, a module this process did
+// not mount owns nothing here, and gating this process's traffic on its
+// dependency would make one deployment shape fail for a reason it has no stake
+// in. That is process slicing applied to readiness.
+func collectChecks(reg *registry) (*health.Registry, error) {
+	checks := health.NewRegistry()
+	for _, m := range reg.modules {
+		c, ok := m.(Checker)
+		if !ok {
+			continue
+		}
+		// Propagated rather than logged: an unnamed check is a wiring mistake, and
+		// New fails on wiring mistakes instead of warning about them. Discovered at
+		// 3am from a readiness body that names no culprit, it is much more expensive.
+		if err := checks.Register(m.Name(), c.Checks()...); err != nil {
+			return nil, fmt.Errorf("fabrin: register health checks for module %q: %w", m.Name(), err)
+		}
+	}
+	return checks, nil
 }
 
 // Options returns the options in effect, with defaults applied.

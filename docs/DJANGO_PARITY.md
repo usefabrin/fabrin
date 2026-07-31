@@ -16,15 +16,16 @@ Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ 
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `INSTALLED_APPS` | `fabrin.Module` — a name plus routes; everything else optional | 📋 F0 |
-| `settings.py` | `fabrin/config` — defaults ← file ← env ← flags, each value reporting its source | 📋 F0 |
+| `INSTALLED_APPS` | `fabrin.Module` — a name plus routes; everything else optional | ✅ F0 |
+| `settings.py` | `fabrin/config` — defaults ← file ← env ← flags, each value reporting its source | ✅ F0 |
 | `django-admin startproject` | `fabrin new` | 📋 F1 |
 | `django-admin startapp` | `fabrin startapp` | 📋 F1 |
-| `manage.py runserver` | `fabrin serve`, with graceful shutdown | 📋 F0 |
+| `manage.py runserver` | `fabrin serve`, with graceful shutdown | 🚧 F0 — `App.Run` serves and shuts down gracefully; the `serve` *command* waits for the CLI in F1 |
 | Management commands | `Commander` on a module | 📋 F1 |
-| `python manage.py check` | `Checker` on a module → `/readyz` | 📋 F0 |
-| `settings.DEBUG` | `config` debug flag | 📋 F0 |
-| `AppConfig.ready()` | `Lifecycle.Start` / `Stop`, reverse order on the way down | 📋 F0 |
+| `python manage.py check` | `Checker` on a module → `/readyz` | ✅ F0 |
+| `LOGGING` (dictConfig) | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
+| `settings.DEBUG` | `config` debug flag | ✅ F0 |
+| `AppConfig.ready()` | `Lifecycle.Start` / `Stop`, reverse order on the way down | ✅ F0 |
 
 **Where the port would read badly.** Django's settings are a *module you import*,
 which makes them a mutable global. That is why Django needs
@@ -157,6 +158,7 @@ Not parity — the reason a Go framework can be worth building.
 | **A single static binary** | The admin, templates, and static files are `go:embed`ded. No virtualenv, no WSGI server, no `collectstatic` step in the deploy. |
 | **A checked public API surface** | `api/fabrin.txt` plus a gate. Django's public/private boundary is documentation and convention. |
 | **Compile-time module wiring** | A missing dependency is a build error, not a runtime `ImproperlyConfigured`. |
+| **Liveness and readiness as separate endpoints** | `/healthz` consults nothing; `/readyz` aggregates module checks and fails closed. Django's `manage.py check` is a *command*, not a probe an orchestrator can poll, so every Django deployment writes this by hand — usually conflating the two and earning a restart loop. |
 
 ---
 
