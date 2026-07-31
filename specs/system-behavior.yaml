@@ -93,6 +93,20 @@ behaviours:
     status: implemented
     test: config/config_test.go::TestLoad_DefaultsAddrToDocumentedValue
 
+  - id: CFG-005
+    what: Load or Resolve with no sources is an error naming Standard() and Defaults(), never a silent defaults-only load.
+    why: A main() written the obvious way would start, serve, and ignore every FABRIN_ variable with no diagnostic anywhere — the same silent no-op this codebase rejects for an unknown key and an unknown module name.
+    requirement: FR-CONFIG-1
+    status: implemented
+    test: config/config_test.go::TestLoad_RejectsAnEmptySourceList
+
+  - id: CFG-006
+    what: Standard() returns the conventional stack as separate layers, so per-layer provenance survives.
+    why: One composite source would report every value as coming from "standard", discarding the answer to "which layer set this" — most of the debugging time on a misconfigured deploy.
+    requirement: FR-CONFIG-2
+    status: implemented
+    test: config/config_test.go::TestStandard_KeepsPerLayerProvenance
+
   # ── Health ──────────────────────────────────────────────────────────────────
   - id: HLT-001
     what: /healthz reports liveness and consults no module checks.

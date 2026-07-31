@@ -51,7 +51,7 @@ func TestLoad_EachLayerWinsOverThePreviousOne(t *testing.T) {
 		sources []config.Source
 		want    string
 	}{
-		{"defaults only", nil, config.DefaultAddr},
+		{"defaults only", []config.Source{config.Defaults()}, config.DefaultAddr},
 		{"file over defaults", []config.Source{
 			config.FromFile(writeFile(t, "FABRIN_ADDR=:2222\n")),
 		}, ":2222"},
@@ -186,7 +186,7 @@ func TestLoad_IgnoresNonFabrinKeys(t *testing.T) {
 func TestLoad_DefaultsAddrToDocumentedValue(t *testing.T) {
 	t.Parallel()
 
-	opts, err := config.Load()
+	opts, err := config.Load(config.Defaults())
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestOptions_IsTheTypeFabrinNewAccepts(t *testing.T) {
 	// package: config.Load returns exactly what fabrin.New takes, with no mapping
 	// layer, while config still does not import the root package. If this stopped
 	// being an alias, the assignment below would not compile.
-	opts, err := config.Load()
+	opts, err := config.Load(config.Defaults())
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -426,5 +426,126 @@ func TestFromFlags_OnlyOverridesFlagsActuallyPassed(t *testing.T) {
 	}
 	if !opts.Debug {
 		t.Error("Debug came from env and no -debug flag was passed, so it must survive")
+	}
+}
+
+// ── CFG-005: an empty source list is an error, not a silent no-op ────────────
+
+func TestLoad_RejectsAnEmptySourceList(t *testing.T) {
+	t.Parallel()
+
+	// Load() used to resolve defaults and read NOTHING, which meant a main()
+	// written the obvious way started, served, and ignored every FABRIN_ variable
+	// with no diagnostic anywhere. That is the defect class this package already
+	// rejects everywhere else: an unknown key is an error rather than ignored, and
+	// an unknown module name is an error rather than a silent no-op. See #22.
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("Load with no sources must fail: it would read nothing and say nothing")
+	}
+	if !errors.Is(err, config.ErrNoSources) {
+		t.Errorf("error must be identifiable as ErrNoSources, got %v", err)
+	}
+
+	// The message has to carry its own fix. A reader who hits this is by definition
+	// someone who did not read the doc comment.
+	for _, want := range []string{"Standard", "Defaults"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error must name config.%s() as the fix, got %q", want, err)
+		}
+	}
+}
+
+func TestResolve_RejectsAnEmptySourceList(t *testing.T) {
+	t.Parallel()
+
+	// Resolve is the other public entry point; the check lives there so both are
+	// covered by one implementation rather than two that can disagree.
+	if _, err := config.Resolve(); !errors.Is(err, config.ErrNoSources) {
+		t.Errorf("Resolve with no sources must fail with ErrNoSources, got %v", err)
+	}
+}
+
+func TestMustLoad_PanicsOnAnEmptySourceList(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recover() == nil {
+			t.Error("MustLoad with no sources must panic, matching Load's error")
+		}
+	}()
+	_ = config.MustLoad()
+}
+
+// ── config.Defaults(): "defaults only", said out loud ───────────────────────
+
+func TestDefaults_AppliesDefaultsAndReadsNothing(t *testing.T) {
+	// Not parallel: t.Setenv forbids it.
+	t.Setenv(config.KeyAddr, "127.0.0.1:9999")
+
+	opts, err := config.Load(config.Defaults())
+	if err != nil {
+		t.Fatalf("Load(Defaults()): %v", err)
+	}
+
+	// The point of the source: it is how a test asks for defaults WITHOUT the
+	// process environment leaking in and making the test machine-dependent.
+	if opts.Addr != config.DefaultAddr {
+		t.Errorf("Addr = %q, want the default %q — Defaults() must not read the environment",
+			opts.Addr, config.DefaultAddr)
+	}
+}
+
+// ── config.Standard(): the conventional stack, as one value ─────────────────
+
+func TestStandard_ReadsTheEnvironmentAndFlags(t *testing.T) {
+	// Not parallel: mutates os.Args and the environment.
+	old := os.Args
+	t.Cleanup(func() { os.Args = old })
+
+	t.Setenv(config.KeyLogLevel, "warn")
+	t.Setenv(config.KeyAddr, "127.0.0.1:9999")
+	os.Args = []string{"app", "-addr=127.0.0.1:7777"}
+
+	opts, err := config.Load(config.Standard()...)
+	if err != nil {
+		t.Fatalf("Load(Standard()...): %v", err)
+	}
+
+	// This is the whole reason the option was chosen: the batteries-included call
+	// actually reads the environment.
+	if opts.LogLevel != "warn" {
+		t.Errorf("LogLevel = %q, want %q from the environment", opts.LogLevel, "warn")
+	}
+
+	// And the layer order still holds — flags are last, so they win over env.
+	if opts.Addr != "127.0.0.1:7777" {
+		t.Errorf("Addr = %q, want the flag to beat the environment", opts.Addr)
+	}
+}
+
+func TestStandard_KeepsPerLayerProvenance(t *testing.T) {
+	// Not parallel: mutates os.Args and the environment.
+	old := os.Args
+	t.Cleanup(func() { os.Args = old })
+
+	t.Setenv(config.KeyLogLevel, "warn")
+	os.Args = []string{"app", "-addr=127.0.0.1:7777"}
+
+	res, err := config.Resolve(config.Standard()...)
+	if err != nil {
+		t.Fatalf("Resolve(Standard()...): %v", err)
+	}
+
+	// Standard returns a SLICE of sources rather than one composite source
+	// precisely so this keeps working. A composite would collapse three layers into
+	// one provenance name and throw away the package's headline feature — on a
+	// misconfigured deploy you can see the wrong value but not where it came from,
+	// and that is most of the debugging time.
+	if got := res.SourceOf(config.KeyLogLevel); got != "env" {
+		t.Errorf("SourceOf(%s) = %q, want \"env\"", config.KeyLogLevel, got)
+	}
+	if got := res.SourceOf(config.KeyAddr); got != "flag" {
+		t.Errorf("SourceOf(%s) = %q, want \"flag\"", config.KeyAddr, got)
 	}
 }
