@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"go/parser"
 	"go/token"
 	"net/http"
@@ -87,6 +88,61 @@ func TestGreet_UsesTheClockItWasGiven(t *testing.T) {
 	// the port being satisfied rather than merely declared.
 	if !strings.Contains(body, `"at"`) {
 		t.Errorf("greeting must carry the time from the injected Clock, got %s", body)
+	}
+}
+
+// ── FR-CLI-3/4, end to end: the commands the binary answers ─────────────────
+
+func TestCommand_GreetUsesTheSamePortTheHandlerDoes(t *testing.T) {
+	t.Parallel()
+
+	// The point of the module command: it IS the module, not a second
+	// implementation living nearby. It reaches the clock through the port greet
+	// declares, so a swapped Clock changes the command and the handler together.
+	app := build(t, fabrin.Options{})
+
+	var out bytes.Buffer
+	if err := app.Execute(t.Context(), &out, []string{"greet", "you"}); err != nil {
+		t.Fatalf("greet: %v", err)
+	}
+	if !strings.Contains(out.String(), "hello, you") {
+		t.Errorf("greet printed %q, want a greeting for \"you\"", out.String())
+	}
+}
+
+func TestCommand_RoutesNamesTheOwningModule(t *testing.T) {
+	t.Parallel()
+
+	app := build(t, fabrin.Options{})
+
+	var out bytes.Buffer
+	if err := app.Execute(t.Context(), &out, []string{"routes"}); err != nil {
+		t.Fatalf("routes: %v", err)
+	}
+
+	// The README prints this listing. A test that only checked "some output"
+	// would let the README go stale without anything failing.
+	for _, want := range []string{"/greet    greet", "/time     clock", "(framework)"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("routes output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestCommand_SlicingDropsAnUnmountedModulesCommand(t *testing.T) {
+	t.Parallel()
+
+	// Process slicing applies to commands exactly as it does to routes and
+	// readiness checks: this process cannot greet, so it must not offer to.
+	app := build(t, fabrin.Options{Modules: []string{"clock"}})
+
+	var out bytes.Buffer
+	err := app.Execute(t.Context(), &out, []string{"greet"})
+	if err == nil {
+		t.Fatal("an unmounted module's command must not be dispatchable")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("want an unknown-command error, got: %v", err)
 	}
 }
 

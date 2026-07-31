@@ -52,11 +52,18 @@ type Command struct {
 	// both define -format without colliding, and nothing is registered globally.
 	Flags func(*flag.FlagSet)
 
-	// Run receives the positional arguments left after flag parsing.
+	// Run receives the writer Dispatch was given and the positional arguments
+	// left after flag parsing.
+	//
+	// out rather than os.Stdout for the same reason Dispatch takes one: a command
+	// that prints is untestable without capturing it, and a module's command is
+	// the least appropriate place in the whole framework to be reaching for a
+	// process-global stream. Django hands its management commands self.stdout for
+	// exactly this reason.
 	//
 	// The context carries cancellation: a command that blocks — serving, draining
 	// a queue — must return when it is done.
-	Run func(ctx context.Context, args []string) error
+	Run func(ctx context.Context, out io.Writer, args []string) error
 }
 
 // Dispatch runs the command named by args[0], or writes usage to out.
@@ -111,7 +118,7 @@ func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string)
 		return fmt.Errorf("fabrin: %s: %w", name, err)
 	}
 
-	return cmd.Run(ctx, fs.Args())
+	return cmd.Run(ctx, out, fs.Args())
 }
 
 func isHelp(arg string) bool {

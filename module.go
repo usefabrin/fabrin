@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/usefabrin/fabrin/cli"
 	"github.com/usefabrin/fabrin/health"
 )
 
@@ -50,6 +51,17 @@ type Module interface {
 // liveness answers "would restarting help".
 type Checker interface {
 	Checks() []health.Check
+}
+
+// Commander is an optional [Module] interface for a module contributing
+// subcommands to the application's own binary. It is Fabrin's answer to Django's
+// management commands.
+//
+// The commands are collected from the MOUNTED modules only, and a name that
+// collides with a built-in or with another module's command is an error at
+// construction — see [App.Execute].
+type Commander interface {
+	Commands() []cli.Command
 }
 
 // Lifecycle is an optional [Module] interface for a module owning a resource that
@@ -197,9 +209,9 @@ func quoteAll(ss []string) []string {
 
 // capabilitiesOf reports which optional Module interfaces m satisfies.
 //
-// Reserved for later milestones: Modeler and Migrator (F2), Commander (F1),
-// Subscriber (F6). Each is added here as its interface lands, so Capabilities
-// stays the one place that answers "what did this module actually contribute".
+// Reserved for later milestones: Modeler and Migrator (F2), Subscriber (F6).
+// Each is added here as its interface lands, so Capabilities stays the one place
+// that answers "what did this module actually contribute".
 func capabilitiesOf(m Module) []string {
 	var caps []string
 	if _, ok := m.(Checker); ok {
@@ -207,6 +219,9 @@ func capabilitiesOf(m Module) []string {
 	}
 	if _, ok := m.(Lifecycle); ok {
 		caps = append(caps, "Lifecycle")
+	}
+	if _, ok := m.(Commander); ok {
+		caps = append(caps, "Commander")
 	}
 	sort.Strings(caps)
 	return caps

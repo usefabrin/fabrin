@@ -25,6 +25,8 @@ pkg github.com/usefabrin/fabrin, method (*App) Stop(ctx context.Context) error
 pkg github.com/usefabrin/fabrin, type App struct
 pkg github.com/usefabrin/fabrin, type Checker interface
 pkg github.com/usefabrin/fabrin, type Checker interface, Checks() []github.com/usefabrin/fabrin/health.Check
+pkg github.com/usefabrin/fabrin, type Commander interface
+pkg github.com/usefabrin/fabrin, type Commander interface, Commands() []github.com/usefabrin/fabrin/cli.Command
 pkg github.com/usefabrin/fabrin, type Context = github.com/gin-gonic/gin.Context
 pkg github.com/usefabrin/fabrin, type H = github.com/gin-gonic/gin.H
 pkg github.com/usefabrin/fabrin, type HandlerFunc = github.com/gin-gonic/gin.HandlerFunc
@@ -60,7 +62,7 @@ pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.W
 pkg github.com/usefabrin/fabrin/cli, type Command struct
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Flags func(*flag.FlagSet)
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Name string
-pkg github.com/usefabrin/fabrin/cli, type Command struct, Run func(ctx context.Context, args []string) error
+pkg github.com/usefabrin/fabrin/cli, type Command struct, Run func(ctx context.Context, out io.Writer, args []string) error
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Short string
 
 pkg github.com/usefabrin/fabrin/config, const DefaultAddr untyped string = ":8080"

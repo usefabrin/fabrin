@@ -218,7 +218,7 @@ type Checker    interface { Checks() []health.Check }            // system check
 type Lifecycle  interface { Start(ctx) error; Stop(ctx) error }   // owned resources
 type Modeler    interface { Models() []orm.Model }                // F2
 type Migrator   interface { Migrations() []migrate.M }            // F2
-type Commander  interface { Commands() []cli.Command }            // F1
+type Commander  interface { Commands() []cli.Command }            // subcommands
 type Subscriber interface { Subscribe(b signals.Bus) }            // F6
 ```
 

@@ -75,6 +75,7 @@ func (a *App) Routes() []Route {
 // `./myapp` does the moment its main switches from Run to Execute: a container
 // that used to serve would print usage and exit 0, which every orchestrator
 // reads as a successful run.
+//
 // # A leading flag is a setting, not a command
 //
 // config.Standard() parses os.Args for -addr, -log-level and the rest, and Go's
@@ -89,28 +90,88 @@ func (a *App) Execute(ctx context.Context, out io.Writer, args []string) error {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return a.Run(ctx)
 	}
-	return cli.Dispatch(ctx, out, a.commands(out), args)
+	return cli.Dispatch(ctx, out, a.commands(), args)
 }
 
-// commands is the built-in set. Modules contribute their own through Commander.
-func (a *App) commands(out io.Writer) []cli.Command {
+// commands is what Dispatch selects from: the built-ins plus whatever the
+// mounted modules contributed, collected once at construction.
+func (a *App) commands() []cli.Command {
+	return append(a.builtins(), a.moduleCommands...)
+}
+
+// builtins is the set Fabrin owns. It is also the list collectCommands reads to
+// find reserved names — deliberately, rather than a second slice of strings that
+// could drift from what is actually dispatchable.
+//
+// It takes no writer: each command receives one from Dispatch, so there is
+// nothing to capture here and no chance of a command printing somewhere other
+// than where the caller asked.
+func (a *App) builtins() []cli.Command {
 	return []cli.Command{
 		{
 			Name:  "serve",
 			Short: "serve HTTP until the context is cancelled or a signal arrives",
-			Run:   func(ctx context.Context, _ []string) error { return a.Run(ctx) },
+			Run:   func(ctx context.Context, _ io.Writer, _ []string) error { return a.Run(ctx) },
 		},
 		{
 			Name:  "routes",
 			Short: "list mounted routes with the module that owns each",
-			Run:   func(context.Context, []string) error { return a.printRoutes(out) },
+			Run:   func(_ context.Context, out io.Writer, _ []string) error { return a.printRoutes(out) },
 		},
 		{
 			Name:  "version",
 			Short: "print the Fabrin version this binary was built against",
-			Run:   func(context.Context, []string) error { return printVersion(out) },
+			Run:   func(_ context.Context, out io.Writer, _ []string) error { return printVersion(out) },
 		},
 	}
+}
+
+// collectCommands gathers every mounted module's commands and rejects a name
+// collision at construction.
+//
+// MOUNTED modules, from the registry rather than from New's arguments. A module
+// this process did not mount registered nothing, and offering its command would
+// advertise work this process cannot do — the same process-slicing rule
+// collectChecks follows for readiness.
+//
+// A collision is a wiring mistake whose only cheap moment of discovery is now.
+// Found at dispatch instead, a shadowed `routes` is a command that suddenly does
+// something else, and which of the two wins depends on slice order — correct on
+// the machine where it was written.
+func (a *App) collectCommands() error {
+	// Reserved names come from builtins() itself, not from a second list. One
+	// source, so the check cannot drift from what is actually dispatchable.
+	owner := make(map[string]string)
+	for _, c := range a.builtins() {
+		owner[c.Name] = "" // empty means Fabrin owns it
+	}
+
+	for _, m := range a.registry.modules {
+		cmd, ok := m.(Commander)
+		if !ok {
+			continue
+		}
+
+		for _, c := range cmd.Commands() {
+			if strings.TrimSpace(c.Name) == "" {
+				// Unreachable rather than harmless: Dispatch selects by name, so a
+				// nameless command can never be invoked, and its absence reads as a
+				// bug in Fabrin rather than in the module.
+				return fmt.Errorf("fabrin: module %q declares a command with an empty name", m.Name())
+			}
+
+			if prev, taken := owner[c.Name]; taken {
+				if prev == "" {
+					return fmt.Errorf("fabrin: module %q declares command %q, which is a Fabrin built-in — rename the module's command", m.Name(), c.Name)
+				}
+				return fmt.Errorf("fabrin: modules %q and %q both declare command %q", prev, m.Name(), c.Name)
+			}
+
+			owner[c.Name] = m.Name()
+			a.moduleCommands = append(a.moduleCommands, c)
+		}
+	}
+	return nil
 }
 
 func (a *App) printRoutes(out io.Writer) error {

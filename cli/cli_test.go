@@ -18,7 +18,7 @@ func noop(name string) cli.Command {
 	return cli.Command{
 		Name:  name,
 		Short: name + " does a thing",
-		Run:   func(context.Context, []string) error { return nil },
+		Run:   func(context.Context, io.Writer, []string) error { return nil },
 	}
 }
 
@@ -31,7 +31,7 @@ func TestDispatch_SelectsByNameAndPassesPositionalArgs(t *testing.T) {
 		{
 			Name:  "routes",
 			Short: "list routes",
-			Run: func(_ context.Context, args []string) error {
+			Run: func(_ context.Context, _ io.Writer, args []string) error {
 				got = args
 				return nil
 			},
@@ -60,7 +60,7 @@ func TestDispatch_ParsesFlagsIntoTheCommandsOwnSet(t *testing.T) {
 		Name:  "routes",
 		Short: "list routes",
 		Flags: func(fs *flag.FlagSet) { fs.StringVar(&format, "format", "text", "output format") },
-		Run: func(_ context.Context, args []string) error {
+		Run: func(_ context.Context, _ io.Writer, args []string) error {
 			rest = args
 			return nil
 		},
@@ -146,7 +146,7 @@ func TestDispatch_PropagatesRunErrorForErrorsIs(t *testing.T) {
 	sentinel := errors.New("database unreachable")
 	cmds := []cli.Command{{
 		Name: "migrate",
-		Run:  func(context.Context, []string) error { return sentinel },
+		Run:  func(context.Context, io.Writer, []string) error { return sentinel },
 	}}
 
 	err := cli.Dispatch(t.Context(), io.Discard, cmds, []string{"migrate"})
@@ -181,7 +181,7 @@ func TestDispatch_PassesTheContextThrough(t *testing.T) {
 	var seen any
 	cmds := []cli.Command{{
 		Name: "serve",
-		Run: func(ctx context.Context, _ []string) error {
+		Run: func(ctx context.Context, _ io.Writer, _ []string) error {
 			seen = ctx.Value(key{})
 			return nil
 		},
@@ -213,7 +213,7 @@ func TestDispatch_WritesNothingToStderrOnAFlagParseError(t *testing.T) {
 	cmds := []cli.Command{{
 		Name:  "routes",
 		Flags: func(fs *flag.FlagSet) { fs.String("format", "text", "output format") },
-		Run:   func(context.Context, []string) error { return nil },
+		Run:   func(context.Context, io.Writer, []string) error { return nil },
 	}}
 
 	dispatchErr := cli.Dispatch(t.Context(), io.Discard, cmds, []string{"routes", "-nonesuch"})
@@ -240,7 +240,7 @@ func TestDispatch_CommandWithoutFlagsNeedsNoFlagFunc(t *testing.T) {
 	ran := false
 	cmds := []cli.Command{{
 		Name: "version",
-		Run:  func(context.Context, []string) error { ran = true; return nil },
+		Run:  func(context.Context, io.Writer, []string) error { ran = true; return nil },
 	}}
 
 	if err := cli.Dispatch(t.Context(), io.Discard, cmds, []string{"version"}); err != nil {
