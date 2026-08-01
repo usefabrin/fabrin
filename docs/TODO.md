@@ -88,7 +88,9 @@ a project shape to generate, and F0 defines that shape.
 
       FR-ORM-1 stays *in progress* until the admin and forms read it, which is
       the clause its text actually promises.
-- [ ] GORM adapter behind the `fabrin/orm` seam. (FR-ORM-2)
+- [ ] GORM as the shipped default adapter — a documented pattern and a worked
+      example, **not** an exported Fabrin type returning `*gorm.DB`.
+      ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md), FR-ORM-2)
 - [x] `Modeler` — modules declare their models; no package scanning. Collected
       from **mounted** modules only, so a sliced process is handed only the
       schema it owns, and two modules claiming one table fails at construction.

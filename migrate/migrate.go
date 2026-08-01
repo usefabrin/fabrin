@@ -36,8 +36,8 @@
 //
 // The statements this package issues use $1-style placeholders, which PostgreSQL
 // requires and SQLite accepts, so the engine needs no dialect code of its own.
-// Drivers that accept only ? — MySQL's, most notably — need the dialect work
-// tracked in the F2 roadmap.
+// Drivers that accept only ? — MySQL's, most notably — need dialect support that
+// F2 has not landed yet.
 package migrate
 
 import (

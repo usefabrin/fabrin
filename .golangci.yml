@@ -207,6 +207,12 @@ linters:
         # migrate is a leaf like the others, with two denies the others do not
         # need.
         #
+        # It differs from health, cli, and orm in one way worth stating: nothing
+        # imports it yet — Migrator is unwritten — so the root direction is NOT
+        # an import cycle here and the compiler catches neither direction. This
+        # rule carries both, which is the window #52 documented for orm and #53
+        # closed. Revisit this comment when Migrator lands.
+        #
         # Gin and net/http: a migrate-only process mounts no routes, and that is
         # a deployment shape Fabrin promises. An engine that dragged in a
         # transport would still work, and would make the smallest useful
@@ -224,7 +230,7 @@ linters:
             - "!**/*_test.go"
           deny:
             - pkg: "github.com/usefabrin/fabrin"
-              desc: "migrate must not import the root package or any other Fabrin package: the root package imports it to declare Migrator (see CONTRIBUTING.md)"
+              desc: "migrate must not import the root package or any other Fabrin package: it is a leaf, and until Migrator lands nothing imports it — so this rule, not the compiler, is what rejects the root direction too (see CONTRIBUTING.md)"
             - pkg: "github.com/gin-gonic/gin"
               desc: "migrate must stay transport-free: migrations run from a process that mounts no routes (see CONTRIBUTING.md)"
             - pkg: "net/http"

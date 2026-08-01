@@ -131,7 +131,7 @@ with their milestone rather than split into sections. Cutting a version is
   }
   ```
 
-  The fifth optional module interface, asserted at registration alongside
+  The fourth optional module interface, asserted at registration alongside
   `Checker`, `Lifecycle`, and `Commander`, and reported through
   `App.Capabilities()` like them. `App.Models()` is the collected schema, sorted
   by table, each entry carrying the module that declared it.
@@ -481,7 +481,7 @@ chose `database/sql` as the seam to get.
 
 Added to package `fabrin` ([#53]):
 
-- `Modeler` — `Models() []orm.Model`, the fifth optional module interface.
+- `Modeler` — `Models() []orm.Model`, the fourth optional module interface.
 - `(*App).Models() []orm.Registered`.
 
 `Models()` returns the models rather than the `*orm.Registry` holding them, and
