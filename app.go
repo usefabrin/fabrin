@@ -17,6 +17,7 @@ import (
 	"github.com/usefabrin/fabrin/config"
 	"github.com/usefabrin/fabrin/health"
 	"github.com/usefabrin/fabrin/logging"
+	"github.com/usefabrin/fabrin/orm"
 )
 
 // Options configures an [App]. It is an ALIAS for [config.Options], not a
@@ -63,6 +64,11 @@ type App struct {
 	// moduleCommands is what the mounted modules contributed through Commander,
 	// collected once in New for the same reason and read the same way.
 	moduleCommands []cli.Command
+
+	// models is what the mounted modules contributed through Modeler. Built once
+	// in New and never written again, which is the property orm.Registry's own
+	// doc comment relies on to justify having no mutex.
+	models *orm.Registry
 
 	mu      sync.Mutex
 	running bool
@@ -187,10 +193,19 @@ func New(opts Options, modules ...Module) (*App, error) {
 		return nil, err
 	}
 
+	// Models feed nothing at construction — unlike checks, which health.Mount
+	// needs — so this sits alongside collectCommands rather than before the loop.
+	models, err := collectModels(reg)
+	if err != nil {
+		return nil, err
+	}
+	app.models = models
+
 	opts.Logger.Debug("fabrin: modules mounted",
 		"modules", reg.names(),
 		"capabilities", reg.capabilities,
-		"checks", checks.Len())
+		"checks", checks.Len(),
+		"tables", len(models.Models()))
 
 	return app, nil
 }
@@ -218,6 +233,48 @@ func collectChecks(reg *registry) (*health.Registry, error) {
 	}
 	return checks, nil
 }
+
+// collectModels builds the schema from the MOUNTED modules that implement
+// [Modeler].
+//
+// Mounted, not registered: a migrate-only process that mounts one module must not
+// be handed another's models, or it generates DDL for tables this deployment
+// shape has no stake in. That is process slicing applied to the schema, and it is
+// the same rule collectChecks follows for readiness.
+//
+// Nothing scans for models. A module hands them over, which is why an
+// unregistered model is a compile-time absence rather than a silent one.
+func collectModels(reg *registry) (*orm.Registry, error) {
+	models := orm.NewRegistry()
+	for _, m := range reg.modules {
+		md, ok := m.(Modeler)
+		if !ok {
+			continue
+		}
+		// Propagated rather than logged, for the same reason collectChecks
+		// propagates: two modules claiming one table is a wiring mistake, and New
+		// fails on wiring mistakes instead of warning about them. Found later, it
+		// is found as a generated migration diffing against the union of two
+		// intentions. The %w keeps errors.Is(err, orm.ErrDuplicateTable) working
+		// from the root package.
+		if err := models.Register(m.Name(), md.Models()...); err != nil {
+			return nil, fmt.Errorf("fabrin: register models for module %q: %w", m.Name(), err)
+		}
+	}
+	return models, nil
+}
+
+// Models returns the schema the mounted modules declared, sorted by table name,
+// each carrying the module that owns it.
+//
+// This is what the migration generator reads. It returns the models rather than
+// the [orm.Registry] holding them on purpose: a registry would carry Register
+// with it, and letting a caller add a table after construction is exactly what
+// that type's "built once, read afterwards" contract rules out. The result is a
+// deep copy for the same reason.
+//
+// Empty is normal. An application with no models is not a broken one.
+func (a *App) Models() []orm.Registered { return a.models.Models() }
 
 // Options returns the options in effect, with defaults applied.
 func (a *App) Options() Options { return a.opts }

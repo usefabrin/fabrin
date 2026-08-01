@@ -86,10 +86,13 @@ a project shape to generate, and F0 defines that shape.
       handle and cannot import `database/sql`, which is what lets a schema be
       read with nothing running. (FR-ORM-1, ORM-001…006)
 
-      Nothing declares a model into it yet — `Modeler` is the next item, and
-      FR-ORM-1 stays *in progress* until something reads the registry.
+      FR-ORM-1 stays *in progress* until the admin and forms read it, which is
+      the clause its text actually promises.
 - [ ] GORM adapter behind the `fabrin/orm` seam. (FR-ORM-2)
-- [ ] `Modeler` — modules declare their models; no package scanning. (FR-ORM-3)
+- [x] `Modeler` — modules declare their models; no package scanning. Collected
+      from **mounted** modules only, so a sliced process is handed only the
+      schema it owns, and two modules claiming one table fails at construction.
+      `App.Models()` is what the generator will read. (FR-ORM-3, ORM-007…009)
 - [ ] `fabrin migrate` / `makemigrations`; versioned files with a down step.
       (FR-ORM-4)
 - [ ] Duplicate-version gate — two branches claiming one version is a matter of
