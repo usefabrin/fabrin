@@ -71,12 +71,12 @@ indirection now buys the ability to be wrong about the ORM later.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `urls.py` / `path()` | `Module.Routes(r Router)` | 📋 F0 |
-| View functions | `fabrin.HandlerFunc` = `gin.HandlerFunc` | 📋 F0 |
-| `HttpRequest` / `HttpResponse` | `*fabrin.Context` = `*gin.Context` | 📋 F0 |
-| Middleware | Gin middleware — **the entire existing ecosystem works** | 📋 F0 |
+| `urls.py` / `path()` | `Module.Routes(r Router)` | ✅ F0 |
+| View functions | `fabrin.HandlerFunc` = `gin.HandlerFunc` | ✅ F0 |
+| `HttpRequest` / `HttpResponse` | `*fabrin.Context` = `*gin.Context` | ✅ F0 |
+| Middleware | Gin middleware — **the entire existing ecosystem works** | ✅ F0 |
 | Class-based generic views | ❌ | ❌ |
-| `reverse()` / named URLs | `fabrin routes` for discovery; named reverse under consideration | 📋 F1 |
+| `reverse()` / named URLs | `./myapp routes` for discovery ✅ F1; named reverse still under consideration, with no milestone | 🚧 |
 
 **Where the port would read badly.** Django's class-based views solve template-method
 reuse through inheritance depth — `ListView` → `MultipleObjectMixin` →
