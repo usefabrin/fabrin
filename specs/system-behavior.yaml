@@ -211,7 +211,7 @@ behaviours:
 
   - id: CLI-004
     what: Every mounted route is attributed to the module that mounted it, with framework routes marked as such.
-    why: "Which module owns this URL" cannot be answered from the engine alone — Gin records a handler name, which for a closure is an unhelpful pkg.func1. Attributing /healthz to whichever module mounted first would be a lie that surfaces only when someone goes looking.
+    why: '"Which module owns this URL" cannot be answered from the engine alone — Gin records a handler name, which for a closure is an unhelpful pkg.func1. Attributing /healthz to whichever module mounted first would be a lie that surfaces only when someone goes looking.'
     requirement: FR-CLI-3
     status: implemented
     test: execute_test.go::TestApp_RoutesAttributesEachRouteToItsModule
@@ -252,14 +252,14 @@ behaviours:
     test: cli/cli_test.go::TestDispatch_ParsesFlagsWhereverTheyAppear
 
   - id: CLI-010
-    what: `fabrin new <name>` writes a project that builds, tests, and boots, refusing a non-empty directory and an unusable name.
+    what: '`fabrin new <name>` writes a project that builds, tests, and boots, refusing a non-empty directory and an unusable name.'
     why: A scaffold whose output does not run is worse than no scaffold — the user debugs a framework they have not learned yet. Validation happens before the first write, because a half-written project is harder to recover from than none.
     requirement: FR-CLI-1
     status: implemented
     test: internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds
 
   - id: CLI-011
-    what: `fabrin startapp <name>` writes the module package and wires it into the existing main.go, keeping every module already wired.
+    what: '`fabrin startapp <name>` writes the module package and wires it into the existing main.go, keeping every module already wired.'
     why: A scaffold that leaves the user to find the wiring point has done the easy half — the module compiles, serves nothing, and nothing says why.
     requirement: FR-CLI-2
     status: implemented
@@ -289,7 +289,7 @@ behaviours:
 
   - id: ORM-002
     what: A model the migration generator could not act on is rejected at registration rather than at DDL time — no table name, no fields, an unnamed or untyped column, a duplicated column, a bad MaxLen, or no primary key.
-    why: The generator runs against a real database, and a mystery there is a mystery in the most expensive available place. The zero Type is invalid on purpose: a forgotten type must be an error rather than silently becoming whichever constant sorts first.
+    why: 'The generator runs against a real database, and a mystery there is a mystery in the most expensive available place. The zero Type is invalid on purpose: a forgotten type must be an error rather than silently becoming whichever constant sorts first.'
     requirement: FR-ORM-1
     status: implemented
     test: orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate
@@ -360,7 +360,7 @@ behaviours:
 
   - id: MIG-003
     what: Migrations apply in version order regardless of slice order, and applying is idempotent — already-applied migrations are skipped rather than re-run.
-    why: A caller that globs a directory gets whatever the filesystem returns, which is not a total order. Idempotence is what makes a redeploy safe: an empty result means already up to date, which is the normal case and not an error.
+    why: 'A caller that globs a directory gets whatever the filesystem returns, which is not a total order. Idempotence is what makes a redeploy safe: an empty result means already up to date, which is the normal case and not an error.'
     requirement: FR-ORM-4
     status: implemented
     test: migrate/migrate_test.go::TestRun_AppliesPendingMigrationsInVersionOrder
