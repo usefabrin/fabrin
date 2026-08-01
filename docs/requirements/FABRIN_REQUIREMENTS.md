@@ -70,7 +70,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |---|---|---|
 | FR-ORM-1 | Fabrin owns a model-metadata registry independent of the ORM. The admin, forms, and migrations read **Fabrin** metadata, so swapping the ORM does not rewrite them. | planned |
-| FR-ORM-2 | GORM is the shipped default adapter. | planned |
+| FR-ORM-2 | GORM is the shipped default adapter — a documented adapter pattern and a worked example, not an exported Fabrin type returning `*gorm.DB`. See [ADR 0002](../adr/0002-database-sql-is-the-orm-seam.md). | planned |
 | FR-ORM-3 | A module declares its models via `Modeler`; Fabrin does not scan packages for them. | planned |
 | FR-ORM-4 | Migrations are versioned, ordered files with an explicit down step. | planned |
 | FR-ORM-5 | Two migrations may not claim the same version. With several branches in flight this is a matter of when, not if, and it surfaces at deploy time otherwise. | planned |
