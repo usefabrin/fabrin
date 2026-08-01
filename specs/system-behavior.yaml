@@ -278,3 +278,46 @@ behaviours:
     requirement: NFR-5
     status: implemented
     test: scripts/check-scaffold.sh
+
+  # ── Models: the metadata registry ───────────────────────────────────────────
+  - id: ORM-001
+    what: Two models claiming one table name are rejected at registration, and the error names both modules.
+    why: Two modules writing one table is either a mistake or a coupling nobody declared, and the migration generator would otherwise diff against a schema that is the union of two intentions. "Duplicate table" alone means grepping every module for the name, so the module that declared each side is recorded at registration — the only moment it is known for free.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_RejectsTwoModelsClaimingOneTable
+
+  - id: ORM-002
+    what: A model the migration generator could not act on is rejected at registration rather than at DDL time — no table name, no fields, an unnamed or untyped column, a duplicated column, a bad MaxLen, or no primary key.
+    why: The generator runs against a real database, and a mystery there is a mystery in the most expensive available place. The zero Type is invalid on purpose: a forgotten type must be an error rather than silently becoming whichever constant sorts first.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate
+
+  - id: ORM-003
+    what: Models() is ordered by table name rather than by registration order.
+    why: Registration order follows module registration, which follows FABRIN_MODULES and the argument order in main — none of which should reach a generated migration. Sorting makes the generator's output a function of the schema alone.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_ModelsIsOrderedByTableRatherThanRegistration
+
+  - id: ORM-004
+    what: Field order within a model is preserved exactly as declared.
+    why: The generator emits columns from this order, so anything unstable — a map, a sort by name — produces a spurious diff on a project nobody changed. That is how a generator earns a reputation for lying, and it is why table order is sorted while field order is not.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_KeepsFieldOrderAsDeclared
+
+  - id: ORM-005
+    what: Models() returns a deep copy, so a caller cannot mutate the registry through what it was handed.
+    why: The registry is read by the migration generator, the admin, and forms. A caller that mutated its result would change the schema every later reader sees, with nothing in between to blame.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_ModelsReturnsACopy
+
+  - id: ORM-006
+    what: The orm package holds no database handle — it may not import database/sql, and a sibling Fabrin package is barred too.
+    why: Metadata is a description, and the handle belongs to the application. Nothing else stops this package opening a connection, and the moment it can, the admin needs a database running to render a form and these tests need one to run. Enforced by depguard rather than by review, because the import that breaks it compiles cleanly.
+    requirement: FR-ORM-1
+    status: implemented
+    test: .golangci.yml

@@ -68,6 +68,19 @@ linters:
       #     unlike health and logging, nothing here is a handler. See ADR 0001 for
       #     why Command is Fabrin's own type rather than a third-party one.
       #
+      # boundary: orm — must not import the root package or a sibling
+      #     (orm-is-standalone), and must not import database/sql either. It
+      #     describes models; it opens nothing. That is what lets the admin (F4)
+      #     and forms (F5) read a schema without a database running, and what
+      #     keeps its tests in microseconds. Note the difference from health and
+      #     cli: the root package does NOT import orm yet — Modeler lands with
+      #     #53 — so orm importing root compiles cleanly TODAY and this rule is
+      #     the only thing rejecting it. Once Modeler lands it becomes a cycle
+      #     the compiler catches too, and the rule reverts to being about the
+      #     sibling import. The query API is database/sql or the user's own ORM,
+      #     named in neither place; see
+      #     docs/adr/0002-database-sql-is-the-orm-seam.md.
+      #
       # Packages land as each epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
@@ -150,6 +163,28 @@ linters:
           deny:
             - pkg: "github.com/usefabrin/fabrin"
               desc: "cli must not import the root package or any other Fabrin package: the root package imports it to declare Commander (see CONTRIBUTING.md)"
+
+        # orm is a leaf for the same reason health and cli are, with one thing
+        # that is NOT yet true of it: the root package does not import orm until
+        # Modeler (Models() []orm.Model) lands. So unlike the health and cli
+        # rules, this one is not belt-and-braces in the root direction — orm
+        # importing the root package compiles cleanly today, and nothing but this
+        # rule rejects it. It becomes a cycle the compiler catches once Modeler
+        # exists, and the sibling import is what it is for thereafter.
+        #
+        # The database/sql deny is the one worth explaining. Nothing stops this
+        # package opening a connection, and the moment it can, the admin needs a
+        # database to render a form and this package's tests need one to run.
+        # Metadata is a description; the handle belongs to the application.
+        orm-is-standalone:
+          files:
+            - "**/orm/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "orm must not import the root package or any other Fabrin package: it describes models and stands alone, so a schema can be read without the framework (see CONTRIBUTING.md)"
+            - pkg: "database/sql"
+              desc: "orm describes models and holds no handle — the admin and forms must be able to read a schema without a database running (see docs/adr/0002-database-sql-is-the-orm-seam.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

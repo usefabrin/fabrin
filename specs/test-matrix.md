@@ -138,3 +138,47 @@ build info rather than a constant.
 `TestNew_PanicsWhenTwoModulesClaimTheSamePath` has no spec entry on purpose: it
 records what Gin does today rather than a behaviour Fabrin promises. Improving
 that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/issues/40).
+
+## Models and metadata
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| ORM-001 | Duplicate table rejected, the error naming both modules | `orm/orm_test.go::TestRegistry_RejectsTwoModelsClaimingOneTable` |
+| ORM-002 | An unmigratable model is rejected at registration, not at DDL time | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
+| ORM-003 | `Models()` ordered by table, not by registration | `orm/orm_test.go::TestRegistry_ModelsIsOrderedByTableRatherThanRegistration` |
+| ORM-004 | Field order preserved exactly as declared | `orm/orm_test.go::TestRegistry_KeepsFieldOrderAsDeclared` |
+| ORM-005 | `Models()` returns a deep copy | `orm/orm_test.go::TestRegistry_ModelsReturnsACopy` |
+| ORM-006 | `orm` imports no `database/sql` and no sibling package | `.golangci.yml` — `orm-is-standalone` (gate; see below) |
+
+All six cite FR-ORM-1.
+
+ORM-003 and ORM-004 look contradictory and are not: table order is **sorted**
+because registration order carries `FABRIN_MODULES` and the argument order in
+`main` into the output, and field order is **preserved** because the declaration
+is the author's intent about column layout. Both exist to make the generator's
+output a function of the schema alone — a generator that emits a spurious diff on
+a project nobody changed is one nobody trusts.
+
+ORM-002 is one row over a table-driven test plus three siblings —
+`TestRegistry_RejectsAModelWithNoPrimaryKey`,
+`TestRegistry_RejectsMaxLenOnSomethingThatIsNotAString`, and
+`TestField_TypesAreFabrinsOwn`. They are the same claim (a model the generator
+could not act on never enters the registry) rather than four, and splitting them
+would suggest a caller has four cases to handle when it has one.
+
+ORM-006 is the third row whose test is not a Go test, for the reason API-002 and
+CLI-013 give: the thing that must fail is a **compile that succeeds**. A sibling
+import — `fabrin/health`, say — builds cleanly and is not an import cycle, so no
+Go test can distinguish it from correct code; only the import graph can, and
+depguard is what reads it.
+
+Worth stating because it is not true of the other leaves: **the root import
+compiles here too, today.** `health` and `cli` are imported *by* the root package,
+so `health` importing root is a cycle the compiler rejects and their rules are
+belt-and-braces in that direction. Nothing imports `orm` yet — `Modeler` lands
+with [#53](https://github.com/usefabrin/fabrin/issues/53) — so this rule is
+currently the only thing rejecting `orm` → root. All three denies were injected
+and read before this landed: the sibling import, the root import, and
+`database/sql`. The last is the load-bearing one, because nothing else stops this
+package opening a connection, and the moment it can, the admin needs a database
+running to render a form.
