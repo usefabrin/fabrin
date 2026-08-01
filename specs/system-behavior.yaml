@@ -396,7 +396,8 @@ behaviours:
     what: A migration set whose versions do not sort as written - mixed-width versions such as 9 and 10 - is rejected before anything is applied, and the error names both.
     why: M documents lexicographic ordering and therefore requires a fixed-width version, but nothing enforces it. Such a set is accepted, reordered into a sequence its author did not write, and applied against a schema each half never saw. Both versions are named because the fault is in the pair - 9 is unimpeachable next to 8. Cites FR-ORM-4 (versioned, ORDERED) rather than FR-ORM-5 although it arrived via issue #55 - these are two distinct versions, neither claiming the other's, so it is an ordering property like MIG-002 and not a collision.
     requirement: FR-ORM-4
-    status: planned
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten
 
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.

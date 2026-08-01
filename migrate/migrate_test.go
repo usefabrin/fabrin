@@ -388,8 +388,11 @@ func TestRun_RejectsVersionsThatDoNotSortAsWritten(t *testing.T) {
 			t.Errorf("%s was created — a rejected set must not have applied anything", table)
 		}
 	}
-	if got := versions(t, db); len(got) != 0 {
-		t.Errorf("applied state = %v, want empty", got)
+	// Stronger than "no rows recorded": validation runs before ensureTable, so a
+	// set rejected here leaves the database untouched rather than merely empty —
+	// the applied-state table is never created at all.
+	if tableExists(t, db, migrate.Table) {
+		t.Error("the applied-state table was created — a set rejected at validation must not touch the database")
 	}
 }
 
