@@ -208,3 +208,54 @@ whose modules declare no models has an empty schema rather than an error, a modu
 with no `Models()` method does not report the `Modeler` capability, and
 `App.Models()` returns a deep copy — the root-package half of ORM-005, since
 handing out `*orm.Registry` would hand out `Register` with it.
+
+## Migrations
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| MIG-001 | Body and applied-state row commit in **one** transaction | `migrate/migrate_test.go::TestRun_LeavesNothingBehindWhenAMigrationFails` |
+| MIG-002 | A migration ordered before an applied one is an error | `migrate/migrate_test.go::TestRun_RejectsAMigrationOrderedBeforeOneAlreadyApplied` |
+| MIG-003 | Version order, not slice order; applying is idempotent | `migrate/migrate_test.go::TestRun_AppliesPendingMigrationsInVersionOrder` |
+| MIG-004 | An unusable set is rejected before anything runs | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
+| MIG-005 | Rollback runs `Down` newest-first, to an exclusive target | `migrate/migrate_test.go::TestRollback_UndoesInReverseOrder` |
+| MIG-006 | The engine imports no driver, no Gin, no `net/http` | `.golangci.yml` — `migrate-is-standalone` (gate; see below) |
+| MIG-007 | Two migrations claiming one version are rejected | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
+
+MIG-001…006 cite FR-ORM-4; **MIG-007 cites FR-ORM-5**, and the split matters
+because the two are easy to conflate. FR-ORM-5 is *two migrations claiming one
+version*; MIG-002 is *one version arriving late*, which is an ordering property of
+the engine. They fail differently, are caught by different checks, and a reader
+tracing FR-ORM-5 to MIG-002 would find the wrong test.
+
+MIG-004 and MIG-007 name the same table-driven test on purpose: it has four
+subtests and they answer to two requirements. `duplicate_version` is FR-ORM-5's;
+the other three — no version, no `Up`, no `Down` — are FR-ORM-4's.
+
+MIG-001 is the row the whole package is built around, and the one a plausible
+implementation gets wrong. Writing the applied-state row *outside* the
+transaction leaves a half-applied migration marked as finished, which every later
+run then skips. Mutation-checked: moving that `INSERT` out of the transaction
+turns this test red.
+
+The test asserts **both** halves, because each can pass alone. After a migration
+whose `Up` issues DDL and then fails: the table it created must be gone, *and*
+its version must be absent from `fabrin_migrations` — while the migration before
+it stays committed, since it already succeeded.
+
+MIG-006 is the fourth row whose test is a gate rather than a Go test, and its
+negative control is the interesting half. `migrate_test.go` imports
+`modernc.org/sqlite` while the rule denies it; the gate is green because of the
+`!**/*_test.go` exclusion. So `just arch` passing *with that import present* is
+the proof the exclusion works, not an absence of evidence. All four denies were
+injected and read: a sibling package, Gin, `net/http`, and the driver — each
+compiled cleanly first, which is what leaves depguard the only thing that could
+catch them.
+
+What that rule cannot do is stated where it lives: depguard matches prefixes, so
+"no driver" is inexpressible against dozens of drivers. It names the one in
+`go.mod`, which is the one a slip could actually reach for.
+
+Also covered without a spec entry: a failing `Down` leaves its version recorded
+rather than deleted, `Rollback` stops at an exclusive target so the named version
+stays applied, and the applied-state table records name and time alongside the
+version.

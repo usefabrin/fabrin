@@ -122,6 +122,11 @@ suite could not have caught: a package in the manifest with nothing recorded.
   database running, and what keeps its tests in microseconds. The query API is
   `database/sql` or the user's own ORM, named in neither place — see
   [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md).
+- `fabrin/migrate` must not import Gin, `net/http`, or a database driver.
+  Migrations run from a process that mounts no routes. The engine takes a
+  `*sql.DB` and the application supplies the driver; the SQLite driver in
+  `go.mod` exists for this package's own tests and the `!**/*_test.go` exclusion
+  is what keeps it out of the shipped engine.
 - `internal/**` must not import the root package.
 
 `fabrin/cli` is a leaf for a concrete reason: the root package imports it to

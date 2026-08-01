@@ -45,7 +45,8 @@ them, and jump-to-definition works.
 |---|---|---|
 | `models.Model` | `orm.Model` + Fabrin's metadata registry — a description, with no database handle anywhere near it | 🚧 F2 |
 | Models found by importing each app in `INSTALLED_APPS` | `Modeler` on a module — models are handed over, never scanned for | ✅ F2 |
-| `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` | 📋 F2 |
+| `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` — the engine exists; the commands and on-disk files do not yet | 🚧 F2 |
+| `migrations.RunPython` / reversible `RunSQL` | `M.Up` / `M.Down`, both `func(ctx, *sql.Tx) error` — and `Down` is **required**, where Django's is optional | ✅ F2 |
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
 | `select_related` / `prefetch_related` | GORM preloading | 📋 F2 |
@@ -67,6 +68,18 @@ far less debugging.
 read GORM's metadata, the admin would *be* GORM-shaped, and swapping the ORM would
 mean rewriting the admin, the forms, and the migration generator. One layer of
 indirection now buys the ability to be wrong about the ORM later.
+
+**Where Fabrin is stricter than Django: `Down` is required.** Django's
+`RunPython` takes `reverse_code` optionally, and a migration without one is
+irreversible — which you discover at the moment you try to roll back, i.e. during
+an incident. `M.Down` is a required field, so the question is answered while the
+migration is being written. A genuinely irreversible change returns an error from
+`Down` saying why, which is a decision recorded in the file rather than an
+omission indistinguishable from carelessness.
+
+The cost is honest: a `Down` that says "cannot be undone, the column's data is
+gone" is more typing than leaving it out. It is also the sentence a reviewer needs
+to see.
 
 **Why discovery does not port.** Django finds models by importing every app in
 `INSTALLED_APPS` and letting the metaclass register each class as a side effect of

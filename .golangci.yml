@@ -80,6 +80,23 @@ linters:
       #     is database/sql or the user's own ORM, named in neither place; see
       #     docs/adr/0002-database-sql-is-the-orm-seam.md.
       #
+      # boundary: migrate — must not import the root package or a sibling, Gin,
+      #     net/http, or the SQLite driver its own tests use
+      #     (migrate-is-standalone). Migrations run from a process that mounts no
+      #     routes — that is most of the point of a migrate-only deployment
+      #     shape — so a transport import here would make the engine unusable
+      #     exactly where it is most needed.
+      #
+      #     The driver deny needs explaining, because it looks like it bans the
+      #     tests. It does not: the `!**/*_test.go` exclusion means the engine
+      #     may never import a driver while migrate_test.go may, which is the
+      #     whole arrangement ADR 0002 accepted — Fabrin takes a *sql.DB and the
+      #     application supplies the driver. Note what this rule CANNOT do: there
+      #     are dozens of drivers and depguard matches prefixes, so "no driver"
+      #     is inexpressible. Naming the one driver in our go.mod catches the
+      #     realistic mistake — a test import drifting into shipped code — and
+      #     review carries the rest.
+      #
       # Packages land as each epic progresses; each arrives with its own line.
       # ──────────────────────────────────────────────────────────────────────
       rules:
@@ -186,6 +203,34 @@ linters:
               desc: "orm must not import the root package or any other Fabrin package: it describes models and stands alone, so a schema can be read without the framework (see CONTRIBUTING.md)"
             - pkg: "database/sql"
               desc: "orm describes models and holds no handle — the admin and forms must be able to read a schema without a database running (see docs/adr/0002-database-sql-is-the-orm-seam.md)"
+
+        # migrate is a leaf like the others, with two denies the others do not
+        # need.
+        #
+        # Gin and net/http: a migrate-only process mounts no routes, and that is
+        # a deployment shape Fabrin promises. An engine that dragged in a
+        # transport would still work, and would make the smallest useful
+        # migration container carry an HTTP stack it never binds.
+        #
+        # The driver: the engine takes a *sql.DB and ships no driver (ADR 0002).
+        # modernc.org/sqlite is in go.mod for THIS package's tests, and the
+        # `!**/*_test.go` exclusion is what lets the tests use it while the
+        # engine cannot. Prefix matching cannot express "any driver" — dozens
+        # exist — so this names the one that is actually reachable, which is also
+        # the only one a slip could plausibly reach for.
+        migrate-is-standalone:
+          files:
+            - "**/migrate/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "migrate must not import the root package or any other Fabrin package: the root package imports it to declare Migrator (see CONTRIBUTING.md)"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "migrate must stay transport-free: migrations run from a process that mounts no routes (see CONTRIBUTING.md)"
+            - pkg: "net/http"
+              desc: "migrate must stay transport-free: migrations run from a process that mounts no routes (see CONTRIBUTING.md)"
+            - pkg: "modernc.org/sqlite"
+              desc: "migrate takes a *sql.DB and ships no driver — the application chooses one. This driver is a TEST dependency only (see docs/adr/0002-database-sql-is-the-orm-seam.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

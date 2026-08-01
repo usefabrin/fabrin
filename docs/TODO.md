@@ -93,7 +93,13 @@ a project shape to generate, and F0 defines that shape.
       from **mounted** modules only, so a sliced process is handed only the
       schema it owns, and two modules claiming one table fails at construction.
       `App.Models()` is what the generator will read. (FR-ORM-3, ORM-007…009)
-- [ ] `fabrin migrate` / `makemigrations`; versioned files with a down step.
+- [x] `fabrin/migrate` — the engine. Versioned, ordered, reversible; each
+      migration and the row recording it commit in **one** transaction, and an
+      unapplied migration sorting before an applied one is an error. Takes a
+      `*sql.DB`, imports no driver, no Gin, no `net/http`, so it runs from a
+      process that mounts no routes. (FR-ORM-4, MIG-001…006)
+- [ ] `fabrin migrate` / `makemigrations` as commands, and migrations as files on
+      disk. The engine above takes them as values; nothing reads a directory yet.
       (FR-ORM-4)
 - [ ] Duplicate-version gate — two branches claiming one version is a matter of
       when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)

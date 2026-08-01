@@ -28,7 +28,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── logging/             slog setup, request ids
 ├── fabrintest/          test client for Fabrin apps
 ├── orm/                 model metadata — no DB handle, no driver
-├── migrate/             migration engine          (F2)
+├── migrate/             migration engine over *sql.DB
 ├── auth/                users, sessions, perms    (F3)
 ├── admin/               auto-CRUD admin site      (F4)
 ├── render/              templates, static files   (F5)
@@ -237,6 +237,7 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 | `config` must not import Gin or `net/http` | Settings must load from the CLI, from tests, and from a migrate-only process without constructing an HTTP stack |
 | `config`, `logging`, `health`, `cli`, `orm` must not import the root package **or a sibling** | They sit *below* it. The root direction is a cycle the compiler already rejects, so the rule's real work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework. A leaf that lands before anything imports it has no compiler backstop at all until it does — which is why the rule is written when the package lands |
 | `orm` must not import `database/sql` | Metadata is a description; the handle belongs to the application. Otherwise the admin needs a database running to render a form, and this package's tests need one to run |
+| `migrate` must not import Gin, `net/http`, or a driver | Migrations run from a process that mounts no routes, which is a deployment shape Fabrin promises. The engine takes a `*sql.DB`; the application supplies the driver. The test driver is permitted in `_test.go` only — see [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) |
 | `internal/**` must not import the root package | The dependency runs public → internal |
 
 Every public package needs a `# boundary: <name> — <decision>` line in
