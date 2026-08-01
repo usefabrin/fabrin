@@ -159,6 +159,19 @@ pkg github.com/usefabrin/fabrin/logging, func New(w io.Writer, format string, le
 pkg github.com/usefabrin/fabrin/logging, func RequestID() github.com/gin-gonic/gin.HandlerFunc
 pkg github.com/usefabrin/fabrin/logging, func RequestIDFromContext(ctx context.Context) string
 
+pkg github.com/usefabrin/fabrin/migrate, const Table untyped string = "fabrin_migrations"
+pkg github.com/usefabrin/fabrin/migrate, func Rollback(ctx context.Context, db *database/sql.DB, ms []M, toVersion string) ([]M, error)
+pkg github.com/usefabrin/fabrin/migrate, func Run(ctx context.Context, db *database/sql.DB, ms []M) ([]M, error)
+pkg github.com/usefabrin/fabrin/migrate, type M struct
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Down func(ctx context.Context, tx *database/sql.Tx) error
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Name string
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Up func(ctx context.Context, tx *database/sql.Tx) error
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Version string
+pkg github.com/usefabrin/fabrin/migrate, var ErrDuplicateVersion error
+pkg github.com/usefabrin/fabrin/migrate, var ErrInvalidMigration error
+pkg github.com/usefabrin/fabrin/migrate, var ErrMissingMigration error
+pkg github.com/usefabrin/fabrin/migrate, var ErrOutOfOrder error
+
 pkg github.com/usefabrin/fabrin/orm, const Bool Type = "bool"
 pkg github.com/usefabrin/fabrin/orm, const Bytes Type = "bytes"
 pkg github.com/usefabrin/fabrin/orm, const Float Type = "float"

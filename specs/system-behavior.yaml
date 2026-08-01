@@ -342,3 +342,53 @@ behaviours:
     requirement: FR-ORM-3
     status: implemented
     test: modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable
+
+  # ── Migrations ──────────────────────────────────────────────────────────────
+  - id: MIG-001
+    what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.
+    why: Recording the version outside the transaction is the classic form of this bug — the migration half-runs, the row says it finished, and every later run skips the half that never happened. Migrations that already committed stay applied, and the error names which migration failed so the operator is not guessing at the database's state.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_LeavesNothingBehindWhenAMigrationFails
+
+  - id: MIG-002
+    what: An unapplied migration sorting before one already applied is an error, and nothing is applied.
+    why: That is the shape of a branch merged out of order — someone's 002 lands after 003 is already in production. Applying it silently would run it against a schema it was never written against, and the diff it assumed is not the diff it gets. Distinct from FR-ORM-5, which is about two migrations claiming ONE version; this is about one version arriving late.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_RejectsAMigrationOrderedBeforeOneAlreadyApplied
+
+  - id: MIG-003
+    what: Migrations apply in version order regardless of slice order, and applying is idempotent — already-applied migrations are skipped rather than re-run.
+    why: A caller that globs a directory gets whatever the filesystem returns, which is not a total order. Idempotence is what makes a redeploy safe: an empty result means already up to date, which is the normal case and not an error.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_AppliesPendingMigrationsInVersionOrder
+
+  - id: MIG-004
+    what: A migration set with a duplicate version, no version, no Up, or no Down is rejected before anything is applied.
+    why: A down step is required rather than optional — a migration you cannot reverse is a deploy you cannot roll back, and the moment you need it is the worst moment to find out nobody wrote one. An irreversible change says so from Down, which is a decision recorded in the file rather than an omission.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet
+
+  - id: MIG-005
+    what: Rollback undoes applied migrations newer than an exclusive target version, newest first, each in its own transaction, and fails rather than skipping a recorded version it has no Down for.
+    why: Reverse order because a later migration may depend on an earlier one — undoing 001 before 003 removes what 003's own Down still needs. Skipping a version with no migration in hand would report success while leaving the schema ahead of where the caller asked to be.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrate/migrate_test.go::TestRollback_UndoesInReverseOrder
+
+  - id: MIG-007
+    what: Two migrations claiming one version are rejected before anything is applied, and the error names both.
+    why: With several branches in flight this is a matter of when, not if. The engine half is here; the repo-level gate that catches it on the files before they are merged is separate, which is why FR-ORM-5 is not yet done.
+    requirement: FR-ORM-5
+    status: implemented
+    test: migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet
+
+  - id: MIG-006
+    what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
+    why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.
+    requirement: FR-ORM-4
+    status: implemented
+    test: .golangci.yml

@@ -84,6 +84,45 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`fabrin/migrate`** — the migration engine, over `*sql.DB`. ([#54])
+
+  ```go
+  applied, err := migrate.Run(ctx, db, []migrate.M{{
+      Version: "20260801120000",
+      Name:    "add orders",
+      Up:      func(ctx context.Context, tx *sql.Tx) error { … },
+      Down:    func(ctx context.Context, tx *sql.Tx) error { … },
+  }})
+  ```
+
+  **Each migration and the row recording it commit in one transaction.** Writing
+  the applied-state row outside it is the classic form of this bug: the migration
+  half-runs, the row says it finished, and every later run skips the half that
+  never happened. Mutation-checked — moving that `INSERT` out of the transaction
+  turns the test red.
+
+  This relies on the database rolling back DDL. SQLite and PostgreSQL do; **MySQL
+  and MariaDB do not**, and the package documentation says so rather than
+  promising atomicity nobody can deliver there.
+
+  **`Down` is required, not optional** — a migration you cannot reverse is a
+  deploy you cannot roll back, and the moment you need it is the worst moment to
+  find out nobody wrote one. An irreversible change returns an error from `Down`
+  explaining why, which is a decision recorded in the file rather than an
+  omission. Django's `reverse_code` is optional; this is deliberately stricter.
+
+  **An unapplied migration sorting before an applied one is an error.** That is
+  the shape of a branch merged out of order, and applying it silently would run
+  it against a schema it was never written against. Detected before anything
+  runs, along with duplicate versions and missing steps.
+
+  `Rollback` undoes newest-first to an **exclusive** target version, because a
+  later migration may depend on an earlier one.
+
+  **No driver, no Gin, no `net/http`** — enforced, not merely intended, so
+  migrations run from a process that mounts no routes. The engine takes a
+  `*sql.DB`; the application supplies the driver.
+
 - **`Modeler`** — a module declares the tables it owns. ([#53])
 
   ```go
@@ -415,6 +454,31 @@ First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
 
+Added in package `fabrin/migrate` ([#54]):
+
+- `M` — `Version`, `Name`, `Up`, `Down`. `Version` is a `string` rather than an
+  int so a timestamp is the natural choice, which is what stops two branches
+  colliding. Ordering is lexicographic, so the format must be fixed-width — `9`
+  sorts after `10`.
+- `Run(ctx, db, ms) ([]M, error)` and
+  `Rollback(ctx, db, ms, toVersion string) ([]M, error)`.
+- `Table` — the applied-state table's name. Exported because it appears in the
+  user's schema dumps and backups; something they will see is something they
+  should be able to name.
+- Sentinels: `ErrDuplicateVersion`, `ErrInvalidMigration`, `ErrOutOfOrder`,
+  `ErrMissingMigration`.
+
+Both entry points return **what they applied or undid**, rather than only an
+error. An empty slice means already up to date, and on failure the partial slice
+says which migrations committed before the one that failed — "migration failed"
+alone leaves the operator guessing at the database's actual state. That also
+avoids a separate `Applied()` accessor for now; #59's status command can add one
+when it needs it.
+
+`*sql.DB` and `*sql.Tx` are standard library, so `apicheck`'s allowlist stays at
+its single entry — the property [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md)
+chose `database/sql` as the seam to get.
+
 Added to package `fabrin` ([#53]):
 
 - `Modeler` — `Models() []orm.Model`, the fifth optional module interface.
@@ -605,6 +669,34 @@ Added — package `fabrin`:
 
 ### Changed
 
+- **`modernc.org/sqlite` enters `go.mod` as a test-only dependency.** ([#54])
+
+  Flagged rather than absorbed quietly, because
+  [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) forecast this exact
+  cost and asked for it to be revisited if it grew: *"it enters `go.mod` as a
+  test-only dependency — Go does not distinguish those — so it reaches consumers'
+  `go.sum` while never being linked into their binaries."*
+
+  The measurement, so the next person deciding has a number rather than a
+  feeling: **ten modules**, of which two (`golang.org/x/sys`, `mattn/go-isatty`)
+  Fabrin already had through Gin.
+
+  Nothing is linked into a consumer's binary, and that is checked rather than
+  asserted — `go list -deps ./...` reaches it **zero** times, while
+  `go list -deps -test ./migrate/` reaches it three. It is imported only from
+  `migrate/migrate_test.go`, and `migrate-is-standalone` denies it everywhere
+  else.
+
+  Pure Go, not cgo, which is not incidental: `check-scaffold.sh` and the smoke
+  gate build and boot real binaries in CI, and a cgo driver would make that
+  toolchain-dependent for a dependency no user links.
+
+  The alternative that stays open is the one the ADR already named — moving the
+  worked adapter to `github.com/usefabrin/fabrin-gorm` — plus, for this
+  specifically, a stub `database/sql/driver` written in-repo. That was rejected
+  here: a fake driver cannot answer whether DDL rolls back, which is the single
+  property MIG-001 exists to prove.
+
 - **`fabrin new -dir` no longer creates a mistyped parent path.** ([#45])
 
   `os.MkdirAll` was building the whole chain, so `-dir ~/projcts` produced a
@@ -689,6 +781,7 @@ Added — package `fabrin`:
 [#45]: https://github.com/usefabrin/fabrin/issues/45
 [#52]: https://github.com/usefabrin/fabrin/issues/52
 [#53]: https://github.com/usefabrin/fabrin/issues/53
+[#54]: https://github.com/usefabrin/fabrin/issues/54
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
