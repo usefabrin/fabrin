@@ -62,8 +62,21 @@ When they conflict, security wins, and the trade gets named in the commit body.
 ## 4. Docs — the last step, not an afterthought
 
 `AGENTS.md` makes this the last step of *every* change. `just docs-check` counts
-files; it cannot read them, so run the `docs-syncer` agent or work its list
-yourself:
+files; it cannot read them, so run the `docs-syncer` agent — and **do not tell it
+what you already checked.**
+
+Working the list inline is the tempting shortcut, and it has now been measured.
+Across #52, #53 and #54 it missed eight items — including a claim that the
+compiler catches an import cycle it does not catch, written into `.golangci.yml`
+one PR *after* that same false claim had been proven wrong by injection and
+corrected in five files. An independent sweep, given no list of what to look for,
+found all eight, with zero overlap against what the author had already found.
+
+The value is not that the agent reads docs better. It is that it has **no memory
+of writing them.** Pasting your own findings into the prompt destroys the one
+property you invoked it for.
+
+The list below is what to check on the occasions you genuinely cannot run it:
 
 - `CHANGELOG.md` — the entry, and its `[#N]:` link reference actually defined at
   the bottom of the file.

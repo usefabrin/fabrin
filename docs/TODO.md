@@ -105,6 +105,71 @@ a project shape to generate, and F0 defines that shape.
       when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)
 - [ ] Transactions, connection pooling, one place to configure pool limits.
 
+### Open before v0.1 — decisions that get expensive at the tag
+
+Nothing here is a defect. Each is a shape that is free to change now and
+breaking afterwards, so it needs an answer rather than a discovery.
+
+- [ ] **Does a migration ever need to run outside a transaction?**
+      `M.Up`/`M.Down` are `func(ctx, *sql.Tx) error`, so the answer is currently
+      *no* — by construction, and silently. `CREATE INDEX CONCURRENTLY` is the
+      case that forces it: PostgreSQL refuses it inside a transaction block, and
+      it is how you index a large table without locking writes. Django ships
+      `Migration.atomic = False` for exactly this.
+
+      **Yes** means changing the signature *now*, to an interface both `*sql.Tx`
+      and `*sql.DB` satisfy — `ExecContext`, `QueryContext`, `QueryRowContext`.
+      That also closes a second hole: `*sql.Tx` exposes `Commit`/`Rollback`, so a
+      user calling `tx.Rollback()` inside `Up` breaks the engine's own promise
+      that the body and the bookkeeping row commit together.
+
+      **No** means recording the foreclosure. [ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)
+      argued about `*sql.DB` — a handle Fabrin is *given* — and never about
+      `*sql.Tx`, which appears in every migration a **user writes**. Different
+      blast radius, unrecorded. Per [the ADR policy](adr/README.md#amending) an
+      accepted ADR is not edited for substance, so this is a new ADR, not a
+      footnote. (FR-ORM-4)
+- [ ] **Three `orm.Field` fields have no semantics.** `Nullable`, `Unique` and
+      `Index` are exported and read by nothing — not `validate`, not `clone`.
+      There is no answer to whether `Index: true` on a `Unique: true` field is
+      redundant or additive, and after v0.1 the answer has to stay compatible
+      with whatever users assumed. Either give them meaning in the generator
+      (#57) or withhold them until it needs them.
+
+      Related: `validate` rejects composite keys today, so when they land they
+      need `Model.PrimaryKey []string` — leaving two permanent ways to say the
+      same thing, with `Field.PrimaryKey` unable to express the composite case.
+      Same for multi-column `UNIQUE` and named indexes. Moving all three to
+      `Model` costs nothing while nothing reads them. (FR-ORM-1)
+- [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
+      uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
+      `orm.Time` sits one letter from `time.Time` in code that imports both.
+      (FR-ORM-1)
+
+### Gate holes, proven by injection
+
+`just specs` and `just docs-check` bite on everything they advertise — each was
+put through the hard-rule-4 loop. What they do **not** cover was proven the same
+way, and is written down here rather than rediscovered:
+
+- [ ] **`specs.sh`: a `status:` typo silently disables the traceability check.**
+      `status: implemented` is its sole trigger and the vocabulary is
+      unvalidated, so `status: done` removes an entry from the check while the
+      gate still counts it and still reports it as traceable to a test.
+- [ ] **`specs.sh` greps, it does not match structurally.** A deleted matrix
+      *row* is satisfied by any prose mention of the id elsewhere in the file,
+      and an unanchored `grep -q "func $fn"` passes when a test is renamed to a
+      *longer* name. A commented-out entry still counts — and removing its
+      orphaned matrix row then makes the gate fail on a behaviour that exists
+      only as comment text.
+- [ ] **`requirement:` is read by nothing.** No script parses it, in either
+      direction. A spec entry may cite a requirement that does not exist, or the
+      wrong one — which has already happened once and was caught by hand.
+- [ ] **`specs/system-behavior.yaml` is not validated as YAML.** It parsed as
+      none for the whole of F0–F2; `specs.sh` is line-based by design and reads
+      it happily. The parser reports only the first error, so a fix reveals the
+      next.
+
 ## F3 — Auth
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
