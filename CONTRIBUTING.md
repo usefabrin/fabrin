@@ -108,15 +108,18 @@ suite could not have caught: a package in the manifest with nothing recorded.
 
 - `fabrin/config` must not import Gin or `net/http`. Settings must load from the
   CLI, from tests, and from a migrate-only process without booting a server.
-- `fabrin/config`, `fabrin/logging`, `fabrin/health`, `fabrin/cli`, and
-  `fabrin/orm` must not import the root package **or each other**. The root
-  package imports all five, so that direction is a cycle the compiler rejects and
-  the rule is belt-and-braces there. It exists for the *sibling* import, which
-  compiles cleanly and quietly makes a leaf depend on half the framework.
+- `fabrin/config`, `fabrin/logging`, `fabrin/health`, `fabrin/cli`, `fabrin/orm`,
+  and `fabrin/migrate` must not import the root package **or each other**. The
+  root package imports the first five, so that direction is a cycle the compiler
+  rejects and the rule is belt-and-braces there. It exists for the *sibling*
+  import, which compiles cleanly and quietly makes a leaf depend on half the
+  framework.
 
   Write the rule when the package lands, not when its consumer does: `orm`
   shipped one PR before anything imported it, and in that window `orm` → root
-  compiled fine and this rule was the only thing rejecting it.
+  compiled fine and this rule was the only thing rejecting it. `migrate` is in
+  exactly that window now — nothing imports it until `Migrator` lands — so for it
+  the rule carries **both** directions rather than just the sibling one.
 - `fabrin/orm` must not import `database/sql` either. It describes models and
   opens nothing: that is what lets the admin and forms read a schema with no
   database running, and what keeps its tests in microseconds. The query API is

@@ -203,9 +203,16 @@ rule is honoured. The test sets `Options.Modules` to a subset, and was checked b
 mutation: pointing `collectModels` at `New`'s raw arguments turns it red with
 `Models() = [invoices orders]`.
 
+ORM-007 claims two things and its row names one test. The collection half — a
+module hands its tables over, and nothing is scanned for — is the test in the
+table; the reporting half, that `Modeler` shows up in `App.Capabilities()` like
+`Checker`, `Lifecycle`, and `Commander`, is
+`modeler_test.go::TestApp_ReportsModelerAmongAModulesCapabilities`. That test
+asserts the negative too, because a mistyped `Models()` otherwise fails silently:
+the module simply never contributes, and nothing says so.
+
 Also covered without a spec entry, each a consequence of the three above: an app
-whose modules declare no models has an empty schema rather than an error, a module
-with no `Models()` method does not report the `Modeler` capability, and
+whose modules declare no models has an empty schema rather than an error, and
 `App.Models()` returns a deep copy — the root-package half of ORM-005, since
 handing out `*orm.Registry` would hand out `Register` with it.
 
@@ -255,7 +262,15 @@ What that rule cannot do is stated where it lives: depguard matches prefixes, so
 "no driver" is inexpressible against dozens of drivers. It names the one in
 `go.mod`, which is the one a slip could actually reach for.
 
+MIG-003 and MIG-005 each state a claim wider than the single test their row
+names, and the rest of it is in a sibling rather than missing. MIG-003's
+idempotence half — an already-applied migration is skipped, not re-run — is
+`TestRun_IsIdempotent`; the ordering test says nothing about it. MIG-005's
+**exclusive** target is `TestRollback_StopsAtTheTargetVersion`, and its refusal to
+skip a recorded version it holds no `Down` for is
+`TestRollback_ReportsAnAppliedVersionItCannotUndo`. The rows name the test that
+would fail first, but a reader tracing either claim needs all three.
+
 Also covered without a spec entry: a failing `Down` leaves its version recorded
-rather than deleted, `Rollback` stops at an exclusive target so the named version
-stays applied, and the applied-state table records name and time alongside the
-version.
+rather than deleted, and the applied-state table records name and time alongside
+the version.

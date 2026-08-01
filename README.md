@@ -140,9 +140,9 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 | `runserver`, graceful shutdown | `fabrin.App.Run` | ✅ F0 |
 | System checks | `Module.Checks()` → `/readyz` | ✅ F0 |
 | `LOGGING` | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
-| `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | F1 |
-| Management commands | `Module.Commands()` | F1 |
-| Models + `makemigrations` / `migrate` | `fabrin/orm` (GORM) + `fabrin migrate` | F2 |
+| `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | ✅ F1 |
+| Management commands | `Module.Commands()` | ✅ F1 |
+| Models + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, `fabrin/migrate` engine — the commands and on-disk migration files are still to come | 🚧 F2 |
 | `django.contrib.auth` | `fabrin/auth` | F3 |
 | **`django.contrib.admin`** | `fabrin/admin` (html/template + htmx, embedded) | F4 |
 | Templates, forms, static files | `fabrin/render`, `fabrin/forms` | F5 |

@@ -20,7 +20,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-CORE-2 | Registering two modules with the same name is an error at construction, not at first request. | done |
 | FR-CORE-3 | `App.Run` serves until its context is cancelled or the process receives SIGINT/SIGTERM, then shuts down gracefully within a bounded window. | done |
 | FR-CORE-4 | A module may declare owned resources via `Lifecycle`. `Start` runs in registration order; `Stop` runs in **reverse** registration order, so a module can rely on its dependencies still being alive while it shuts down. | done |
-| FR-CORE-5 | A module may declare health checks via `Checker`. The app aggregates them. | planned |
+| FR-CORE-5 | A module may declare health checks via `Checker`. The app aggregates them. | done |
 | FR-CORE-6 | Optional module interfaces are discovered by type assertion at registration, and the registry reports which ones each module matched — a mistyped method name otherwise fails silently. | done |
 
 ## FR-MODULES — composition and deployment shapes
