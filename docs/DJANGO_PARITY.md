@@ -45,7 +45,7 @@ them, and jump-to-definition works.
 |---|---|---|
 | `models.Model` | `orm.Model` + Fabrin's metadata registry | 📋 F2 |
 | `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` | 📋 F2 |
-| `QuerySet` | GORM behind the `fabrin/orm` seam | 📋 F2 |
+| `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
 | `select_related` / `prefetch_related` | GORM preloading | 📋 F2 |
 | `Model.objects` manager | Explicit repository or store, passed in | 📋 F2 |
