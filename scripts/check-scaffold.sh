@@ -20,18 +20,28 @@
 # directory to be silently absent — this script either does the whole thing or
 # fails.
 #
-# # Why it must not touch the network
+# # Why it builds against this checkout
 #
-# Two reasons, and the second is the sharp one:
+# Resolving Fabrin from the module proxy would test the LAST PUBLISHED COMMIT,
+# not the working tree — a change that breaks the scaffold would go green until
+# it was merged, which inverts what this gate is for. Hence the `replace`
+# directive below, which is the guarantee that matters.
 #
-#   1. `go mod tidy` against the proxy failed once during #36 for no reason but a
-#      blip. A gate that can fail on someone else's outage is a gate people learn
-#      to re-run rather than read.
-#   2. Resolving from the proxy would test the LAST PUBLISHED COMMIT, not the
-#      working tree. A change that breaks the scaffold would go green until it was
-#      merged, which inverts what this gate is for.
+# What this gate does NOT promise is a fully offline run, and the reason is worth
+# writing down because GOPROXY=off was tried first and failed in CI:
 #
-# Hence `replace` pointing at this checkout, and GOPROXY=off to prove it.
+#   Go 1.17+ prunes the module graph, so Fabrin's own cache never contains
+#   golang.org/x/sys@v0.6.0's go.mod — an edge reachable only through
+#   go-isatty's unpruned requirements. The generated project starts with an empty
+#   require list, so resolving it walks that edge and needs the metadata. It
+#   passes locally, where years of unrelated work have warmed the cache, and
+#   fails on a runner whose cache holds exactly what Fabrin needs.
+#
+# The alternatives were to copy Fabrin's whole require block into the generated
+# go.mod — which would mean the gate no longer builds the go.mod the scaffold
+# actually emits — or to carry a retry. Fetching a few go.mod files from a proxy
+# that caches them aggressively is the cheaper trade, and the `replace` keeps the
+# guarantee that this is the working tree being tested.
 #
 set -euo pipefail
 
@@ -63,9 +73,8 @@ fabrin="$work/fabrin"
 cd "$work/demo"
 "$go" mod edit -replace "github.com/usefabrin/fabrin=$root"
 
-# -mod=mod lets the build write the require lines it needs; GOPROXY=off proves
-# every one of them came from the local cache or the replace above.
-export GOPROXY=off
+# -mod=mod lets the build write the require lines it needs. Fabrin itself comes
+# from the replace above, so no version of it is ever fetched.
 export GOFLAGS=-mod=mod
 
 step() { echo "  · $1"; }

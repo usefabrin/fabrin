@@ -131,8 +131,8 @@ api-check:
 #
 # The third step is not an examples/*/ entry and deliberately so: a generated
 # project has its own go.mod, which under examples/ would be a nested module the
-# other two steps cannot build. It is generated fresh, offline, against this
-# checkout — see the header of scripts/check-scaffold.sh.
+# other two steps cannot build. It is generated fresh on every run and built
+# against THIS checkout — see the header of scripts/check-scaffold.sh.
 examples:
     @just _build-examples
     @bash scripts/smoke-examples.sh

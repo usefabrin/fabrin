@@ -90,11 +90,16 @@ with their milestone rather than split into sections. Cutting a version is
   `fabrin.New`, `config.Standard`, or the `Module` interface could break the
   scaffold with every other gate green. This is the gate that notices.
 
-  **Offline, against the working tree.** A `replace` points the generated project
-  at this checkout and `GOPROXY=off` proves nothing else was fetched. Resolving
-  from the proxy would test the *last published commit* rather than the code
-  being changed — inverting what the gate is for — and would fail on someone
-  else's outage; `go mod tidy` did exactly that once during #36.
+  **Against the working tree, not the published module.** A `replace` points the
+  generated project at this checkout, so a change that breaks the scaffold fails
+  here rather than going green until it is merged.
+
+  Not fully offline, and the reason is worth recording: `GOPROXY=off` was tried
+  first and failed in CI. Go 1.17+ prunes the module graph, so Fabrin's cache
+  never holds `golang.org/x/sys@v0.6.0`'s `go.mod` — an edge reachable only
+  through go-isatty's unpruned requirements — and the generated project's empty
+  require list makes resolution walk it. It passed locally on a warm cache and
+  failed on a runner holding exactly what Fabrin needs.
 
   Not an `examples/` entry, despite the roadmap's wording. A generated project
   has its own `go.mod`, which under `examples/` is a **nested module**:

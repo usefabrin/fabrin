@@ -73,10 +73,10 @@ a project shape to generate, and F0 defines that shape.
       Collected from *mounted* modules only, and a colliding name fails at
       construction. (FR-CLI-4, CLI-007…008)
 - [x] `just check` generates a project, builds it, runs its tests, extends it
-      with `startapp`, and boots it — offline, against the working tree rather
-      than the module proxy. Not an `examples/` entry after all: a generated
-      project has its own `go.mod`, which under `examples/` would be a nested
-      module the other two steps cannot build. (NFR-5, CLI-013)
+      with `startapp`, and boots it — against the working tree rather than the
+      published module. Not an `examples/` entry after all: a generated project
+      has its own `go.mod`, which under `examples/` would be a nested module the
+      other two steps cannot build. (NFR-5, CLI-013)
 
 ## F2 — Models, metadata, migrations
 

@@ -100,7 +100,7 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-010 | `fabrin new` writes a project that builds, tests, and boots | `internal/scaffold/scaffold_test.go::TestGenerate_WritesEveryFileTheProjectNeeds` |
 | CLI-011 | `fabrin startapp` writes the module *and* wires it in | `internal/scaffold/module_test.go::TestModule_WiresItselfIntoNewApp` |
 | CLI-012 | The edit keeps the user's formatting and stays gofmt-clean | `internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean` |
-| CLI-013 | The scaffold's output builds, tests, boots — offline | `scripts/check-scaffold.sh` (gate; see below) |
+| CLI-013 | The scaffold's output builds, tests, boots — against this checkout | `scripts/check-scaffold.sh` (gate; see below) |
 
 CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command
