@@ -103,8 +103,16 @@ a project shape to generate, and F0 defines that shape.
 - [ ] `fabrin migrate` / `makemigrations` as commands, and migrations as files on
       disk. The engine above takes them as values; nothing reads a directory yet.
       (FR-ORM-4)
-- [ ] Duplicate-version gate — two branches claiming one version is a matter of
+- [~] Duplicate-version gate — two branches claiming one version is a matter of
       when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)
+
+      The **engine** half is done: two migrations at one version are rejected
+      (MIG-007), as is a set whose versions do not sort as written (MIG-009).
+      The **pre-merge gate** is blocked, and on something outside the engine —
+      its acceptance criterion is that it reads migration *files*, so a
+      colliding migration in a branch that does not compile is still caught, and
+      there is no on-disk format to read yet. Writing one now would invent the
+      format `fabrin makemigrations` must then live with. (MIG-008)
 - [ ] Transactions, connection pooling, one place to configure pool limits.
 
 ### Open before v0.1 — decisions that get expensive at the tag

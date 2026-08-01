@@ -228,6 +228,13 @@ func prepare(ctx context.Context, db *sql.DB, ms []M) ([]M, error) {
 		if prev, dup := seen[m.Version]; dup {
 			return nil, fmt.Errorf("%w: %q claimed by %q and %q", ErrDuplicateVersion, m.Version, prev.Name, m.Name)
 		}
+		// Ordering is lexicographic, so versions of unequal width sort in an order
+		// their author did not write: the set is applied in a sequence nobody chose,
+		// each half against a schema it never saw. Both are named because the fault
+		// is in the pair — "9" is unimpeachable next to "8".
+		if len(m.Version) != len(ms[0].Version) {
+			return nil, fmt.Errorf("%w: versions %q and %q are different widths, and ordering is a plain lexicographic comparison, so a set that mixes widths applies in an order its author did not write. Give every version in one set the same fixed width", ErrInvalidMigration, ms[0].Version, m.Version)
+		}
 		seen[m.Version] = m
 	}
 

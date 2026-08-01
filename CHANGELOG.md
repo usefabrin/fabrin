@@ -123,6 +123,23 @@ with their milestone rather than split into sections. Cutting a version is
   migrations run from a process that mounts no routes. The engine takes a
   `*sql.DB`; the application supplies the driver.
 
+  **Versions of unequal width are rejected.** `M` already documented that
+  ordering is a plain lexicographic comparison and therefore needs a fixed-width
+  version — "9 sorts after 10" — and nothing enforced it, so a set mixing widths
+  was accepted, reordered into a sequence its author did not write, and applied
+  with each half running against a schema it never saw. The error names **both**
+  versions, because the fault is in the pair: `9` is unimpeachable next to `8`.
+
+  It wraps `ErrInvalidMigration` rather than adding a sentinel. The set is
+  unusable for the same reason a missing `Down` makes one unusable, and an
+  exported sentinel is a permanent promise nothing yet needs to branch on.
+
+  Mutation-checked in both halves: deleting the check turns the test red, and so
+  does keeping it while dropping the two versions from the message. The message
+  deliberately contains no literal `9` or `10` of its own — an illustrative "9
+  sorts after 10" in the error text would have satisfied the test without naming
+  the versions the caller actually passed. ([#55])
+
 - **`Modeler`** — a module declares the tables it owns. ([#53])
 
   ```go
@@ -782,6 +799,7 @@ Added — package `fabrin`:
 [#52]: https://github.com/usefabrin/fabrin/issues/52
 [#53]: https://github.com/usefabrin/fabrin/issues/53
 [#54]: https://github.com/usefabrin/fabrin/issues/54
+[#55]: https://github.com/usefabrin/fabrin/issues/55
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
