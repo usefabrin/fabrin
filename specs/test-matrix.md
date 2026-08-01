@@ -227,6 +227,27 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-005 | Rollback runs `Down` newest-first, to an exclusive target | `migrate/migrate_test.go::TestRollback_UndoesInReverseOrder` |
 | MIG-006 | The engine imports no driver, no Gin, no `net/http` | `.golangci.yml` — `migrate-is-standalone` (gate; see below) |
 | MIG-007 | Two migrations claiming one version are rejected | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
+| MIG-008 | A pre-merge gate rejects two migration *files* at one version | _planned_ |
+| MIG-009 | Versions that do not sort as written are rejected | _planned_ |
+
+MIG-008 is blocked, and on something outside the migration engine: there is no
+on-disk migration file format yet. The engine takes migrations as values and
+nothing reads a directory (`docs/TODO.md`, F2), so a gate has no files to read
+and no naming scheme to hold a filename to. Writing one now would mean inventing
+the format that `fabrin makemigrations` has to live with afterwards. The row
+stays here, planned, so the gap is discoverable from the matrix rather than only
+from the issue.
+
+MIG-009 arrived via issue #55 but cites **FR-ORM-4**, for the reason the
+paragraph below gives: two distinct versions, neither claiming the other's, is an
+ordering property of the engine — MIG-002's family, not MIG-007's. `M` documents
+lexicographic ordering and therefore a fixed-width version — "9 sorts after 10" —
+and `prepare` never checks it. Mutual width consistency across the set is the
+only violation detectable without a version scheme, and Fabrin documents none:
+the engine's own tests use `001`, and a timestamp is recommended rather than
+required. The test is red until an implementer chooses how to say so; it asserts
+`errors.Is(err, ErrInvalidMigration)`, which is the one line an author preferring
+a distinct sentinel would change.
 
 MIG-001…006 cite FR-ORM-4; **MIG-007 cites FR-ORM-5**, and the split matters
 because the two are easy to conflate. FR-ORM-5 is *two migrations claiming one

@@ -346,6 +346,53 @@ func TestRun_RejectsAnUnusableMigrationSet(t *testing.T) {
 	}
 }
 
+func TestRun_RejectsVersionsThatDoNotSortAsWritten(t *testing.T) {
+	t.Parallel()
+
+	// M's own documentation makes this normative: "Ordering is a plain
+	// lexicographic comparison, so a fixed-width format is required: 20260801120000
+	// sorts correctly, 9 sorts after 10." Nothing enforces it. A set mixing widths
+	// is accepted, sorted into an order its author did not write, and applied —
+	// silently, in the wrong sequence, against a schema each half never saw.
+	//
+	// Width consistency across the set is the only violation detectable without a
+	// version scheme, and Fabrin documents no scheme: the engine's own tests use
+	// "001", a timestamp is merely recommended. So the rule under test is the
+	// doc's, unextended — versions in one set must be mutually orderable.
+	//
+	// Both versions are named because the fault is in the pair, not in either one
+	// alone: "9" is unimpeachable next to "8". This matches ErrOutOfOrder and
+	// ErrDuplicateVersion, which name both sides for the same reason.
+	db := newDB(t)
+
+	applied, err := migrate.Run(t.Context(), db, []migrate.M{
+		m("9", "ninth", "alpha"),
+		m("10", "tenth", "beta"),
+	})
+	if err == nil {
+		t.Fatalf("a set that sorts as %v must be rejected — the author wrote 9 before 10 "+
+			"and lexicographic order gives them the reverse", names(applied))
+	}
+	if !errors.Is(err, migrate.ErrInvalidMigration) {
+		t.Errorf("callers branch with errors.Is, got %v", err)
+	}
+	for _, want := range []string{"9", "10"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error must name %q, got: %v", want, err)
+		}
+	}
+
+	// Rejected before anything runs, like every other unusable set.
+	for _, table := range []string{"alpha", "beta"} {
+		if tableExists(t, db, table) {
+			t.Errorf("%s was created — a rejected set must not have applied anything", table)
+		}
+	}
+	if got := versions(t, db); len(got) != 0 {
+		t.Errorf("applied state = %v, want empty", got)
+	}
+}
+
 // ── Rolling back ────────────────────────────────────────────────────────────
 
 func TestRollback_UndoesInReverseOrder(t *testing.T) {
