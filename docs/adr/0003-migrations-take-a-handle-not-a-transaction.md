@@ -18,10 +18,12 @@ transaction block.** It is not exotic; it is the standard answer for any table
 big enough to matter. Django ships `Migration.atomic = False` for exactly this,
 and Django parity is a design input here.
 
-This is not a decision that was made and recorded. Nothing in `docs/`, `specs/`,
-`migrate/` or `DJANGO_PARITY.md` mentioned `atomic`, `CONCURRENTLY`, or
-non-transactional migrations. The foreclosure was a side effect of picking the
-obvious type.
+**This was never a decision — it was a side effect of picking the obvious type.**
+When `fabrin/migrate` shipped in F2, nothing in `docs/`, `specs/`, `migrate/` or
+`DJANGO_PARITY.md` mentioned `atomic`, `CONCURRENTLY`, or non-transactional
+migrations anywhere. The question was first raised in `docs/TODO.md`'s "Open
+before v0.1" section, which stated the case and deliberately left it open,
+pending this ADR. What follows is that entry's argument, resolved.
 
 **Why it is urgent and not merely open.** `*sql.Tx` appears in signatures the
 **user authors**. Every migration anyone ever writes is typed against it.

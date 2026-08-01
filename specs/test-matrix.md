@@ -241,6 +241,11 @@ compiling on the day it lands and every user's fake breaks instead. Same reason
 records the same set, but a snapshot diff is reviewed by a human; this fails with
 the reason attached.
 
+The cell names the frozen-set test because a spec entry may name only one. The
+other half — that `Up` and `Down` are the **same** named interface type, so one
+user helper serves both directions — is
+`migrate/handle_test.go::TestM_UpAndDownTakeAHandleRatherThanATransaction`.
+
 MIG-001 is **unchanged** by it, and deliberately not re-tested: the engine still
 opens a transaction and still writes the body and the bookkeeping row inside it,
 which `TestRun_LeavesNothingBehindWhenAMigrationFails` asserts behaviourally,
