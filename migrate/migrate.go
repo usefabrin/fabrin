@@ -70,13 +70,36 @@ type M struct {
 	// Name is for humans reading the applied-state table during an incident.
 	Name string
 
-	// Up applies the change. It runs inside a transaction that also records the
-	// version, so returning an error undoes both.
-	Up func(ctx context.Context, tx *sql.Tx) error
+	// Up applies the change. Today it runs inside a transaction that also records
+	// the version, so returning an error undoes both.
+	Up func(ctx context.Context, h Handle) error
 
 	// Down reverses it, and is required — see the package documentation. If the
 	// change cannot be reversed, return an error saying so.
-	Down func(ctx context.Context, tx *sql.Tx) error
+	Down func(ctx context.Context, h Handle) error
+}
+
+// Handle is what a migration body runs against: the subset of database/sql a
+// migration needs, and nothing that would let it manage the transaction it is
+// running inside. [sql.Tx], [sql.DB] and [sql.Conn] all satisfy it unmodified.
+//
+// Today Run and Rollback always pass a *sql.Tx, and the version row commits with
+// the body. The type does not promise that, so a future opt-in can run a
+// migration outside a transaction — CREATE INDEX CONCURRENTLY is the case that
+// needs it, since PostgreSQL refuses it inside a transaction block. See
+// docs/adr/0003-migrations-take-a-handle-not-a-transaction.md.
+//
+// Do not assert on the dynamic type. Fabrin may pass a wrapper — for statement
+// logging, a dry run, or a per-migration timeout — and a migration that reaches
+// through this interface for Commit, Rollback, or a savepoint takes that
+// freedom away from every other user. The method set is deliberately frozen at
+// four for the same reason in reverse: implement Handle in a fake if you need
+// one, and a fifth method would break every such fake at once.
+type Handle interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
 // Errors returned by [Run] and [Rollback]. Sentinels so a caller can branch with

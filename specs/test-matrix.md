@@ -229,7 +229,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-007 | Two migrations claiming one version are rejected | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
 | MIG-008 | A pre-merge gate rejects two migration *files* at one version | _planned_ |
 | MIG-009 | Versions that do not sort as written are rejected | `migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten` |
-| MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | _planned_ |
+| MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
 
 MIG-010 is a type widening, so its tests read the **shape** of `M`'s fields by
 reflection rather than exercising a behaviour: the load-bearing half of ADR 0003

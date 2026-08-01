@@ -32,16 +32,18 @@ func newDB(t *testing.T) *sql.DB {
 }
 
 // createTable is the body of a migration that adds one table.
-func createTable(name string) func(context.Context, *sql.Tx) error {
-	return func(ctx context.Context, tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `CREATE TABLE `+name+` (id INTEGER PRIMARY KEY)`)
+// One helper shape serves both directions, which is the ergonomic reason M.Up
+// and M.Down share a type rather than forking into atomic and non-atomic fields.
+func createTable(name string) func(context.Context, migrate.Handle) error {
+	return func(ctx context.Context, h migrate.Handle) error {
+		_, err := h.ExecContext(ctx, `CREATE TABLE `+name+` (id INTEGER PRIMARY KEY)`)
 		return err
 	}
 }
 
-func dropTable(name string) func(context.Context, *sql.Tx) error {
-	return func(ctx context.Context, tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `DROP TABLE `+name)
+func dropTable(name string) func(context.Context, migrate.Handle) error {
+	return func(ctx context.Context, h migrate.Handle) error {
+		_, err := h.ExecContext(ctx, `DROP TABLE `+name)
 		return err
 	}
 }
@@ -122,9 +124,9 @@ func TestRun_LeavesNothingBehindWhenAMigrationFails(t *testing.T) {
 		{
 			Version: "002",
 			Name:    "explodes",
-			Up: func(ctx context.Context, tx *sql.Tx) error {
+			Up: func(ctx context.Context, h migrate.Handle) error {
 				// DDL first, so there is something to roll back.
-				if _, err := tx.ExecContext(ctx, `CREATE TABLE beta (id INTEGER PRIMARY KEY)`); err != nil {
+				if _, err := h.ExecContext(ctx, `CREATE TABLE beta (id INTEGER PRIMARY KEY)`); err != nil {
 					return err
 				}
 				return boom
@@ -476,8 +478,8 @@ func TestRollback_LeavesNothingBehindWhenADownStepFails(t *testing.T) {
 			Version: "002",
 			Name:    "wont go quietly",
 			Up:      createTable("beta"),
-			Down: func(ctx context.Context, tx *sql.Tx) error {
-				if _, err := tx.ExecContext(ctx, `DROP TABLE beta`); err != nil {
+			Down: func(ctx context.Context, h migrate.Handle) error {
+				if _, err := h.ExecContext(ctx, `DROP TABLE beta`); err != nil {
 					return err
 				}
 				return boom
