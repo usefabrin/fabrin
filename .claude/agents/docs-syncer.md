@@ -17,6 +17,20 @@ by *any* file matching `docs/`, `specs/`, `README.md`, `ARCHITECTURE.md`,
 `AGENTS.md`, `CONTRIBUTING.md`, or `CHANGELOG.md` being touched. It counts
 files. It cannot read them.
 
+Three limits proven by injection, not assumed:
+
+- **A blank line satisfies it.** Appending one empty line to `CHANGELOG.md`
+  passes an `api/fabrin.txt` change; one empty line in an unrelated ADR passes a
+  new exported symbol in `health/`. The gate proves a doc file was in the
+  changeset, and nothing more.
+- **Deletions are invisible.** `--diff-filter=ACMR` strips `D` upstream of every
+  rule, so a deleted file is never in front of them. `api-check` covers the case
+  where the deletion moves the public surface; deleting the `justfile` or
+  `.golangci.yml` outright has no second gate behind it.
+- **`scripts/` and `.github/` are not governed.** A gate script can be gutted and
+  CI rewritten with no docs update required, while `CONTRIBUTING.md` documents
+  the gate table and `AGENTS.md` the command table.
+
 So it goes green while:
 
 - `CHANGELOG.md` gains an entry with an **undefined link reference** — `[#8]`
