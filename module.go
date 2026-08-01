@@ -9,6 +9,7 @@ import (
 
 	"github.com/usefabrin/fabrin/cli"
 	"github.com/usefabrin/fabrin/health"
+	"github.com/usefabrin/fabrin/orm"
 )
 
 // Module is Fabrin's answer to Django's INSTALLED_APPS: a self-contained slice of
@@ -62,6 +63,21 @@ type Checker interface {
 // construction — see [App.Execute].
 type Commander interface {
 	Commands() []cli.Command
+}
+
+// Modeler is an optional [Module] interface for a module declaring the tables it
+// owns. It is Fabrin's answer to Django's models being discovered from
+// INSTALLED_APPS.
+//
+// Registration is explicit: Fabrin never scans packages for models. Django gets
+// away with discovery because a Python import has side effects at runtime; the Go
+// equivalent is a blank import whose absence is silent, and a model that quietly
+// fails to register is a table the migration generator proposes to DROP.
+//
+// The models are collected from the MOUNTED modules only, and two modules
+// claiming one table name is an error at construction — see [App.Models].
+type Modeler interface {
+	Models() []orm.Model
 }
 
 // Lifecycle is an optional [Module] interface for a module owning a resource that
@@ -209,9 +225,9 @@ func quoteAll(ss []string) []string {
 
 // capabilitiesOf reports which optional Module interfaces m satisfies.
 //
-// Reserved for later milestones: Modeler and Migrator (F2), Subscriber (F6).
-// Each is added here as its interface lands, so Capabilities stays the one place
-// that answers "what did this module actually contribute".
+// Reserved for later milestones: Migrator (F2), Subscriber (F6). Each is added
+// here as its interface lands, so Capabilities stays the one place that answers
+// "what did this module actually contribute".
 func capabilitiesOf(m Module) []string {
 	var caps []string
 	if _, ok := m.(Checker); ok {
@@ -222,6 +238,9 @@ func capabilitiesOf(m Module) []string {
 	}
 	if _, ok := m.(Commander); ok {
 		caps = append(caps, "Commander")
+	}
+	if _, ok := m.(Modeler); ok {
+		caps = append(caps, "Modeler")
 	}
 	sort.Strings(caps)
 	return caps

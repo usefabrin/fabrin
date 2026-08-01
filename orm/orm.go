@@ -130,11 +130,11 @@ var (
 
 // Registry is the collected schema of an application.
 //
-// Not safe for concurrent use, and it does not need to be. The intended wiring —
-// once modules can declare models — is that fabrin.New builds this once from the
-// mounted modules and everything afterwards reads it. A mutex would buy nothing
-// against that pattern, and would imply the schema can change while an
-// application runs, which it cannot.
+// Not safe for concurrent use, and it does not need to be: fabrin.New builds it
+// once from the mounted modules that implement Modeler, and everything afterwards
+// reads it. A mutex would buy nothing against that pattern and would imply the
+// schema can change while an application runs, which it cannot — which is also
+// why fabrin.App hands out the models rather than this type.
 type Registry struct {
 	byTable map[string]Registered
 }

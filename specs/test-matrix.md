@@ -149,8 +149,11 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-004 | Field order preserved exactly as declared | `orm/orm_test.go::TestRegistry_KeepsFieldOrderAsDeclared` |
 | ORM-005 | `Models()` returns a deep copy | `orm/orm_test.go::TestRegistry_ModelsReturnsACopy` |
 | ORM-006 | `orm` imports no `database/sql` and no sibling package | `.golangci.yml` — `orm-is-standalone` (gate; see below) |
+| ORM-007 | A module declares tables via `Modeler`; nothing is scanned for | `modeler_test.go::TestApp_ModelsCollectsEachModulesTablesWithItsName` |
+| ORM-008 | Models collected from **mounted** modules only | `modeler_test.go::TestNew_CollectsModelsFromMountedModulesOnly` |
+| ORM-009 | Two modules claiming one table fail at construction | `modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable` |
 
-All six cite FR-ORM-1.
+ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3.
 
 ORM-003 and ORM-004 look contradictory and are not: table order is **sorted**
 because registration order carries `FABRIN_MODULES` and the argument order in
@@ -172,13 +175,36 @@ import — `fabrin/health`, say — builds cleanly and is not an import cycle, s
 Go test can distinguish it from correct code; only the import graph can, and
 depguard is what reads it.
 
-Worth stating because it is not true of the other leaves: **the root import
-compiles here too, today.** `health` and `cli` are imported *by* the root package,
-so `health` importing root is a cycle the compiler rejects and their rules are
-belt-and-braces in that direction. Nothing imports `orm` yet — `Modeler` lands
-with [#53](https://github.com/usefabrin/fabrin/issues/53) — so this rule is
-currently the only thing rejecting `orm` → root. All three denies were injected
-and read before this landed: the sibling import, the root import, and
-`database/sql`. The last is the load-bearing one, because nothing else stops this
-package opening a connection, and the moment it can, the admin needs a database
-running to render a form.
+All three denies were injected and read before this landed: the sibling import,
+the root import, and `database/sql`. The last is the load-bearing one, because
+nothing else stops this package opening a connection, and the moment it can, the
+admin needs a database running to render a form.
+
+The root-import deny is worth a note, because what it does changed **between two
+merged commits**. When `orm` landed in
+[#52](https://github.com/usefabrin/fabrin/issues/52) nothing imported it, so
+`orm` → root compiled cleanly — verified, not assumed — and this rule was the only
+thing rejecting it. `Modeler` in [#53](https://github.com/usefabrin/fabrin/issues/53)
+made the root package import `orm`, and the same injection now fails with
+`import cycle not allowed`. A leaf that ships before its consumer is unguarded by
+the compiler for exactly that window, which is the argument for writing the rule
+when the package lands rather than when the consumer does.
+
+ORM-009 looks like a duplicate of ORM-001 and tests something else. ORM-001 proves
+`orm.Registry` rejects the conflict; ORM-009 proves the root package **propagates**
+it — that `New` fails rather than logging, that both module names survive the wrap,
+and that `errors.Is(err, orm.ErrDuplicateTable)` still matches through it. A
+`fmt.Errorf` with `%v` instead of `%w` passes ORM-001 and breaks ORM-009.
+
+ORM-008 is the row that would pass without being tested, if written carelessly.
+`collectModels` iterates `reg.modules`, which is *already* the mounted set, so a
+test that registers two modules with no selection goes green whether or not the
+rule is honoured. The test sets `Options.Modules` to a subset, and was checked by
+mutation: pointing `collectModels` at `New`'s raw arguments turns it red with
+`Models() = [invoices orders]`.
+
+Also covered without a spec entry, each a consequence of the three above: an app
+whose modules declare no models has an empty schema rather than an error, a module
+with no `Models()` method does not report the `Modeler` capability, and
+`App.Models()` returns a deep copy — the root-package half of ORM-005, since
+handing out `*orm.Registry` would hand out `Register` with it.

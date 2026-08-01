@@ -16,6 +16,7 @@ pkg github.com/usefabrin/fabrin, method (*App) Capabilities() map[string][]strin
 pkg github.com/usefabrin/fabrin, method (*App) Engine() *github.com/gin-gonic/gin.Engine
 pkg github.com/usefabrin/fabrin, method (*App) Execute(ctx context.Context, out io.Writer, args []string) error
 pkg github.com/usefabrin/fabrin, method (*App) Handler() net/http.Handler
+pkg github.com/usefabrin/fabrin, method (*App) Models() []github.com/usefabrin/fabrin/orm.Registered
 pkg github.com/usefabrin/fabrin, method (*App) Modules() []string
 pkg github.com/usefabrin/fabrin, method (*App) Options() Options
 pkg github.com/usefabrin/fabrin, method (*App) Routes() []Route
@@ -33,6 +34,8 @@ pkg github.com/usefabrin/fabrin, type HandlerFunc = github.com/gin-gonic/gin.Han
 pkg github.com/usefabrin/fabrin, type Lifecycle interface
 pkg github.com/usefabrin/fabrin, type Lifecycle interface, Start(ctx context.Context) error
 pkg github.com/usefabrin/fabrin, type Lifecycle interface, Stop(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, type Modeler interface
+pkg github.com/usefabrin/fabrin, type Modeler interface, Models() []github.com/usefabrin/fabrin/orm.Model
 pkg github.com/usefabrin/fabrin, type Module interface
 pkg github.com/usefabrin/fabrin, type Module interface, Name() string
 pkg github.com/usefabrin/fabrin, type Module interface, Routes(r Router)

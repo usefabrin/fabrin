@@ -157,7 +157,7 @@ type Module interface {
 // Optional — asserted at registration:
 type Checker    interface { Checks() []health.Check }             // system checks
 type Lifecycle  interface { Start(ctx) error; Stop(ctx) error }    // owned resources
-type Modeler    interface { Models() []orm.Model }                // F2
+type Modeler    interface { Models() []orm.Model }                // tables owned
 type Migrator   interface { Migrations() []migrate.M }            // F2
 type Commander  interface { Commands() []cli.Command }            // subcommands
 type Subscriber interface { Subscribe(b signals.Bus) }            // F6
@@ -235,7 +235,7 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 | Rule | Why |
 |---|---|
 | `config` must not import Gin or `net/http` | Settings must load from the CLI, from tests, and from a migrate-only process without constructing an HTTP stack |
-| `config`, `logging`, `health`, `cli`, `orm` must not import the root package **or a sibling** | They sit *below* it. The rule's main work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework. Where the root package already imports the leaf, the root direction is additionally a cycle the compiler rejects — but not for `orm` yet, where this rule is the only thing stopping it |
+| `config`, `logging`, `health`, `cli`, `orm` must not import the root package **or a sibling** | They sit *below* it. The root direction is a cycle the compiler already rejects, so the rule's real work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework. A leaf that lands before anything imports it has no compiler backstop at all until it does — which is why the rule is written when the package lands |
 | `orm` must not import `database/sql` | Metadata is a description; the handle belongs to the application. Otherwise the admin needs a database running to render a form, and this package's tests need one to run |
 | `internal/**` must not import the root package | The dependency runs public → internal |
 

@@ -84,6 +84,33 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`Modeler`** — a module declares the tables it owns. ([#53])
+
+  ```go
+  func (m billing) Models() []orm.Model {
+      return []orm.Model{{Table: "invoices", Fields: …}}
+  }
+  ```
+
+  The fifth optional module interface, asserted at registration alongside
+  `Checker`, `Lifecycle`, and `Commander`, and reported through
+  `App.Capabilities()` like them. `App.Models()` is the collected schema, sorted
+  by table, each entry carrying the module that declared it.
+
+  **Nothing is scanned for.** Django discovers models because a Python import has
+  side effects at runtime; the Go equivalent is a blank import whose absence is
+  silent — and a model that quietly fails to register is a table the migration
+  generator proposes to `DROP`. Handing them over makes the absence a
+  compile-time one.
+
+  **Collected from mounted modules only**, the same process-slicing rule
+  readiness checks and commands follow. A migrate-only process that mounts one
+  module is handed only its schema, not the whole application's.
+
+  **Two modules claiming one table fails at construction**, naming both and the
+  table. Propagated rather than logged, and wrapped with `%w` so
+  `errors.Is(err, orm.ErrDuplicateTable)` still matches from the root package.
+
 - **`fabrin/orm`** — the model-metadata registry, and the first piece of F2. ([#52])
 
   ```go
@@ -132,9 +159,11 @@ with their milestone rather than split into sections. Cutting a version is
   The zero `Type` is invalid on purpose — a forgotten type is an error rather
   than whichever constant happens to sort first.
 
-  Nothing declares a model into the registry yet. `Modeler` is next
-  ([#53](https://github.com/usefabrin/fabrin/issues/53)), which is why FR-ORM-1
-  reads *in progress* rather than done.
+  This shipped one PR before anything imported it, so for that window `orm`
+  importing the root package compiled cleanly and `orm-is-standalone` was the only
+  thing rejecting it. `Modeler` ([#53]) closed the window. FR-ORM-1 stays *in
+  progress* until the admin and forms read the registry, which is the clause its
+  text actually promises.
 
 - **`just check` now generates a project, builds it, runs its tests, extends it
   with `startapp`, and boots it.** ([#38])
@@ -385,6 +414,18 @@ with their milestone rather than split into sections. Cutting a version is
 First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
+
+Added to package `fabrin` ([#53]):
+
+- `Modeler` — `Models() []orm.Model`, the fifth optional module interface.
+- `(*App).Models() []orm.Registered`.
+
+`Models()` returns the models rather than the `*orm.Registry` holding them, and
+that is the whole design decision. A registry would carry `Register` with it, so
+any caller could add a table after construction — which is exactly what that
+type's "built once, read afterwards" contract rules out, and what makes its lack
+of a mutex sound rather than lucky. The migration generator (#57) only reads, so
+nothing is lost. The result is a deep copy for the same reason.
 
 Added in package `fabrin/orm` ([#52]):
 
@@ -647,6 +688,7 @@ Added — package `fabrin`:
 [#38]: https://github.com/usefabrin/fabrin/issues/38
 [#45]: https://github.com/usefabrin/fabrin/issues/45
 [#52]: https://github.com/usefabrin/fabrin/issues/52
+[#53]: https://github.com/usefabrin/fabrin/issues/53
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14

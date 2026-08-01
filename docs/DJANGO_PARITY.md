@@ -44,6 +44,7 @@ them, and jump-to-definition works.
 | Django | Fabrin | Status |
 |---|---|---|
 | `models.Model` | `orm.Model` + Fabrin's metadata registry — a description, with no database handle anywhere near it | 🚧 F2 |
+| Models found by importing each app in `INSTALLED_APPS` | `Modeler` on a module — models are handed over, never scanned for | ✅ F2 |
 | `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` | 📋 F2 |
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
@@ -66,6 +67,20 @@ far less debugging.
 read GORM's metadata, the admin would *be* GORM-shaped, and swapping the ORM would
 mean rewriting the admin, the forms, and the migration generator. One layer of
 indirection now buys the ability to be wrong about the ORM later.
+
+**Why discovery does not port.** Django finds models by importing every app in
+`INSTALLED_APPS` and letting the metaclass register each class as a side effect of
+import. That works because a Python import runs code. Go's nearest equivalent is
+`init()` reached through a blank import — and a blank import that nobody wrote is
+*silent*. The failure is not a missing model; it is a model absent from the
+registry while its table exists, which a diff-based generator reads as "this table
+should be dropped."
+
+So `Modeler` hands models over explicitly. The module that owns the table names
+it, which also gives Fabrin something Django's registry does not have: every table
+knows which module declared it, so a conflict names both sides and the admin can
+group by owner. This is the same reasoning `INSTALLED_APPS` gets above — Go's
+answer to "list your components" is a value, not a string to be resolved later.
 
 **The split Django does not make.** A Django `Model` is two things at once: a
 description of a table *and* the way you query it. `orm.Model` is only the first

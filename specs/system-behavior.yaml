@@ -321,3 +321,24 @@ behaviours:
     requirement: FR-ORM-1
     status: implemented
     test: .golangci.yml
+
+  - id: ORM-007
+    what: A module declares its tables by implementing Modeler, asserted at registration and reported through App.Capabilities like Checker, Lifecycle, and Commander. Fabrin scans no packages for models.
+    why: Django discovers models because a Python import has side effects at runtime. The Go equivalent is a blank import whose absence is silent — and a model that quietly fails to register is a table the migration generator proposes to DROP. Explicit hand-over makes the absence a compile-time one.
+    requirement: FR-ORM-3
+    status: implemented
+    test: modeler_test.go::TestApp_ModelsCollectsEachModulesTablesWithItsName
+
+  - id: ORM-008
+    what: Models are collected from MOUNTED modules only, following the same process-slicing rule as readiness checks and commands.
+    why: A migrate-only process that mounts one module must not be handed another's models, or it generates DDL for tables this deployment shape has no stake in.
+    requirement: FR-ORM-3
+    status: implemented
+    test: modeler_test.go::TestNew_CollectsModelsFromMountedModulesOnly
+
+  - id: ORM-009
+    what: Two mounted modules declaring one table name fail at construction, and the error names both modules and the table while still matching errors.Is against orm.ErrDuplicateTable.
+    why: Propagated rather than logged, because New fails on wiring mistakes instead of warning about them. Found later, it is found as a generated migration diffing against the union of two intentions. The wrap must preserve errors.Is or a caller has nothing to branch on but message text.
+    requirement: FR-ORM-3
+    status: implemented
+    test: modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable
