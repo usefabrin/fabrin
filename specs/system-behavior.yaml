@@ -271,3 +271,10 @@ behaviours:
     requirement: FR-CLI-2
     status: implemented
     test: internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean
+
+  - id: CLI-013
+    what: The scaffold's own output is generated, built, tested, extended with startapp, and booted by `just check`, against the working tree rather than the published module.
+    why: The templates are .tmpl text, invisible to the compiler, so a change to fabrin.New or the Module interface can break them with every other gate green. A replace directive is what makes it the working tree under test — resolving Fabrin from the proxy would go green on a broken scaffold until the change was merged.
+    requirement: NFR-5
+    status: implemented
+    test: scripts/check-scaffold.sh

@@ -36,6 +36,7 @@ uses, so local and CI run the same ruleset.
 | Tests | `just test` | Behaviour |
 | Boundaries | `just arch` | depguard layering rules |
 | API surface | `just api-check` | The public API changed only on purpose |
+| Scaffold | `just examples` | The generator emits a project that builds, tests, and **boots** — built against the working tree, not the published module |
 | Examples | `just examples` | Every example still builds and serves |
 | Specs | `just specs` | Every behaviour has a matrix row and a test |
 

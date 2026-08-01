@@ -83,6 +83,34 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`just check` now generates a project, builds it, runs its tests, extends it
+  with `startapp`, and boots it.** ([#38])
+
+  The templates are `.tmpl` text, invisible to the compiler — so a change to
+  `fabrin.New`, `config.Standard`, or the `Module` interface could break the
+  scaffold with every other gate green. This is the gate that notices.
+
+  **Against the working tree, not the published module.** A `replace` points the
+  generated project at this checkout, so a change that breaks the scaffold fails
+  here rather than going green until it is merged.
+
+  Not fully offline, and the reason is worth recording: `GOPROXY=off` was tried
+  first and failed in CI. Go 1.17+ prunes the module graph, so Fabrin's cache
+  never holds `golang.org/x/sys@v0.6.0`'s `go.mod` — an edge reachable only
+  through go-isatty's unpruned requirements — and the generated project's empty
+  require list makes resolution walk it. It passed locally on a warm cache and
+  failed on a runner holding exactly what Fabrin needs.
+
+  Not an `examples/` entry, despite the roadmap's wording. A generated project
+  has its own `go.mod`, which under `examples/` is a **nested module**:
+  `go build ./examples/x` fails, and `build-examples.sh` globs `examples/*/`
+  expecting packages of the root module. Committing a copy instead would let it
+  drift from the templates it exists to prove. So it is generated fresh on every
+  run and thrown away — there is no directory that can be silently absent.
+
+  It also compiles what #37 could only re-parse: `startapp`'s edit to `main.go`
+  is followed by a real build.
+
 - **`fabrin startapp <name>`** — a module, wired in. ([#37])
 
   ```console
@@ -526,6 +554,7 @@ Added — package `fabrin`:
 [#35]: https://github.com/usefabrin/fabrin/issues/35
 [#36]: https://github.com/usefabrin/fabrin/issues/36
 [#37]: https://github.com/usefabrin/fabrin/issues/37
+[#38]: https://github.com/usefabrin/fabrin/issues/38
 [#45]: https://github.com/usefabrin/fabrin/issues/45
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13

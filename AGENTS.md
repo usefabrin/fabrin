@@ -155,7 +155,7 @@ is exactly why `check-depguard-coverage.sh` exists.
 | `just lint` / `just format` | Check / apply style (gofmt, `go vet`, golangci-lint) |
 | `just arch` | Boundary check (depguard) |
 | `just api` / `just api-check` | Regenerate / verify the `api/fabrin.txt` snapshot |
-| `just examples` | Build **and smoke** every app under `examples/` |
+| `just examples` | Build **and smoke** every app under `examples/`, plus the scaffold's own generated output |
 | `just specs` | Validate `specs/` against the test matrix |
 | `just docs-check` | Docs-freshness gate on governed surfaces |
 | `just gates` | Fast repo-hygiene gates (`scripts/gates/*.sh`) — also run by the pre-commit hook |
