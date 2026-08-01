@@ -399,6 +399,12 @@ behaviours:
     status: implemented
     test: migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten
 
+  - id: MIG-010
+    what: M.Up and M.Down take a migrate.Handle - an exported interface of exactly four methods (ExecContext, QueryContext, QueryRowContext, PrepareContext) satisfied unmodified, with no adapter, by *sql.Tx, *sql.DB and *sql.Conn.
+    why: '*sql.Tx answers "may a migration run outside a transaction?" with no, by construction and silently. CREATE INDEX CONCURRENTLY forces the question - PostgreSQL refuses it inside a transaction block - and Django ships Migration.atomic = False for it. The engine still passes a transaction today, so MIG-001 is unchanged; the TYPE stops promising one, so NonAtomic can land later with no edit to any user migration. The method set is the irreversible half: users implement Handle with recording fakes, so a fifth method after v0.1 breaks all of them, and the plausible fifth is one *sql.Tx already has - which a compile-time satisfaction check cannot see. Read by reflection for that reason. The interface restricts nothing: h.(*sql.Tx).Rollback() still compiles, so this converts an accident into a deliberate act rather than removing the ability. The dynamic type is deliberately NOT part of the contract and is not asserted anywhere - asserting it would foreclose the wrapper the change exists to permit. See docs/adr/0003-migrations-take-a-handle-not-a-transaction.md.'
+    requirement: FR-ORM-4
+    status: planned
+
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
     why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.
