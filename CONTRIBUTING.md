@@ -108,11 +108,19 @@ suite could not have caught: a package in the manifest with nothing recorded.
 
 - `fabrin/config` must not import Gin or `net/http`. Settings must load from the
   CLI, from tests, and from a migrate-only process without booting a server.
-- `fabrin/config`, `fabrin/logging`, `fabrin/health`, and `fabrin/cli` must not
-  import the root package **or each other**. The root package imports them, so
-  the root direction is a cycle the compiler already rejects; the rule exists for
-  the *sibling* import, which compiles cleanly and quietly makes a leaf depend on
-  half the framework.
+- `fabrin/config`, `fabrin/logging`, `fabrin/health`, `fabrin/cli`, and
+  `fabrin/orm` must not import the root package **or each other**. The rule
+  exists mainly for the *sibling* import, which compiles cleanly and quietly
+  makes a leaf depend on half the framework. Where the root package already
+  imports the leaf, the root direction is a cycle the compiler rejects anyway and
+  the rule is belt-and-braces; where it does not yet — `orm`, until `Modeler`
+  lands — the rule is the **only** thing stopping it, because that import
+  compiles today.
+- `fabrin/orm` must not import `database/sql` either. It describes models and
+  opens nothing: that is what lets the admin and forms read a schema with no
+  database running, and what keeps its tests in microseconds. The query API is
+  `database/sql` or the user's own ORM, named in neither place — see
+  [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md).
 - `internal/**` must not import the root package.
 
 `fabrin/cli` is a leaf for a concrete reason: the root package imports it to

@@ -27,7 +27,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── health/              liveness + readiness      (Django: system checks)
 ├── logging/             slog setup, request ids
 ├── fabrintest/          test client for Fabrin apps
-├── orm/                 model metadata + GORM     (F2)
+├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine          (F2)
 ├── auth/                users, sessions, perms    (F3)
 ├── admin/               auto-CRUD admin site      (F4)
@@ -52,6 +52,20 @@ their `go.sum` to run a tool they will never invoke. A library's dependency list
 is part of its cost to adopt, so dev tooling gets its own module.
 
 Anything under `tools/` that a user might want at runtime is in the wrong place.
+
+### Why `orm/` holds no database handle
+
+The map entry is deliberate and depguard enforces it: `orm` may not import
+`database/sql`, and no driver appears anywhere near it. The package describes
+tables and columns; it opens nothing.
+
+That is what lets the admin (F4) and forms (F5) render a schema with no database
+running, and it is why this package's tests finish in microseconds instead of
+waiting on a container. It is also what keeps the ORM swappable — the admin reads
+**Fabrin** metadata, so it never becomes GORM-shaped. The query API is
+`database/sql` or whichever ORM the application chose, reached through an
+interface the module declares for itself; Fabrin names neither. See
+[ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md).
 
 ## Request path
 
@@ -221,7 +235,8 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 | Rule | Why |
 |---|---|
 | `config` must not import Gin or `net/http` | Settings must load from the CLI, from tests, and from a migrate-only process without constructing an HTTP stack |
-| `config`, `logging`, `health` must not import the root package **or a sibling** | They sit *below* it. The root-package direction is a cycle the compiler already rejects; the rule's real work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework |
+| `config`, `logging`, `health`, `cli`, `orm` must not import the root package **or a sibling** | They sit *below* it. The rule's main work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework. Where the root package already imports the leaf, the root direction is additionally a cycle the compiler rejects — but not for `orm` yet, where this rule is the only thing stopping it |
+| `orm` must not import `database/sql` | Metadata is a description; the handle belongs to the application. Otherwise the admin needs a database running to render a form, and this package's tests need one to run |
 | `internal/**` must not import the root package | The dependency runs public → internal |
 
 Every public package needs a `# boundary: <name> — <decision>` line in

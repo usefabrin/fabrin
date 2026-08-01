@@ -80,9 +80,14 @@ a project shape to generate, and F0 defines that shape.
 
 ## F2 — Models, metadata, migrations
 
-- [ ] **Fabrin's own model-metadata registry** — the load-bearing piece. Admin,
+- [x] **`fabrin/orm` — the metadata registry**, the load-bearing piece. Admin,
       forms and migrations all read Fabrin metadata, not GORM's, so the ORM stays
-      swappable and the admin does not become GORM-shaped. (FR-ORM-1)
+      swappable and the admin does not become GORM-shaped. It holds no database
+      handle and cannot import `database/sql`, which is what lets a schema be
+      read with nothing running. (FR-ORM-1, ORM-001…006)
+
+      Nothing declares a model into it yet — `Modeler` is the next item, and
+      FR-ORM-1 stays *in progress* until something reads the registry.
 - [ ] GORM adapter behind the `fabrin/orm` seam. (FR-ORM-2)
 - [ ] `Modeler` — modules declare their models; no package scanning. (FR-ORM-3)
 - [ ] `fabrin migrate` / `makemigrations`; versioned files with a down step.

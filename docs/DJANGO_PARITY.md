@@ -43,7 +43,7 @@ them, and jump-to-definition works.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `models.Model` | `orm.Model` + Fabrin's metadata registry | 📋 F2 |
+| `models.Model` | `orm.Model` + Fabrin's metadata registry — a description, with no database handle anywhere near it | 🚧 F2 |
 | `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` | 📋 F2 |
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
@@ -66,6 +66,22 @@ far less debugging.
 read GORM's metadata, the admin would *be* GORM-shaped, and swapping the ORM would
 mean rewriting the admin, the forms, and the migration generator. One layer of
 indirection now buys the ability to be wrong about the ORM later.
+
+**The split Django does not make.** A Django `Model` is two things at once: a
+description of a table *and* the way you query it. `orm.Model` is only the first
+— a plain struct of exported fields, with no handle, no driver, and no import of
+`database/sql`. The query half is whatever the application chose, reached through
+an interface the module declares for itself.
+
+The gain is concrete rather than architectural taste: a schema can be read with
+no database running, so the admin renders and the migration generator diffs
+without one, and this package's tests finish in microseconds. Django pays the
+opposite way — `django.setup()` before anything, which is why its test suite
+needs a database to ask what a field is called.
+
+The cost is that nothing here links a table back to a Go type, which the admin
+(F4) will need. It will add that rather than reshape this: `Model` is a struct of
+exported fields, so it may gain fields forever and lose none.
 
 ## Requests, responses, routing
 

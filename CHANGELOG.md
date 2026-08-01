@@ -26,9 +26,10 @@ Once v1 lands, breaking changes wait for a major version like anywhere else.
 ## [Unreleased]
 
 Milestone **F0** — repository, harness, agent system, and runnable core — is
-**complete** ([#1](https://github.com/usefabrin/fabrin/issues/1)). Milestone
-**F1**, the `fabrin` command, is in progress
-([#32](https://github.com/usefabrin/fabrin/issues/32)).
+**complete** ([#1](https://github.com/usefabrin/fabrin/issues/1)), and so is
+**F1**, the `fabrin` command ([#32](https://github.com/usefabrin/fabrin/issues/32)).
+Milestone **F2** — models, metadata, migrations — is in progress
+([#51](https://github.com/usefabrin/fabrin/issues/51)).
 
 Nothing is released yet, so both sit under `[Unreleased]` and entries are tagged
 with their milestone rather than split into sections. Cutting a version is
@@ -82,6 +83,58 @@ with their milestone rather than split into sections. Cutting a version is
   `tools/` module explicitly. A separate module is not reached by `go test ./...`
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
+
+- **`fabrin/orm`** — the model-metadata registry, and the first piece of F2. ([#52])
+
+  ```go
+  r := orm.NewRegistry()
+  err := r.Register("shop", orm.Model{
+      Table: "orders",
+      Fields: []orm.Field{
+          {Name: "id", Type: orm.Int64, PrimaryKey: true},
+          {Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
+          {Name: "shipped_at", Type: orm.Time, Nullable: true},
+      },
+  })
+  ```
+
+  The admin (F4), forms (F5), and the migration generator all read **Fabrin**
+  metadata rather than the ORM's. Read GORM's instead and the admin *is*
+  GORM-shaped: swapping the ORM would mean rewriting the admin, the forms, and
+  the generator. One layer of indirection now buys the ability to be wrong about
+  the ORM later.
+
+  **There is no database handle here, and there cannot be.** The package
+  describes tables; it opens nothing, and depguard forbids it importing
+  `database/sql` — the deny was injected and read before this landed, alongside a
+  sibling-import deny that the compiler cannot catch because such an import is
+  not a cycle. That is what lets a schema be read with nothing running, and it is
+  why these tests finish in microseconds. The query API stays `database/sql` or
+  whichever ORM the application chose, reached through an interface the module
+  declares for itself
+  ([ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md)).
+
+  **Registration is where a model is rejected**, not DDL time: an empty table
+  name, no fields, an unnamed or untyped column, a duplicated column, a `MaxLen`
+  on something that is not a string, no primary key, or two of them. The
+  generator runs against a real database, and a mystery there is a mystery in the
+  most expensive available place. `ErrDuplicateTable` names **both** modules,
+  because "duplicate table" alone means grepping every module for the name.
+
+  **Two ordering rules that look contradictory and are not.** `Models()` sorts by
+  table, because registration order carries `FABRIN_MODULES` and the argument
+  order in `main` into the output. Field order is preserved exactly as declared,
+  because that is the author's intent about column layout. Both make the
+  generator's output a function of the schema alone. `Models()` returns a deep
+  copy for the same reason: three subsystems read this, and a caller that mutated
+  its result would change what every later reader sees with nothing to blame.
+
+  The zero `Type` is invalid on purpose — a forgotten type is an error rather
+  than whichever constant happens to sort first.
+
+  Nothing declares a model into the registry yet. `Modeler` is next
+  ([#53](https://github.com/usefabrin/fabrin/issues/53)), which is why FR-ORM-1
+  reads *in progress* rather than done.
 
 - **`just check` now generates a project, builds it, runs its tests, extends it
   with `startapp`, and boots it.** ([#38])
@@ -333,6 +386,43 @@ First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
 
+Added in package `fabrin/orm` ([#52]):
+
+- `Type` — a `string` type, with `String`, `Int`, `Int64`, `Float`, `Bool`,
+  `Time`, `Bytes`, and `Valid() bool`. Fabrin's own vocabulary on purpose: a
+  driver's types would pin the metadata to one database, and `reflect.Kind`
+  cannot tell a timestamp from an `int64`. The set is the smallest the migration
+  generator needs and may grow — a new constant is additive, where a changed
+  meaning would not be. The zero value is invalid, so a forgotten type is an
+  error rather than whichever constant sorts first.
+- `Field` — `Name`, `Type`, `MaxLen`, `Nullable`, `PrimaryKey`, `Unique`,
+  `Index`. Deliberately short: defaults and foreign keys are absent because the
+  first migration does not need them, and a struct of exported fields may gain
+  them later where it could never lose one.
+- `Model` — `Table`, `Fields`. A **struct, not an interface** a user's type
+  implements. The consumer in F2 is the migration generator, which wants a
+  description and nothing else, and a description should not require a zero value
+  of the user's type to answer questions about it. The cost is that nothing here
+  links a table back to a Go type; the admin will need that and will add it
+  rather than reshape this.
+- `Registered` — `Module`, `Model`. The owning module is not decoration: a schema
+  conflict has to name who declared each side, and registration is the only
+  moment that is known for free.
+- `Registry`, `NewRegistry()`, `(*Registry).Register(module string, models ...Model) error`,
+  `(*Registry).Models() []Registered`.
+- Sentinels: `ErrDuplicateTable`, `ErrInvalidModel`, `ErrInvalidField`.
+
+`Registry` is not mutex-guarded, and that is the promise rather than an omission:
+it is built once and read afterwards. A mutex would buy nothing against that
+pattern and would imply the schema can change while an application runs.
+
+A `Len()` was written and then **removed before this shipped**. `len(r.Models())`
+answers the same question, nothing called it, and an exported symbol is
+permanent — cheap to add later, breaking to withdraw.
+
+No third-party type appears anywhere in this surface, so `apicheck`'s allowlist
+stays at its single entry.
+
 Added in package `fabrin/cli` ([#33]):
 
 - `Command` — `Name`, `Short`, `Flags func(*flag.FlagSet)`, `Run func(context.Context, []string) error`.
@@ -556,6 +646,7 @@ Added — package `fabrin`:
 [#37]: https://github.com/usefabrin/fabrin/issues/37
 [#38]: https://github.com/usefabrin/fabrin/issues/38
 [#45]: https://github.com/usefabrin/fabrin/issues/45
+[#52]: https://github.com/usefabrin/fabrin/issues/52
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
