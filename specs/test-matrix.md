@@ -152,8 +152,8 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-007 | A module declares tables via `Modeler`; nothing is scanned for | `modeler_test.go::TestApp_ModelsCollectsEachModulesTablesWithItsName` |
 | ORM-008 | Models collected from **mounted** modules only | `modeler_test.go::TestNew_CollectsModelsFromMountedModulesOnly` |
 | ORM-009 | Two modules claiming one table fail at construction | `modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable` |
-| ORM-010 | A module names no database handle — read off the import graph | _planned_ |
-| ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | _planned_ |
+| ORM-010 | A module names no database handle — read off the import graph | `examples/hello/hello_test.go::TestOrders_ImportsNoDatabaseHandleNorAnythingOutsideFabrin` |
+| ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | `examples/hello/orders/orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven` |
 
 ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3; ORM-010…011 cite FR-ORM-2,
 which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a

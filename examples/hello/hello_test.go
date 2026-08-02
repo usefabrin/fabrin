@@ -196,7 +196,11 @@ func TestCommand_RoutesNamesTheOwningModule(t *testing.T) {
 
 	// The README prints this listing. A test that only checked "some output"
 	// would let the README go stale without anything failing.
-	for _, want := range []string{"/greet    greet", "/time     clock", "(framework)"} {
+	// The exact spacing is the assertion, not an accident of it: printRoutes sizes
+	// the path column from the rows present, so these strings only match while
+	// examples/hello/README.md's listing is still what the binary prints. A new
+	// route reflows the table and turns this red, which is the point.
+	for _, want := range []string{"/greet       greet", "/time        clock", "(framework)"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("routes output missing %q:\n%s", want, out.String())
 		}

@@ -47,16 +47,22 @@ client adapter here and changing nothing in `greet`.
 
 ```console
 $ go run ./examples/hello routes
-GET  /greet    greet
-GET  /healthz  (framework)
-GET  /readyz   (framework)
-GET  /time     clock
+GET   /greet       greet
+GET   /healthz     (framework)
+POST  /orders      orders
+GET   /orders/:id  orders
+GET   /readyz      (framework)
+GET   /time        clock
 
 $ FABRIN_MODULES=greet go run ./examples/hello routes
 GET  /greet    greet
 GET  /healthz  (framework)
 GET  /readyz   (framework)
 ```
+
+The columns are sized from the rows actually present, which is why the sliced
+listing is narrower. That is not cosmetic: a process serves what it mounts, and
+`routes` describes *this* process rather than the binary's catalogue.
 
 One binary, N deployment shapes. Note that `routes` describes *this* process
 rather than the binary's full catalogue — listing what is not mounted would be
