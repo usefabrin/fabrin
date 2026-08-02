@@ -63,11 +63,10 @@ If the module makes a load-bearing behavioural claim, add it to
 and a row in `specs/test-matrix.md` with `_planned_` in the Test column.
 
 **Leave off the `test:` field while the status is `planned`.** `just specs`
-checks *both directions* — an id missing from the matrix fails, and a matrix row
-with no spec entry fails — and once you write `status: implemented` it also
-checks that the named file exists **and** that a `func <name>` grep hit is inside
-it. Writing `implemented` with a test that does not exist yet turns `just check`
-red for everyone.
+parses YAML structurally, checks both spec/matrix directions and requirement IDs,
+and once you write `status: implemented` resolves the exact top-level Go test
+function through the AST. Writing `implemented` with a test that does not exist
+yet turns `just check` red for everyone.
 
 ## 4. The package
 

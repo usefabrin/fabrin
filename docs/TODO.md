@@ -18,7 +18,9 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 
 - [x] Licence (MIT, "Fabrin contributors"), README, `AGENTS.md` + `CLAUDE.md`
       pointer, `CONTRIBUTING.md`, a module that compiles. (INV-4, NFR-2)
-- [x] `justfile` harness — `just check` is the one gate and exactly what CI runs.
+- [x] `justfile` harness — `just check` is the local quality gate and exactly
+      what CI's quality job runs; docs, race, and main-only benchmarks are
+      explicit additional jobs.
       (NFR-6)
 - [x] Hygiene gates with a recorded boundary decision per public package.
       (INV-5, INV-6)
@@ -31,21 +33,26 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
       requirements, `specs/`, `CHANGELOG.md`.
 - [x] `fabrin.App`, module registry, router, graceful shutdown, reverse-order
       `Stop`. (FR-CORE-1…6, CORE-001…004)
-- [x] Process slicing via `Options.Modules`, unknown name is an error.
+- [x] Route/capability slicing via `Options.Modules`, unknown name is an error.
+      Construction remains caller-owned and happens before selection.
       (FR-MODULES-1,2, MOD-001,002)
+      Lazy selection is tracked in
+      [#77](https://github.com/usefabrin/fabrin/issues/77).
 - [x] `fabrin/config` — layered settings with provenance; owns the `Options`
       declaration the root package aliases. (FR-CONFIG-1…5, CFG-001…004)
-- [x] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed and
-      consulting only *mounted* modules. (FR-HEALTH-1…3, HLT-001…003)
+- [x] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed,
+      deadline-bounded even for non-cooperative checks, and consulting only
+      *mounted* modules. (FR-HEALTH-1…4, HLT-001…004)
 - [x] `fabrin/logging` — slog setup + request ids, installed by default.
       (FR-LOG-1,2, LOG-001…004)
 - [x] `examples/hello` — two modules, ports not imports, slicing demonstrated by a
       test rather than by prose. (FR-MODULES-3, MOD-003)
 - [x] `apicheck` in the `tools/` module + `api/fabrin.txt` + the gate — snapshot
       drift *and* unblessed types in a signature. (INV-1,2, API-001…003, NFR-3)
-- [x] Agent charters in `.claude/agents/` and repo skills — six charters, each
-      with a hand-back condition, plus `new-module` and `issue-to-pr`. The
-      `release` skill is deferred until there is a release policy to document.
+- [x] Canonical orchestration in `docs/agents/` with task/result schemas,
+      ownership and fan-in rules, six role charters, and generated native
+      adapters for Claude Code, Codex, and Cursor. Same-platform delegation only;
+      adapter parity is gated. (NFR-8, INV-8)
 - [x] `perf/BASELINE.md` filled with real numbers vs raw Gin — **Fabrin's own
       abstractions add zero allocations**; the default observability stack adds
       13, itemised and justified there. (NFR-1)
@@ -78,6 +85,19 @@ a project shape to generate, and F0 defines that shape.
       has its own `go.mod`, which under `examples/` would be a nested module the
       other two steps cannot build. (NFR-5, CLI-013)
 
+## Stabilization gate before new F2–F5 work
+
+New model/migration, rendering, auth, and admin feature work pauses until the
+stabilization epic's runtime, harness, orchestration, and contract corrections
+are green. Public API, ADR, security, migration, orchestration, CI, and gate
+changes require human review.
+
+Pre-v0 decisions split out of stabilization: lazy selection-before-construction
+([#77](https://github.com/usefabrin/fabrin/issues/77)), the admin CRUD/type seam
+([#78](https://github.com/usefabrin/fabrin/issues/78)), provisional ORM
+constraints ([#79](https://github.com/usefabrin/fabrin/issues/79)), and the auth
+threat model ([#80](https://github.com/usefabrin/fabrin/issues/80)).
+
 ## F2 — Models, metadata, migrations ◐
 
 - [x] **`fabrin/orm` — the metadata registry**, the load-bearing piece. Admin,
@@ -88,8 +108,8 @@ a project shape to generate, and F0 defines that shape.
 
       FR-ORM-1 stays *in progress* until the admin and forms read it, which is
       the clause its text actually promises.
-- [~] GORM as the shipped default adapter — a documented pattern and a worked
-      example, **not** an exported Fabrin type returning `*gorm.DB`.
+- [x] Consumer-owned data port pattern and worked example, **not** an exported
+      Fabrin query API or third-party handle.
       ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md), FR-ORM-2)
 
       The **pattern and the worked example** landed as `examples/hello/orders`
@@ -100,9 +120,9 @@ a project shape to generate, and F0 defines that shape.
       GORM — which is the seam ADR 0002 chose, so the pattern is the same
       whatever sits behind it.
 
-      **The GORM adapter itself is unwritten.** Nothing in this repository
-      imports GORM, and until something does, "GORM is the shipped default"
-      names a default nobody has shipped.
+      Fabrin ships no GORM adapter today. Whether a default query adapter should
+      exist is a separate pre-v0 API decision; documentation must not call an
+      unwritten adapter the default.
 - [x] `Modeler` — modules declare their models; no package scanning. Collected
       from **mounted** modules only, so a sliced process is handed only the
       schema it owns, and two modules claiming one table fails at construction.
@@ -164,38 +184,43 @@ breaking afterwards, so it needs an answer rather than a discovery.
       Related: `validate` rejects composite keys today, so when they land they
       need `Model.PrimaryKey []string` — leaving two permanent ways to say the
       same thing, with `Field.PrimaryKey` unable to express the composite case.
-      Same for multi-column `UNIQUE` and named indexes. Moving all three to
-      `Model` costs nothing while nothing reads them. (FR-ORM-1)
+      Same for multi-column `UNIQUE` and named indexes. Resolve the representation
+      intentionally rather than assuming an exported struct can grow for free.
+      ([#79](https://github.com/usefabrin/fabrin/issues/79), FR-ORM-1)
 - [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
       uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
       `orm.Time` sits one letter from `time.Time` in code that imports both.
       (FR-ORM-1)
 
-### Gate holes, proven by injection
+### Gate hardening
 
-`just specs` and `just docs-check` bite on everything they advertise — each was
-put through the hard-rule-4 loop. What they do **not** cover was proven the same
-way, and is written down here rather than rediscovered:
+- [x] `speccheck` parses YAML structurally, validates the status vocabulary and
+      requirement IDs, matches exact matrix rows, and resolves real `_test.go`
+      functions with Go test signatures through the AST. Its previously
+      false-positive cases are regression-tested in the tools module. (NFR-9)
+- [x] Docs freshness includes deletions and maps API, boundaries, command,
+      validation, public-package, and orchestration changes to their owning
+      documents. It fails closed on bad ranges and checks both sides of renames;
+      it deliberately does not claim to understand prose.
+- [x] `agentcheck` compiles the packet schemas and enforces platform/base
+      identity, catalog access, disjoint ownership/worktrees/resources, and
+      stale or out-of-scope result rejection at dispatch and fan-in. (NFR-8)
 
-- [ ] **`specs.sh`: a `status:` typo silently disables the traceability check.**
-      `status: implemented` is its sole trigger and the vocabulary is
-      unvalidated, so `status: done` removes an entry from the check while the
-      gate still counts it and still reports it as traceable to a test.
-- [ ] **`specs.sh` greps, it does not match structurally.** A deleted matrix
-      *row* is satisfied by any prose mention of the id elsewhere in the file,
-      and an unanchored `grep -q "func $fn"` passes when a test is renamed to a
-      *longer* name. A commented-out entry still counts — and removing its
-      orphaned matrix row then makes the gate fail on a behaviour that exists
-      only as comment text.
-- [ ] **`requirement:` is read by nothing.** No script parses it, in either
-      direction. A spec entry may cite a requirement that does not exist, or the
-      wrong one — which has already happened once and was caught by hand.
-- [ ] **`specs/system-behavior.yaml` is not validated as YAML.** It parsed as
-      none for the whole of F0–F2; `specs.sh` is line-based by design and reads
-      it happily. The parser reports only the first error, so a fix reveals the
-      next.
+## F3 — Rendering, forms, static, and CSRF foundation
 
-## F3 — Auth
+This minimal vertical foundation comes before auth and admin because both need
+safe form errors, templates, and CSRF integration rather than private one-off
+versions.
+
+- [ ] `fabrin/render` — template loading, layouts, per-module namespaces.
+      (FR-RENDER-1)
+- [ ] `fabrin/forms` — binding and validation with field and non-field errors.
+      (FR-RENDER-2)
+- [ ] Static serving, embedding, cache headers, and content hashing.
+      (FR-RENDER-3)
+- [ ] CSRF middleware plus template/form integration. (FR-RENDER-4)
+
+## F4 — Auth
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
 - [ ] Server-side sessions, pluggable store. (FR-AUTH-2)
@@ -203,8 +228,11 @@ way, and is written down here rather than rediscovered:
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)
 - [ ] Login/logout, `RequireAuth` middleware, CSRF.
+- [ ] Threat model before API freeze: rotation and fixation, cookie defaults,
+      enumeration, password upgrades, recovery, audit, and fail-closed authz.
+      ([#80](https://github.com/usefabrin/fabrin/issues/80))
 
-## F4 — The admin site
+## F5 — The admin site
 
 The reason people want a Django-like framework. Everything above exists to make
 this possible.
@@ -216,15 +244,14 @@ this possible.
 - [ ] Per-model overrides: list columns, filters, form fields, search. (FR-ADMIN-3)
 - [ ] Every write permission-checked; the admin is not a bypass. (FR-ADMIN-4)
 - [ ] Pagination that does not `SELECT *` a whole table to count it.
-
-## F5 — Rendering, forms, static files
-
-- [ ] `fabrin/render` — template loading, layouts, per-module template namespaces.
-- [ ] `fabrin/forms` — binding and validation with errors a template can render
-      field by field.
-- [ ] Static file serving, embedding, cache headers, content hashing.
+- [ ] Prove one internal vertical CRUD slice from metadata to persistence before
+      freezing any public admin seam; current metadata has no generic CRUD or Go
+      type link. ([#78](https://github.com/usefabrin/fabrin/issues/78))
 
 ## F6 — Signals and background work
+
+Exploratory theme, not a committed feature set until requirements and acceptance
+criteria are written.
 
 - [ ] `fabrin/signals` — in-process bus; `Subscriber` on modules. Django's signals,
       minus the action-at-a-distance: subscriptions are declared, not registered
@@ -233,7 +260,8 @@ this possible.
 
 ## F7 — Remote ports and observability
 
-Where the extractable-by-design claim gets its second half.
+Exploratory theme. This is where the extraction seam gains a remote
+implementation; current process slicing does not make extraction deploy-only.
 
 - [ ] HTTP adapter so a port can be satisfied across a process boundary without
       the module noticing.
@@ -243,6 +271,9 @@ Where the extractable-by-design claim gets its second half.
       ADR.
 
 ## F8 — The remaining batteries
+
+Exploratory theme, not a committed feature set until requirements and acceptance
+criteria are written.
 
 - [ ] `fabrin/cache` — interface plus in-memory and Redis.
 - [ ] `fabrin/mail` — backends including a test one that captures instead of sends.

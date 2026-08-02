@@ -37,9 +37,25 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Platform-local multi-agent orchestration.** `docs/agents/` is the canonical
+  contract for Lead authority, risk-based fan-out, isolated path ownership,
+  serialized integration, task/result packets, and high-risk human review.
+  Claude Code, Codex, and Cursor receive generated native adapters and may never
+  invoke one another; `scripts/agents.sh check` enforces byte parity, native
+  metadata is parsed in tests, and `agentcheck` mechanically rejects invalid
+  dispatch/fan-in packets, overlapping ownership, and stale results. ([#71],
+  [#75], [#76])
+- **Structural spec and workflow hardening.** The tools-only `speccheck` parser
+  rejects malformed YAML, invalid statuses, unknown requirements, prose-only
+  matrix IDs, production functions, invalid test signatures, and prefix/comment
+  test matches. Docs freshness now fails closed on bad ranges, accounts for both
+  sides of renames and whole push ranges, and requires the owning documentation.
+  Hook installation is linked-worktree-safe, workflow and composite actions are
+  SHA-pinned with timeouts, and `just race` runs in CI. ([#72])
+
 - Working agreement (`AGENTS.md`) with `CLAUDE.md` as a pointer to it, contribution
   flow, MIT licence, and a Go module that compiles from the first commit. ([#12])
-- `just check` as the single validation gate — the same set CI runs — plus hygiene
+- `just check` as the local validation gate and exact CI quality job, plus hygiene
   gates, boundary rules, and a fast pre-commit hook. ([#13])
 - CI calling `just ci` rather than re-listing steps, `docs-guard` over the PR
   range, benchmarks on `main`, issue forms, and a PR template. ([#16])
@@ -528,6 +544,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- `-h`, `-help`, and `--help` anywhere in the initial configuration-flag prefix
+  now print usage instead of panicking during config load or starting the server.
+  Generated and example mains use `config.Load` so invalid leading flags return
+  a normal startup error. ([#41])
+- Readiness deadlines now bound checks that ignore context, with at most one
+  outstanding invocation per check; panicking probes fail closed instead of
+  crashing the process. Recovered handler panics are explicitly error-logged
+  with the actual committed status and become 500 before commitment. ([#73])
+
 - **The examples smoke gate bound and polled different addresses.** It started
   each example on `:$port` (wildcard) and polled `127.0.0.1:$port`. A wildcard
   bind normally accepts loopback, so it usually worked — but if anything on the
@@ -793,6 +818,12 @@ Added — package `fabrin`:
 
 ### Changed
 
+- Deployment documentation now describes `FABRIN_MODULES` honestly as
+  route/capability selection after construction, lifecycle ordering as
+  caller-owned, and the current data seam as `database/sql` plus consumer-owned
+  ports rather than an unwritten GORM default. Rendering/forms/CSRF now precede
+  auth and admin in the paused stabilization roadmap. ([#74])
+
 - **`modernc.org/sqlite` is no longer a test-only dependency of this
   repository.** ([#60])
 
@@ -940,6 +971,13 @@ Added — package `fabrin`:
 [#55]: https://github.com/usefabrin/fabrin/issues/55
 [#60]: https://github.com/usefabrin/fabrin/issues/60
 [#67]: https://github.com/usefabrin/fabrin/issues/67
+[#71]: https://github.com/usefabrin/fabrin/issues/71
+[#72]: https://github.com/usefabrin/fabrin/issues/72
+[#73]: https://github.com/usefabrin/fabrin/issues/73
+[#74]: https://github.com/usefabrin/fabrin/issues/74
+[#75]: https://github.com/usefabrin/fabrin/issues/75
+[#76]: https://github.com/usefabrin/fabrin/issues/76
+[#41]: https://github.com/usefabrin/fabrin/issues/41
 [ADR 0003]: docs/adr/0003-migrations-take-a-handle-not-a-transaction.md
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13

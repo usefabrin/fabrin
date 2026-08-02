@@ -40,13 +40,14 @@ uses, so local and CI run the same ruleset.
 | Examples | `just examples` | Every example still builds and serves |
 | Specs | `just specs` | Every behaviour has a matrix row and a test |
 
-**`just check` is exactly what CI runs** — the workflow calls `just ci`, an alias
-for `check`, rather than re-listing the commands. A green `check` means a green
-CI. Two things run outside it, because both need a git range a bare recipe cannot
-supply:
+CI's quality job runs exactly `just check` through the `just ci` alias. Three
+checks run outside that job because they need a git range, isolated
+instrumentation, or a schedule the local quality recipe should not have:
 
 - **docs-freshness** (`just docs-check`) — the pre-commit hook runs it on staged
   files; CI runs it as a separate `docs-guard` job.
+- **race detector** (`just race`) — CI runs it in an independently instrumented
+  job; run it locally before pushing concurrency or lifecycle work.
 - **benchmarks** (`just bench`) — CI runs these on `main` only.
 
 `just gates` must stay fast enough for the pre-commit hook — keep the whole
@@ -60,13 +61,14 @@ prevents.** A check whose purpose nobody remembers is the first one deleted.
 | Script | Prevents |
 |--------|----------|
 | `scripts/gates/check-depguard-coverage.sh` | A new public package landing with nobody having decided whether it needs boundary rules |
-| `scripts/install-hooks.sh` | A pre-commit hook that reports installed and enforces nothing |
+| `scripts/install-hooks.sh` | A pre-commit hook that reports installed and enforces nothing, including across linked worktrees |
 | `scripts/gates/check-agent-docs.sh` | Rules accumulating in `CLAUDE.md`, giving Fabrin two working agreements that disagree |
 | `scripts/gates/check-examples.sh` | An example quietly ceasing to be a runnable program |
 | `scripts/gates/run-all.sh` | A gate script that exists but is not listed, and so never runs |
 | `scripts/check-gofmt.sh` | `gofmt -l` printing filenames and exiting 0, which it does by design |
-| `scripts/check-docs-freshness.sh` | Documentation drifting behind the code it describes |
-| `scripts/specs.sh` | A documented behaviour with nothing executable behind it |
+| `scripts/check-docs-freshness.sh` | Governed changes updating unrelated or deleted documentation instead of the owning contract |
+| `scripts/specs.sh` | Malformed behavior specs, unknown requirements, or non-exact test evidence |
+| `scripts/agents.sh` | Claude Code, Codex, and Cursor adapters drifting from canonical charters |
 | `scripts/smoke-examples.sh` | An example that compiles but cannot start |
 | `scripts/api.sh` | A breaking change to the exported surface landing unnoticed |
 
@@ -158,9 +160,10 @@ If your change touches the **public API**, a **CLI command**, or anything a
    `specs/system-behavior.yaml` **and** `specs/test-matrix.md`, then run
    `just specs`.
 
-The `just docs-check` gate (pre-commit hook + CI) fails commits that change a
-governed surface without a docs/specs update. Treat updating docs as the **last
-step** of every change, after implementation and tests.
+The `just docs-check` gate (pre-commit hook + CI) maps governed surfaces to their
+owning docs and does not count deletions as updates. It still cannot judge prose
+semantics. Treat updating docs as the **last step** of every change, after
+implementation and tests.
 
 ## Adding a module or a package
 
@@ -229,11 +232,22 @@ Keep PRs small and focused — **one issue per PR**, and link the issue.
 Self-review the diff before merging. **Squash merge**; the PR title becomes the
 squash commit, so it must follow Conventional Commits.
 
-**The author may merge their own PR once CI is green.** Review is not a gate —
-the green checks are. This is a small repo with a heavy agent-assisted workflow,
-and a mandatory-review rule would only ever be satisfied by the same person who
-wrote the change. Request review when a change is genuinely risky or you want a
-second opinion, and resolve review conversations before merging.
+The author may merge an ordinary focused PR once CI is green. Human review is
+required for public API and ADR decisions, auth/security behavior, potentially
+destructive migrations, agent orchestration, CI, and validation-gate changes.
+Resolve review conversations before merging.
+
+## Multi-agent work
+
+The current native platform session is the Lead; it never invokes another agent
+platform. The Lead owns worktrees, Git/GitHub state, integration, and full
+validation. Workers never delegate. Parallel reads are safe; writable packets
+need isolated worktrees and disjoint owned paths, and integration is serialized.
+Use the canonical task and result packets in
+[`docs/agents/`](docs/agents/README.md). Native adapters are generated, not
+independent rulebooks; `bash scripts/agents.sh check` enforces parity. Before
+dispatch and fan-in, run the documented `go -C tools run ./cmd/agentcheck`
+commands to reject cross-runtime, overlapping, stale, or out-of-scope work.
 
 What *is* a gate: `just check` locally, green CI, and a governed-surface change
 carrying its `docs/`/`specs/` update. Do not merge red.

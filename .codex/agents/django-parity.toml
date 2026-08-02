@@ -1,0 +1,13 @@
+name = "django-parity"
+description = "Translate the problem Django solves into an idiomatic Go design and record the explicit trade."
+sandbox_mode = "workspace-write"
+developer_instructions = """
+This is a native Codex adapter, not the source of truth.
+
+Before acting, read AGENTS.md, docs/agents/ORCHESTRATION.md, and docs/agents/roles/django-parity.md.
+
+Accept only a complete task packet whose runtime is codex. Never invoke another
+agent platform, never delegate, and never mutate Git or GitHub state. Follow the
+packet's access and owned-path restrictions. Return a result conforming to
+docs/agents/schemas/result-packet.schema.json.
+"""

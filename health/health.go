@@ -26,9 +26,11 @@ package health
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -116,12 +118,14 @@ type Registry struct {
 	Timeout time.Duration
 
 	mu     sync.RWMutex
-	checks []registered
+	checks []*registered
 }
 
 type registered struct {
-	module string
-	check  Check
+	module  string
+	check   Check
+	name    string
+	running atomic.Bool
 }
 
 // NewRegistry returns an empty registry.
@@ -139,10 +143,11 @@ func (r *Registry) Register(module string, checks ...Check) error {
 		if c == nil {
 			return errors.New("health: nil check registered by module " + module)
 		}
-		if c.Name() == "" {
+		name := c.Name()
+		if name == "" {
 			return errors.New("health: module " + module + " registered a check with no name")
 		}
-		r.checks = append(r.checks, registered{module: module, check: c})
+		r.checks = append(r.checks, &registered{module: module, check: c, name: name})
 	}
 	return nil
 }
@@ -164,7 +169,7 @@ func (r *Registry) Len() int {
 // responses shows a real change rather than map iteration order.
 func (r *Registry) Evaluate(ctx context.Context) Report {
 	r.mu.RLock()
-	checks := append([]registered(nil), r.checks...)
+	checks := append([]*registered(nil), r.checks...)
 	r.mu.RUnlock()
 
 	timeout := r.Timeout
@@ -175,29 +180,72 @@ func (r *Registry) Evaluate(ctx context.Context) Report {
 	defer cancel()
 
 	results := make([]Result, len(checks))
-	var wg sync.WaitGroup
+	started := make([]time.Time, len(checks))
+	type outcome struct {
+		index  int
+		result Result
+	}
+	outcomes := make(chan outcome, len(checks))
+	pending := make(map[int]struct{}, len(checks))
 
 	for i, rc := range checks {
-		wg.Add(1)
-		go func(i int, rc registered) {
-			defer wg.Done()
+		start := time.Now()
+		started[i] = start
+		results[i] = Result{
+			Module: rc.module,
+			Check:  rc.name,
+			Status: StatusDown,
+		}
+		if err := ctx.Err(); err != nil {
+			results[i].Error = err.Error()
+			continue
+		}
+		if !rc.running.CompareAndSwap(false, true) {
+			results[i].Error = "previous probe is still running"
+			continue
+		}
 
-			start := time.Now()
-			err := rc.check.Probe(ctx)
+		pending[i] = struct{}{}
+		go func(i int, rc *registered, start time.Time) {
 			res := Result{
-				Module:     rc.module,
-				Check:      rc.check.Name(),
-				Status:     StatusUp,
-				DurationMS: time.Since(start).Milliseconds(),
+				Module: rc.module,
+				Check:  rc.name,
+				Status: StatusUp,
 			}
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					res.Status = StatusDown
+					res.Error = fmt.Sprintf("probe panicked: %v", recovered)
+				}
+				res.DurationMS = time.Since(start).Milliseconds()
+				// Publish only after the in-flight guard is clear. Otherwise an
+				// immediate sequential Evaluate can observe a completed probe as
+				// still running and return a false 503.
+				rc.running.Store(false)
+				outcomes <- outcome{index: i, result: res}
+			}()
+
+			err := rc.check.Probe(ctx)
 			if err != nil {
 				res.Status = StatusDown
 				res.Error = err.Error()
 			}
-			results[i] = res
-		}(i, rc)
+		}(i, rc, start)
 	}
-	wg.Wait()
+
+	for len(pending) > 0 {
+		select {
+		case got := <-outcomes:
+			results[got.index] = got.result
+			delete(pending, got.index)
+		case <-ctx.Done():
+			for i := range pending {
+				results[i].Error = ctx.Err().Error()
+				results[i].DurationMS = time.Since(started[i]).Milliseconds()
+			}
+			pending = nil
+		}
+	}
 
 	sort.Slice(results, func(a, b int) bool {
 		if results[a].Module != results[b].Module {

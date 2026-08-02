@@ -145,7 +145,7 @@ func TestApp_ExecuteWithNoArgumentsServes(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- app.Execute(ctx, io.Discard, nil) }()
 
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("Execute with no arguments never listened: %v", err)
 	}
 	cancel()
@@ -171,11 +171,65 @@ func TestApp_ExecuteTreatsALeadingFlagAsASettingAndServes(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- app.Execute(ctx, io.Discard, []string{"-addr", "127.0.0.1:0"}) }()
 
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("a leading flag must still serve: %v", err)
 	}
 	cancel()
 
+	if err := <-done; err != nil {
+		t.Errorf("clean shutdown must return nil, got %v", err)
+	}
+}
+
+func TestApp_ExecuteHelpFlagPrintsUsageWithoutServing(t *testing.T) {
+	t.Parallel()
+
+	app, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0"}, route("m", "/x"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	for _, args := range [][]string{
+		{"-h"}, {"-help"}, {"--help"},
+		{"-addr", "127.0.0.1:0", "-h"},
+		{"-modules", "m", "-h"},
+		{"-log-format", "json", "-h"},
+		{"-log-level", "info", "-h"},
+		{"-read-header-timeout", "1s", "-h"},
+		{"-shutdown-timeout", "1s", "-h"},
+		{"-trusted-proxies", "127.0.0.1", "-h"},
+		{"-debug", "--help"},
+		{"-h=true"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			var out bytes.Buffer
+			if err := app.Execute(t.Context(), &out, args); err != nil {
+				t.Fatalf("Execute(%v): %v", args, err)
+			}
+			if !strings.Contains(out.String(), "Usage:") {
+				t.Errorf("help output missing usage:\n%s", out.String())
+			}
+			if app.Addr() != "" {
+				t.Errorf("help started the server on %q", app.Addr())
+			}
+		})
+	}
+}
+
+func TestApp_ExecuteDoesNotTreatAStringFlagValueAsHelp(t *testing.T) {
+	t.Parallel()
+
+	app, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0"}, route("m", "/x"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- app.Execute(ctx, io.Discard, []string{"-addr", "-h"}) }()
+	if _, err := waitForAddr(app, done); err != nil {
+		t.Fatalf("-h as a string flag value was mistaken for help: %v", err)
+	}
+	cancel()
 	if err := <-done; err != nil {
 		t.Errorf("clean shutdown must return nil, got %v", err)
 	}
@@ -193,7 +247,7 @@ func TestApp_ExecuteServeCommandServes(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- app.Execute(ctx, io.Discard, []string{"serve"}) }()
 
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("serve never listened: %v", err)
 	}
 	cancel()

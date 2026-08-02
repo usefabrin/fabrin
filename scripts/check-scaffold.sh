@@ -131,6 +131,40 @@ for want in "/ " "/billing" "/healthz" "/readyz"; do
   }
 done
 
+step "help exits cleanly throughout the settings prefix"
+for help_args in \
+  '-h' \
+  '-h=true' \
+  '-addr 127.0.0.1:1 -h'; do
+  read -r -a help_argv <<<"$help_args"
+  if ! help="$("$go" run . "${help_argv[@]}" 2>&1)"; then
+    echo "✗ scaffold: generated application help failed for $help_args:" >&2
+    sed 's|^|    |' <<<"$help" >&2
+    exit 1
+  fi
+  grep -q 'Usage:' <<<"$help" || {
+    echo "✗ scaffold: generated application help printed no usage for $help_args:" >&2
+    sed 's|^|    |' <<<"$help" >&2
+    exit 1
+  }
+done
+
+step "unknown leading flags fail without panicking"
+if unknown="$("$go" run . --version 2>&1)"; then
+  echo "✗ scaffold: unknown --version flag exited successfully" >&2
+  exit 1
+fi
+grep -q 'flag provided but not defined' <<<"$unknown" || {
+  echo "✗ scaffold: unknown --version flag did not report the parse error:" >&2
+  sed 's|^|    |' <<<"$unknown" >&2
+  exit 1
+}
+if grep -q 'panic:' <<<"$unknown"; then
+  echo "✗ scaffold: unknown --version flag panicked instead of returning an error:" >&2
+  sed 's|^|    |' <<<"$unknown" >&2
+  exit 1
+fi
+
 # Loopback, not a wildcard bind, for the reason smoke-examples.sh documents: the
 # poll below is loopback-specific, and anything else already holding that address
 # would make this gate report on a process it did not start.

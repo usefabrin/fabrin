@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://usefabrin.dev/schemas/agent-result-v1.json",
+  "title": "Fabrin agent result packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "task_id", "runtime", "role", "status", "observed_base_sha",
+    "observed_head_sha", "changed_paths", "findings", "commands",
+    "assumptions", "risks", "blockers", "handback"
+  ],
+  "properties": {
+    "schema": { "const": "fabrin.agent-result/v1" },
+    "task_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
+    "runtime": { "enum": ["codex", "claude", "cursor"] },
+    "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "status": { "enum": ["completed", "blocked", "failed"] },
+    "observed_base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "observed_head_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "changed_paths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]+(?:/[^/\\\\]+)*$" }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "summary", "evidence"],
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium", "low", "note"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "outcome", "exit_code", "summary"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "outcome": { "enum": ["passed", "failed-expected", "failed-unexpected", "not-run"] },
+          "exit_code": { "type": ["integer", "null"] },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "assumptions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "risks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "blockers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "handback": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "completed" } } },
+      "then": { "properties": { "blockers": { "maxItems": 0 } } }
+    }
+  ]
+}

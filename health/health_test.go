@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -17,7 +18,7 @@ import (
 
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func serve(t *testing.T, r *health.Registry, path string) *httptest.ResponseRecorder {
@@ -146,10 +147,20 @@ func TestReadiness_TimesOutRatherThanHanging(t *testing.T) {
 
 	r := health.NewRegistry()
 	r.Timeout = 50 * time.Millisecond
-	mustRegister(t, r, "slow", health.Named("hang", func(ctx context.Context) error {
-		// A check that ignores ctx entirely is the realistic bad case.
-		<-ctx.Done()
-		return ctx.Err()
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	defer func() {
+		close(release)
+		<-finished
+	}()
+	mustRegister(t, r, "slow", health.Named("hang", func(context.Context) error {
+		// A third-party probe may ignore cancellation entirely. Evaluate still owns
+		// its deadline, and repeated requests must not leak one goroutine each.
+		started <- struct{}{}
+		<-release
+		close(finished)
+		return nil
 	}))
 
 	start := time.Now()
@@ -166,6 +177,24 @@ func TestReadiness_TimesOutRatherThanHanging(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "hang") {
 		t.Errorf("the timed-out check must be named; got %s", rec.Body.String())
+	}
+
+	select {
+	case <-started:
+	default:
+		t.Fatal("the check was never invoked")
+	}
+
+	// The first invocation is still blocked. A second readiness evaluation must
+	// fail closed without starting another copy of the same probe.
+	rec = serve(t, r, health.ReadinessPath)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("second readiness = %d, want 503 while the prior probe is outstanding", rec.Code)
+	}
+	select {
+	case <-started:
+		t.Fatal("a second invocation started while the first was still outstanding")
+	default:
 	}
 }
 
@@ -200,6 +229,28 @@ func TestEvaluate_RunsChecksConcurrently(t *testing.T) {
 	if elapsed > delay*4 {
 		t.Errorf("evaluating %d checks took %v; serial would be ~%v, so they are not concurrent",
 			n, elapsed, n*delay)
+	}
+}
+
+func TestEvaluate_RecoversAPanickingCheckAsNotReady(t *testing.T) {
+	t.Parallel()
+
+	r := health.NewRegistry()
+	mustRegister(t, r, "database", health.Named("ping", func(context.Context) error {
+		panic("broken driver")
+	}))
+
+	rep := r.Evaluate(context.Background())
+	if rep.Status != health.StatusDown || len(rep.Checks) != 1 {
+		t.Fatalf("report = %+v, want one down check", rep)
+	}
+	if !strings.Contains(rep.Checks[0].Error, "probe panicked: broken driver") {
+		t.Errorf("panic was not attributed to its check: %+v", rep.Checks[0])
+	}
+
+	rep = r.Evaluate(context.Background())
+	if strings.Contains(rep.Checks[0].Error, "previous probe") {
+		t.Errorf("panic left the check marked as running: %+v", rep.Checks[0])
 	}
 }
 

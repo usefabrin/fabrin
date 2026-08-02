@@ -7,10 +7,10 @@
 
 ## Context
 
-F0 locked "GORM behind a thin `fabrin/orm` seam, with Fabrin owning its own
-model-metadata registry". That settled *which ORM* and *who owns the metadata*.
-It did not settle the question F2 cannot start without: **does a GORM type appear
-in a Fabrin exported signature?**
+F0 proposed "GORM behind a thin `fabrin/orm` seam, with Fabrin owning its own
+model-metadata registry". The durable decision here is who owns the metadata and
+whether a third-party handle is blessed; it does not claim an unwritten GORM
+adapter is currently shipped.
 
 The question is forced by three things that are already true:
 
@@ -55,14 +55,15 @@ type Store interface {
 
 func New(s Store) *Module { return &Module{store: s} }
 
-// main.go — the only file that knows GORM exists
-gdb, err := gorm.Open(postgres.Open(dsn))
-app, err := fabrin.New(opts, orders.New(gormstore.New(gdb)))
+// main.go — the application chooses and owns the adapter
+db, err := sql.Open("sqlite", dsn)
+app, err := fabrin.New(opts, orders.New(sqlstore.New(db)))
 ```
 
-"GORM is the shipped default adapter" (FR-ORM-2) therefore means **a documented
-adapter pattern and a worked example**, not an exported Fabrin type that returns
-`*gorm.DB`.
+The worked example uses `database/sql` and SQLite. Fabrin currently ships no
+GORM adapter and names no default query API. Choosing one later is a separate
+pre-v0 decision; it does not alter the rule that no third-party database handle
+enters Fabrin's exported signatures.
 
 ## Consequences
 

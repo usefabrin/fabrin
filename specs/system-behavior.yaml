@@ -6,8 +6,9 @@
 # when an id has no row in test-matrix.md, or when the matrix has a row for an id
 # that is not here.
 #
-# The format is deliberately flat and greppable: the gate needs no YAML parser, so
-# it stays fast enough for the pre-commit hook and adds no dependency.
+# `just specs` parses this as YAML with unknown and duplicate fields rejected,
+# validates requirement references, and resolves exact matrix rows and Go test
+# functions. The parser lives in the separate tools module.
 #
 # status: planned | implemented
 # test:   <file>::<TestFunc>   (required once implemented)
@@ -38,15 +39,15 @@ behaviours:
 
   - id: CORE-004
     what: Lifecycle.Stop runs in reverse registration order.
-    why: A module built after its dependency must shut down before it, or it tears down against something already gone. The ORDER is the behaviour — a test that only asserts Stop was called would pass on a broken implementation.
+    why: Fabrin has no dependency graph; main owns registration order. A module registered after a resource it consumes must stop before that resource. The ORDER is the behaviour — a test that only asserts Stop was called would pass on a broken implementation.
     requirement: FR-CORE-4
     status: implemented
     test: module_test.go::TestApp_StopsLifecycleModulesInReverseRegistrationOrder
 
   # ── Modules: deployment shapes ──────────────────────────────────────────────
   - id: MOD-001
-    what: FABRIN_MODULES mounts only the named modules; routes of unmounted modules return 404.
-    why: This is the process-slicing claim. One binary, N deployment shapes.
+    what: FABRIN_MODULES mounts routes and optional capabilities only for named, already-constructed modules; routes of unmounted modules return 404.
+    why: This is route and capability slicing, not lazy construction. The application may have opened dependencies before passing modules to fabrin.New.
     requirement: FR-MODULES-1
     status: implemented
     test: module_test.go::TestNew_MountsOnlySelectedModules
@@ -130,6 +131,13 @@ behaviours:
     status: implemented
     test: health_logging_test.go::TestReadyz_OnlyConsultsMountedModules
 
+  - id: HLT-004
+    what: Readiness returns within its deadline when a check ignores cancellation and never starts a second invocation while the first remains outstanding.
+    why: An endpoint that waits for a non-cooperative dependency outlives the orchestrator probe and leaks another goroutine on every request unless invocation count is bounded.
+    requirement: FR-HEALTH-4
+    status: implemented
+    test: health/health_test.go::TestReadiness_TimesOutRatherThanHanging
+
   # ── Logging ─────────────────────────────────────────────────────────────────
   - id: LOG-001
     what: Every request carries a request id, on the context and in a response header.
@@ -158,6 +166,13 @@ behaviours:
     requirement: FR-LOG-1
     status: implemented
     test: health_logging_test.go::TestNew_BuildsTheLoggerFromLogLevel
+
+  - id: LOG-005
+    what: A recovered handler panic emits the structured completed-request log with the actual committed status, an explicit panic marker, error level, and the response request id; an uncommitted response becomes 500.
+    why: Recovery without request logging hides the failed request from the same structured stream operators use for every other response.
+    requirement: FR-LOG-3
+    status: implemented
+    test: health_logging_test.go::TestRecoveredPanic_IsRequestLoggedWithFailureStatus
 
   # ── Public API discipline ───────────────────────────────────────────────────
   - id: API-001
@@ -276,6 +291,13 @@ behaviours:
     what: The scaffold's own output is generated, built, tested, extended with startapp, and booted by `just check`, against the working tree rather than the published module.
     why: The templates are .tmpl text, invisible to the compiler, so a change to fabrin.New or the Module interface can break them with every other gate green. A replace directive is what makes it the working tree under test — resolving Fabrin from the proxy would go green on a broken scaffold until the change was merged.
     requirement: NFR-5
+    status: implemented
+    test: scripts/check-scaffold.sh
+
+  - id: CLI-014
+    what: A generated application prints usage and exits successfully for help anywhere in the initial configuration-flag prefix, while an invalid leading flag exits with a normal parse error rather than a panic.
+    why: Configuration loads before App.Execute; mishandling flag.ErrHelp panics before usage, while checking only the first argument can turn `-addr :9000 -h` into a running server.
+    requirement: FR-CLI-5
     status: implemented
     test: scripts/check-scaffold.sh
 

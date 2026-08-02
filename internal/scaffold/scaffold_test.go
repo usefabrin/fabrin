@@ -113,10 +113,13 @@ func TestGenerate_MainHandsArgumentsToExecute(t *testing.T) {
 	// with a CLI that does not exist.
 	main := read(t, generate(t, scaffold.Project{Name: "demo"}), "main.go")
 
-	for _, want := range []string{"app.Execute(", "os.Args[1:]", "config.MustLoad(config.Standard()...)"} {
+	for _, want := range []string{"app.Execute(", "os.Args[1:]", "config.Load(config.Standard()...)"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("generated main.go missing %q:\n%s", want, main)
 		}
+	}
+	if strings.Contains(main, "config.MustLoad") {
+		t.Errorf("generated main must report bad flags as an ordinary startup error, not panic:\n%s", main)
 	}
 }
 

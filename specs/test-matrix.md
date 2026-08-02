@@ -49,10 +49,12 @@ the Gin aliases proving identical in both directions.
 | HLT-001 | `/healthz` consults no dependencies | `health_logging_test.go::TestHealthz_StaysUpWhileAModuleCheckIsFailing` |
 | HLT-002 | `/readyz` fails closed, names the failure | `health_logging_test.go::TestReadyz_FailsClosedAndNamesTheFailingModuleAndCheck` |
 | HLT-003 | Readiness consults only *mounted* modules | `health_logging_test.go::TestReadyz_OnlyConsultsMountedModules` |
+| HLT-004 | Deadline bounds non-cooperative checks; one invocation outstanding | `health/health_test.go::TestReadiness_TimesOutRatherThanHanging` |
 | LOG-001 | Request id on context and response header | `health_logging_test.go::TestRequestID_ReachesTheHandlerContext` |
 | LOG-002 | Inbound `X-Request-ID` honoured across a hop | `logging/logging_test.go::TestRequestID_HonoursInboundIDSoTracesSurviveAHop` |
 | LOG-003 | Hostile inbound id discarded, fresh one issued | `logging/logging_test.go::TestRequestID_RejectsHostileInboundValues` |
 | LOG-004 | `FABRIN_LOG_FORMAT` / `FABRIN_LOG_LEVEL` reach the request logger | `health_logging_test.go::TestNew_BuildsTheLoggerFromLogLevel` |
+| LOG-005 | Recovered panic is error-logged with actual wire status; uncommitted response becomes 500 | `health_logging_test.go::TestRecoveredPanic_IsRequestLoggedWithFailureStatus` |
 
 The `health` and `logging` packages carry their own unit tests for the pieces
 these wiring tests exercise end to end — check timeout and concurrency
@@ -101,6 +103,7 @@ these tests. `just test`, `just cover`, and `just lint` each invoke it explicitl
 | CLI-011 | `fabrin startapp` writes the module *and* wires it in | `internal/scaffold/module_test.go::TestModule_WiresItselfIntoNewApp` |
 | CLI-012 | The edit keeps the user's formatting and stays gofmt-clean | `internal/scaffold/module_test.go::TestModule_LeavesMainGofmtClean` |
 | CLI-013 | The scaffold's output builds, tests, boots — against this checkout | `scripts/check-scaffold.sh` (gate; see below) |
+| CLI-014 | Leading help exits cleanly; invalid leading flags do not panic | `scripts/check-scaffold.sh` (gate; see below) |
 
 CLI-001…003 cite FR-CLI-4, because `Commander` is why `fabrin/cli` exists as a
 package at all — a module contributing a subcommand is what forces the command

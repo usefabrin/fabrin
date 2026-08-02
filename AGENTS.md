@@ -149,7 +149,7 @@ is exactly why `check-depguard-coverage.sh` exists.
 | Command | What it does |
 |---------|--------------|
 | `just setup` | First-time: deps, pinned tools, git hooks |
-| `just install-hooks` | Symlink `scripts/hooks/pre-commit` into `.git/hooks` |
+| `just install-hooks` | Install a worktree-aware pre-commit dispatcher |
 | `just build` | Build the framework and every app under `examples/` |
 | `just test` / `just cover` | `go test ./...`, with or without per-package coverage |
 | `just lint` / `just format` | Check / apply style (gofmt, `go vet`, golangci-lint) |
@@ -159,8 +159,9 @@ is exactly why `check-depguard-coverage.sh` exists.
 | `just specs` | Validate `specs/` against the test matrix |
 | `just docs-check` | Docs-freshness gate on governed surfaces |
 | `just gates` | Fast repo-hygiene gates (`scripts/gates/*.sh`) — also run by the pre-commit hook |
+| `just race` | Run the race detector in the framework and tools modules |
 | `just bench` | Framework-overhead benchmarks vs raw Gin. Baseline: `perf/BASELINE.md` |
-| `just check` | **All local gates — exactly the set CI runs** |
+| `just check` | The complete local quality gate; CI's `quality` job runs exactly this set |
 | `just ci` | Alias for `just check` |
 | `just tools` | Install pinned dev tools (versions in the justfile) |
 
@@ -169,9 +170,10 @@ Run a single test: `go test . -run TestApp_MountsOnlySelectedModules -v`.
 `GOFLAGS=-mod=mod` is exported by the justfile (not passed per command) so local
 and CI resolve modules identically.
 
-**`just check` is exactly what CI runs** — the workflow calls `just ci` rather
-than re-listing the commands, so the two cannot drift. A green `check` means a
-green CI; there is no second command to remember.
+CI's `quality` job calls `just ci` rather than re-listing commands, so it cannot
+drift from `just check`. CI additionally runs range-aware docs freshness, the
+race detector, and main-only benchmarks in separate jobs. Before pushing, run
+`just check` and `just race`; the pre-commit hook covers staged docs freshness.
 
 ### Recipes skip, they do not fail
 
@@ -181,8 +183,9 @@ does not exist yet prints a skip notice and exits 0. This keeps the invariant th
 PRs — `examples`, `specs`, and `api-check` each spent part of F0 skipping, and
 none of them do now.
 
-Keep the mechanism when you add a recipe. The next milestone lands `cmd/fabrin`
-and `fabrin/orm`, and their gates will need it for exactly the same reason.
+Keep the mechanism for recipes whose implementation may land across several
+small PRs; no intermediate PR should make the shared gate red merely because a
+later target does not exist yet.
 
 Gates also report **every** failure rather than the first. A fail-fast loop hides
 gates 2..N behind gate 1, so a contributor fixes one thing, re-runs, finds
@@ -204,7 +207,7 @@ Gin engine (blessed, public)            ← every Gin middleware works unmodifie
 ```
 
 `fabrin.Module` is Fabrin's answer to Django's `INSTALLED_APPS`. The required
-interface is one method; everything else is an **optional** interface
+interface has two methods; everything else is an **optional** interface
 type-asserted at registration, so a module only pays for what it uses:
 
 ```go
@@ -231,10 +234,12 @@ mechanisms, and no more:
 
 1. **Ports, not imports** (hard rule 3). The interface a module declares for its
    dependency *is* the extraction seam.
-2. **Process slicing.** `FABRIN_MODULES=blog,auth` mounts only the named modules
-   in this process. One binary, N deployment shapes — splitting a monolith into
-   services becomes a deploy-config change, not a rewrite. An unknown module name
-   is an error, never a silent no-op.
+2. **Process slicing.** `FABRIN_MODULES=blog,auth` mounts routes and optional
+   capabilities only for the named modules. Selection currently happens inside
+   `fabrin.New`, after the application has constructed the module arguments and
+   their dependencies. It does **not** prevent a selected-out module's resources
+   from being opened by `main`, and is not by itself a deploy-only extraction.
+   An unknown module name is an error, never a silent no-op.
 3. **Swappable satisfaction.** A port satisfied in-process by a direct call can
    instead be satisfied by an HTTP client adapter; the signals bus is in-process
    by default and swappable. The module cannot tell the difference.
@@ -286,12 +291,20 @@ should be fixed in the same change whenever you notice it.
 
 ## Specialised agents and skills
 
-`.claude/agents/` holds **charters, not rules.** Rules live in this file, because
-a rule must be visible to every agent and every human; a charter says what one
-narrow job is for and when to stop doing it. Each file states its charter, its
-tools, and an explicit **hand-back condition** — the last of those is the part
-that matters, because an agent with no stated stopping point drifts into the next
-job and nobody notices.
+`docs/agents/` holds the canonical orchestration contract, role catalog,
+charters, packet schemas, and procedures. Rules stay in this file so every agent
+and human sees the same working agreement. `.claude/agents/`, `.codex/agents/`,
+and `.cursor/agents/` are thin native projections generated by
+`scripts/agents.sh`; editing one as a second charter makes the parity gate fail.
+
+The top-level native session is the Lead. It may delegate only within its own
+platform: Codex to Codex, Claude Code to Claude Code, Cursor to Cursor. Workers
+never delegate, mutate Git/GitHub state, or write outside packet-owned paths.
+Parallel reads are encouraged; writers need isolated worktrees and disjoint
+ownership; integration and full validation are serialized. See
+[the orchestration contract](docs/agents/ORCHESTRATION.md).
+Validate dispatch fan-out and returned evidence with the tools-only
+`agentcheck` commands documented there; packet prose is not enforcement.
 
 | Agent | For |
 |---|---|
@@ -300,15 +313,15 @@ job and nobody notices.
 | `django-parity` | "What problem does Django solve, and what is the idiomatic *Go* answer?" Owns `docs/DJANGO_PARITY.md`. |
 | `boundary-auditor` | Proving a gate bites — one injection per mechanism, plus the negative control. |
 | `docs-syncer` | The last step of every change, checking what `docs-check` cannot read. |
-| `perf-sentinel` | Measuring, and attributing a regression to a cause rather than to "the framework". |
+| `perf-sentinel` | Analyzing Lead-supplied measurements and attributing a regression to a cause rather than to "the framework". |
 
 Three of these overlap a gate on purpose, and the charters say where the gate
-stops seeing. `just docs-check` counts touched files and cannot read them;
+stops seeing. `just docs-check` checks relevant destinations but cannot read prose;
 `just api-check` knows the surface *moved* but not whether it should have; hard
 rule 4 says prove a gate bites, and the half people skip is the negative control.
 
-`.claude/skills/` holds procedures: `new-module` (port first, failing test, spec
-rows, then the package) and `issue-to-pr` (the working agreement as a sequence).
+Vendor-neutral procedures live in `docs/agents/procedures/`. Existing Claude
+skills may expose those workflows natively, but they are not the source of truth.
 
 ## Where things live
 
@@ -322,8 +335,9 @@ rows, then the package) and `issue-to-pr` (the working agreement as a sequence).
 - Consequential decisions: [docs/adr/](docs/adr/README.md) — what was decided,
   and what was rejected
 - Public API snapshot: `api/fabrin.txt`
-- Specialised agents: `.claude/agents/` — charters, not rules. Rules live here.
-- Repeatable procedures: `.claude/skills/`
+- Agent orchestration and canonical charters: `docs/agents/`
+- Native adapters: `.claude/agents/`, `.codex/agents/`, `.cursor/agents/`
+- Repeatable procedures: `docs/agents/procedures/`
 - Claude Code tool permissions: `.claude/settings.json` — **permissions only,
   never rules.** Anything that reads as a rule belongs in this file. The
   allowlist covers read-only and gate commands (`just check`, `go test`,

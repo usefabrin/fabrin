@@ -407,6 +407,26 @@ func TestFromFlags_KnownFlagsOnlyAndReportsUnknown(t *testing.T) {
 	}
 }
 
+func TestFromFlags_HelpIsARequestRatherThanAConfigFailure(t *testing.T) {
+	t.Parallel()
+
+	for _, help := range []string{"-h", "-help", "--help"} {
+		t.Run(help, func(t *testing.T) {
+			if _, err := config.Load(config.FromFlags([]string{help})); err != nil {
+				t.Errorf("Load(%s) = %v, want nil: Execute owns application help", help, err)
+			}
+		})
+	}
+
+	opts, err := config.Load(config.FromFlags([]string{"-addr", ":5555", "-modules", "api", "-h"}))
+	if err != nil {
+		t.Fatalf("Load(settings then help) = %v", err)
+	}
+	if opts.Addr != ":5555" || len(opts.Modules) != 1 || opts.Modules[0] != "api" {
+		t.Errorf("help discarded settings parsed before it: %+v", opts)
+	}
+}
+
 func TestFromFlags_OnlyOverridesFlagsActuallyPassed(t *testing.T) {
 	t.Parallel()
 

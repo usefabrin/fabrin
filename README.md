@@ -50,7 +50,10 @@ import (
 func main() {
     // The conventional stack, later layers winning: defaults ← .env ← env ← flags.
     // Sources are explicit — Load with none is an error, never a silent no-op.
-    cfg := config.MustLoad(config.Standard()...)
+    cfg, err := config.Load(config.Standard()...)
+    if err != nil {
+        log.Fatal(err)
+    }
 
     app, err := fabrin.New(cfg,
         blog.New(),
@@ -103,8 +106,8 @@ type Clock interface{ Now() time.Time }
 func New(clock Clock) *Blog { return &Blog{clock: clock} }
 ```
 
-That interface is the extraction seam. Nothing needs to change in `blog` for its
-dependency to move to another process.
+That interface is the extraction seam. `blog` does not change when its dependency
+moves to another process; the application wiring and a remote adapter still do.
 
 **2. Process slicing.** One binary, many deployment shapes:
 
@@ -114,8 +117,11 @@ FABRIN_MODULES=blog,auth fabrin serve # only these two
 FABRIN_MODULES=reports fabrin serve   # the reports service
 ```
 
-Splitting a monolith into services becomes a deploy-config change, not a rewrite.
-An unknown module name is an error, never a silent no-op.
+Today this selects mounted routes and optional capabilities after `main` has
+already constructed every module argument. A selected-out module may therefore
+still open resources, and service extraction is not a deploy-config-only change.
+Lazy selection before construction is a separate design decision. An unknown
+module name is an error, never a silent no-op.
 
 **3. Swappable satisfaction.** A port satisfied in-process by a direct call can
 instead be satisfied by an HTTP client adapter. The module cannot tell the
@@ -143,9 +149,9 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 | `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | ✅ F1 |
 | Management commands | `Module.Commands()` | ✅ F1 |
 | Models + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, `fabrin/migrate` engine — the commands and on-disk migration files are still to come | 🚧 F2 |
-| `django.contrib.auth` | `fabrin/auth` | F3 |
-| **`django.contrib.admin`** | `fabrin/admin` (html/template + htmx, embedded) | F4 |
-| Templates, forms, static files | `fabrin/render`, `fabrin/forms` | F5 |
+| Templates, forms, static files | `fabrin/render`, `fabrin/forms` | F3 |
+| `django.contrib.auth` | `fabrin/auth` | F4 |
+| **`django.contrib.admin`** | `fabrin/admin` (html/template + htmx, embedded) | F5 |
 | Signals, Celery | `fabrin/signals`, `fabrin/tasks` | F6 |
 | — *(no Django equivalent)* | Remote ports, bus backends, OpenTelemetry | F7 |
 | Cache, mail, i18n, throttling | `fabrin/cache`, `fabrin/mail`, … | F8 |
@@ -196,7 +202,8 @@ To work on Fabrin itself:
 git clone https://github.com/usefabrin/fabrin
 cd fabrin
 just setup     # deps, pinned tools, git hooks
-just check     # the one gate — exactly what CI runs
+just check     # local quality gate; exactly CI's quality job
+just race      # race detector; a separate CI job
 ```
 
 ## Contributing

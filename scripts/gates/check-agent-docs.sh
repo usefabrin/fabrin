@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# check-agent-docs.sh — CLAUDE.md stays a pointer, never a second rulebook.
+# check-agent-docs.sh — one working agreement and one canonical role catalog.
 #
 # Prevents: rules accumulating in CLAUDE.md. The moment it holds a rule of its
 # own, Fabrin has two working agreements that disagree, and which one an agent
@@ -8,7 +8,7 @@
 # files read as authoritative — and it gets worse the longer it goes unnoticed.
 #
 # So: CLAUDE.md may contain only comments, blank lines, and the @AGENTS.md
-# import. Anything else belongs in AGENTS.md.
+# import. Native role adapters must match docs/agents through scripts/agents.sh.
 #
 set -euo pipefail
 
@@ -38,3 +38,7 @@ fi
 [[ "$status" -eq 0 ]] || exit 1
 
 echo "✓ agent-docs: CLAUDE.md is a pointer to AGENTS.md."
+
+# Native platform files are generated from docs/agents, never edited as a second
+# set of role rules. Byte parity catches both missing platforms and silent drift.
+bash scripts/agents.sh check

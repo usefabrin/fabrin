@@ -3,9 +3,9 @@
 #
 # Two properties this file must keep:
 #
-#   1. `just check` is EXACTLY what CI runs. The workflow calls `just ci`; it does
-#      not re-list the steps. A green `check` therefore means a green CI, and the
-#      two cannot drift apart.
+#   1. `just check` is EXACTLY what CI's quality job runs. The workflow calls
+#      `just ci`; it does not re-list the steps. Range-aware docs freshness, race
+#      instrumentation, and main-only benchmarks are separate CI jobs.
 #
 #   2. `check`'s recipe list is written once and never grows. Recipes whose target
 #      does not exist yet SKIP with a notice and exit 0 (see `specs`, `examples`,
@@ -70,6 +70,12 @@ build:
 test:
     {{ go }} test ./...
     @if [ -d tools ]; then {{ go }} -C tools test ./...; else echo "→ tools: no tools/ module yet, skipping."; fi
+
+# Run the race detector in both Go modules. CI runs this in a separate job so it
+# cannot hide ordinary test diagnostics behind the slower instrumented build.
+race:
+    {{ go }} test -race ./...
+    @if [ -d tools ]; then {{ go }} -C tools test -race ./...; else echo "→ tools: no tools/ module yet, skipping."; fi
 
 # Run the test suite with coverage reported per package
 cover:
@@ -154,7 +160,8 @@ bench:
 # The gate
 # ----------------------------------------------------------------------------
 
-# All local gates — exactly the set CI runs
+# All local gates used by CI's quality job. Range-aware docs freshness, race
+# instrumentation, and main-only benchmarks are separate CI jobs.
 check: gates lint test arch api-check examples specs
     @echo ""
     @echo "✓ check: all gates passed."

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://usefabrin.dev/schemas/agent-task-v1.json",
+  "title": "Fabrin agent task packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "task_id", "runtime", "role", "issue", "objective", "risk",
+    "base_sha", "worktree", "access", "inputs", "invariants",
+    "acceptance_commands", "exclusive_resources", "ports"
+  ],
+  "properties": {
+    "schema": { "const": "fabrin.agent-task/v1" },
+    "task_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
+    "runtime": { "enum": ["codex", "claude", "cursor"] },
+    "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "issue": { "type": "string", "pattern": "^#[0-9]+$" },
+    "objective": { "type": "string", "minLength": 1 },
+    "risk": { "enum": ["trivial", "normal", "high"] },
+    "base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "worktree": { "type": "string", "pattern": "^(?:/|[A-Za-z]:[\\\\/])" },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "owned_paths"],
+      "properties": {
+        "mode": { "enum": ["read-only", "owned-write"] },
+        "owned_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^/\\\\]+(?:/[^/\\\\]+)*$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "read-only" } } },
+          "then": { "properties": { "owned_paths": { "maxItems": 0 } } }
+        },
+        {
+          "if": { "properties": { "mode": { "const": "owned-write" } } },
+          "then": { "properties": { "owned_paths": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "acceptance_commands": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "exclusive_resources": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "git-index", "go-build-cache", "loopback-ports", "benchmark-cpu",
+          "final-validation"
+        ]
+      }
+    },
+    "ports": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["smoke_port_base", "scaffold_port"],
+          "properties": {
+            "smoke_port_base": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+            "scaffold_port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+          }
+        }
+      ]
+    }
+  }
+}
