@@ -1,15 +1,20 @@
 // Command hello is the smallest Fabrin app that demonstrates the two claims F0
-// makes: ports rather than imports, and process slicing.
+// makes — ports rather than imports, and process slicing — plus the one F2 adds:
+// a module reaching its data through a port it declares, with this file as the
+// only one that names SQL.
 //
 // Run it:
 //
-//	go run ./examples/hello                      # both modules
+//	go run ./examples/hello                      # every module
 //	FABRIN_MODULES=greet go run ./examples/hello # only greet; /time is a 404
 //
 // Then:
 //
 //	curl localhost:8080/greet?name=you
 //	curl localhost:8080/time
+//	curl -X POST localhost:8080/orders \
+//	  -H 'Content-Type: application/json' -d '{"item":"widget"}'
+//	curl localhost:8080/orders/1   # the order that POST created
 //	curl localhost:8080/healthz    # liveness, consults nothing
 //	curl localhost:8080/readyz     # readiness, aggregates module checks
 package main

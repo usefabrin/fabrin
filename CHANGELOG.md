@@ -84,6 +84,50 @@ with their milestone rather than split into sections. Cutting a version is
   from the root, so without this `apicheck`'s own tests would never have run —
   locally or in CI — while every recipe printed success.
 
+- **`examples/hello/orders`** — a module that reaches its data through a port it
+  declares. ([#60])
+
+  ```go
+  // the module declares what it requires — no ORM named anywhere in this package
+  package orders
+
+  type Store interface {
+      Find(ctx context.Context, id int64) (*Order, error)
+      Create(ctx context.Context, o *Order) error
+  }
+  ```
+
+  This is [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) made
+  concrete, and the reason it exists as code rather than as prose: the seam
+  Fabrin ships for data is not a blessed ORM type, it is the interface the
+  consuming module declares for itself — exactly as `greet` declares its `Clock`,
+  one layer down.
+
+  **The module imports no ORM, no driver, and not `database/sql`**, which
+  `TestOrders_ImportsNoDatabaseHandleNorAnythingOutsideFabrin` reads off the
+  **import graph**. No behavioural test can prove that negative: a module that
+  imports a handle and never calls it passes every request-level assertion. The
+  check is an **allowlist** — standard library plus Fabrin — rather than a deny
+  list of ORMs, because a prefix deny list fails open against the one nobody
+  wrote a rule for, and "no ORM" is a claim about all of them.
+
+  **`main.go` is the only file that names SQL.** It opens SQLite, runs a
+  hand-written `migrate.M` to create the table, and passes a `*sqlStore`.
+  `sql.ErrNoRows` is translated to `orders.ErrNotFound` at that boundary, so the
+  module answers 404 without importing `database/sql` to recognise the error —
+  which is the difference between a port and an indirection.
+
+  **Two implementations of the port**, because an interface with exactly one
+  forever is a wrapper wearing a disguise. The in-memory one records its writes,
+  since a response body cannot distinguish a handler that went through the port
+  from one that echoed the request back.
+
+  A `Modeler` implementation, so the migration generator will have something real
+  to diff. What did **not** ship: migrations generated *by* `makemigrations`, and
+  the regenerate-and-diff gate over them. Both need #59, and the on-disk format
+  #56 has not decided — writing one now would invent the format the generator
+  must then live with, which is the same reasoning `MIG-008` records.
+
 - **`fabrin/migrate`** — the migration engine, over `*sql.DB`. ([#54])
 
   ```go
@@ -749,6 +793,37 @@ Added — package `fabrin`:
 
 ### Changed
 
+- **`modernc.org/sqlite` is no longer a test-only dependency of this
+  repository.** ([#60])
+
+  `examples/hello/main.go` imports the driver, because an example that describes
+  opening a database without opening one is not the thing a user copies.
+
+  The measurement, so the next person deciding has numbers rather than a feeling:
+  `go list -deps ./...` now reaches `modernc.org/sqlite` **three** times — 30
+  `modernc.org/*` packages in all — where it reached it **zero** before. It is
+  reached only through `examples/hello`.
+
+  **This supersedes two clauses of the #54 entry below**, which read
+  "`go list -deps ./...` reaches it **zero** times" and "It is imported only from
+  `migrate/migrate_test.go`". Both were true while the driver existed for
+  `migrate`'s tests alone; neither is now.
+
+  **What has not changed is the property that entry was measuring.**
+  `go list -deps .` — the root package a consumer actually imports — is still
+  **zero**, `examples/hello` is `package main` and unimportable, and
+  `migrate-is-standalone` still denies the driver everywhere in the engine
+  outside `_test.go`. Nothing new reaches a consumer's binary; what reaches their
+  `go.sum` is what already did.
+
+  [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md)'s Consequences
+  section calls it "a test-only dependency", and that sentence is now stale. The
+  ADR is **deliberately not edited**: it is accepted and dated, and
+  `docs/adr/README.md` forbids amending an accepted ADR's substance — an ADR
+  quietly rewritten to match today's code cannot tell you the code once did
+  something else. The decision it records is untouched by this; only a
+  second-order fact about it moved, and a fact that moved is a changelog entry.
+
 - **`modernc.org/sqlite` enters `go.mod` as a test-only dependency.** ([#54])
 
   Flagged rather than absorbed quietly, because
@@ -863,6 +938,7 @@ Added — package `fabrin`:
 [#53]: https://github.com/usefabrin/fabrin/issues/53
 [#54]: https://github.com/usefabrin/fabrin/issues/54
 [#55]: https://github.com/usefabrin/fabrin/issues/55
+[#60]: https://github.com/usefabrin/fabrin/issues/60
 [#67]: https://github.com/usefabrin/fabrin/issues/67
 [ADR 0003]: docs/adr/0003-migrations-take-a-handle-not-a-transaction.md
 [#12]: https://github.com/usefabrin/fabrin/pull/12

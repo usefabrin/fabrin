@@ -177,6 +177,24 @@ Both denies were injected and read before the tests landed: a fixture importing
 importing only Fabrin and the standard library turned it green, and removing the
 fixture returned it to the vacuity floor.
 
+ORM-011 claims two halves and its row names one test, for the reason MIG-010
+gives: a spec entry may name only one. The in-memory half — the module answering
+real requests with a map behind it, and the store recording exactly one write —
+is the test in the table. The half that says the *same module* answers the same
+requests against the store `main` wired in is
+`examples/hello/hello_test.go::TestOrders_RoundTripsAnOrderThroughTheStoreMainWiredIn`,
+which drives the example's real `newApp` and reads the order back in a second
+request, because storage that outlives a request is what an echo cannot fake.
+Neither test alone is the claim: one implementation is a wrapper wearing a
+disguise, and the point is that the module is unchanged between the two.
+
+`examples/hello/hello_test.go::TestOrders_DeclaresTheTableItOwnsSoAGeneratorHasSomethingToDiff`
+has no spec entry of its own, being a consequence of ORM-007 — `Modeler` applied
+to a real module — rather than an independent claim. It deliberately asserts a
+model attributed to `orders` and nothing about the columns: pinning the schema
+there would make every later column an edit to that test rather than to the
+module.
+
 ORM-003 and ORM-004 look contradictory and are not: table order is **sorted**
 because registration order carries `FABRIN_MODULES` and the argument order in
 `main` into the output, and field order is **preserved** because the declaration

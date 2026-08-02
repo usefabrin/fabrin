@@ -12,7 +12,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done · ◐ milestone pa
 
 ---
 
-## F0 — Repo, harness, agent system, runnable core ◐
+## F0 — Repo, harness, agent system, runnable core
 
 Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 
@@ -78,7 +78,7 @@ a project shape to generate, and F0 defines that shape.
       has its own `go.mod`, which under `examples/` would be a nested module the
       other two steps cannot build. (NFR-5, CLI-013)
 
-## F2 — Models, metadata, migrations
+## F2 — Models, metadata, migrations ◐
 
 - [x] **`fabrin/orm` — the metadata registry**, the load-bearing piece. Admin,
       forms and migrations all read Fabrin metadata, not GORM's, so the ORM stays
@@ -88,9 +88,21 @@ a project shape to generate, and F0 defines that shape.
 
       FR-ORM-1 stays *in progress* until the admin and forms read it, which is
       the clause its text actually promises.
-- [ ] GORM as the shipped default adapter — a documented pattern and a worked
+- [~] GORM as the shipped default adapter — a documented pattern and a worked
       example, **not** an exported Fabrin type returning `*gorm.DB`.
       ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md), FR-ORM-2)
+
+      The **pattern and the worked example** landed as `examples/hello/orders`
+      (#60, ORM-010/011): the module declares the two-method `Store` it needs,
+      `main.go` is the only file that names SQL, and there are two
+      implementations of the port because an interface with exactly one forever
+      is a wrapper wearing a disguise. It is over `database/sql` and SQLite, not
+      GORM — which is the seam ADR 0002 chose, so the pattern is the same
+      whatever sits behind it.
+
+      **The GORM adapter itself is unwritten.** Nothing in this repository
+      imports GORM, and until something does, "GORM is the shipped default"
+      names a default nobody has shipped.
 - [x] `Modeler` — modules declare their models; no package scanning. Collected
       from **mounted** modules only, so a sliced process is handed only the
       schema it owns, and two modules claiming one table fails at construction.
