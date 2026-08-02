@@ -343,6 +343,18 @@ behaviours:
     status: implemented
     test: modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable
 
+  - id: ORM-010
+    what: A module reaches its data through an interface it declares, and its package imports no database/sql, no driver and no ORM — read off the import graph rather than off behaviour.
+    why: ADR 0002 made database/sql the seam and left main the only place that names a concrete store. A module that imports a handle and never calls it passes every request-level assertion, so only the import graph distinguishes "does not import" from "imports and does not call today". The check is an allowlist (standard library plus Fabrin) rather than a list of ORMs to deny, because a prefix deny list fails open against the ORM nobody wrote a rule for; and its floor counts NON-test files, because the module's own _test.go imports Fabrin and would otherwise satisfy a floor that asked only whether any Go was read.
+    requirement: FR-ORM-2
+    status: planned
+
+  - id: ORM-011
+    what: One store interface, two implementations — the module answers the same requests against an in-memory store in its own tests and against the store main wired in, with no change to the module.
+    why: An interface with exactly one implementation forever is a wrapper wearing a disguise. The second implementation is what makes the seam an extraction seam rather than an indirection, and it is what lets the module be exercised with no database running. The in-memory half records its writes because a response body cannot distinguish a handler that went through the port from one that echoed the request back.
+    requirement: FR-ORM-2
+    status: planned
+
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001
     what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.

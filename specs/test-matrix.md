@@ -152,8 +152,30 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-007 | A module declares tables via `Modeler`; nothing is scanned for | `modeler_test.go::TestApp_ModelsCollectsEachModulesTablesWithItsName` |
 | ORM-008 | Models collected from **mounted** modules only | `modeler_test.go::TestNew_CollectsModelsFromMountedModulesOnly` |
 | ORM-009 | Two modules claiming one table fail at construction | `modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable` |
+| ORM-010 | A module names no database handle — read off the import graph | _planned_ |
+| ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | _planned_ |
 
-ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3.
+ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3; ORM-010…011 cite FR-ORM-2,
+which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a
+documented adapter pattern and a worked example* rather than an exported Fabrin
+type. The example is `examples/hello/orders`
+([#60](https://github.com/usefabrin/fabrin/issues/60)).
+
+ORM-010 is the row a behavioural test cannot hold up, for the reason ORM-006 and
+MIG-006 give — except that here the reader is a Go test rather than depguard,
+because the claim is about one example directory rather than a package boundary
+the linter can name. Two things about it are worth keeping when it is edited. It
+allowlists (standard library plus Fabrin) instead of denying ORMs by prefix: a
+deny list fails open against the one nobody wrote a rule for, and "no ORM" is a
+claim about all of them. And its floor counts **non-test** `.go` files, because
+the module's own `_test.go` imports Fabrin — a floor that asked only whether any
+Go was read would be satisfied by the test file alone, and the test would then
+pass with no module on disk at all.
+
+Both denies were injected and read before the tests landed: a fixture importing
+`database/sql` and `modernc.org/sqlite` turned it red on both branches, a fixture
+importing only Fabrin and the standard library turned it green, and removing the
+fixture returned it to the vacuity floor.
 
 ORM-003 and ORM-004 look contradictory and are not: table order is **sorted**
 because registration order carries `FABRIN_MODULES` and the argument order in
