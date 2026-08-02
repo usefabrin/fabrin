@@ -89,6 +89,15 @@ or request-time failures, hides registration in side effects, and recreates
 Django's dynamic machinery in a language where explicit typed wiring is the
 idiomatic seam.
 
+### Export `AdminResource` or add an optional admin capability to `Module`
+
+Rejected for this vertical because neither registration shape nor heterogeneous
+runtime dispatch has been proved. Adding an optional module interface would make
+its method signature a framework-wide semver promise and could freeze the private
+constructor, field, form, and persistence shapes by indirection. A future admin
+registration contract needs evidence from the real F3/F4 foundations and a new
+API-guardian review; it is not inferred from this resource.
+
 ### Export a generic repository or a wide framework-owned CRUD interface
 
 Rejected because it would make Fabrin own query and persistence semantics that

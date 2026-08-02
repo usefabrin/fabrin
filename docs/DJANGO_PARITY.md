@@ -8,7 +8,7 @@ what is the idiomatic Go answer?"* Never *"how do we transliterate Python?"*
 Fabrin should feel like Go that happens to come with batteries. A framework that
 feels like Django-in-Go would be worse than either.
 
-Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ deliberately not
+Status: ✅ shipped · 🧪 private proof only · 🚧 in progress · 📋 planned (with milestone) · ❌ deliberately not
 
 ---
 
