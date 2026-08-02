@@ -11,10 +11,11 @@ roots=(.github/workflows)
 [[ -d .github/actions ]] && roots+=(.github/actions)
 
 set +e
-matches="$(rg -n --no-heading 'uses[[:space:]]*:[[:space:]]+' "${roots[@]}" -g '*.yml' -g '*.yaml')"
-rg_status=$?
+matches="$(grep -ERnH --include='*.yml' --include='*.yaml' \
+  'uses[[:space:]]*:[[:space:]]+' "${roots[@]}")"
+grep_status=$?
 set -e
-if [[ "$rg_status" -gt 1 ]]; then
+if [[ "$grep_status" -gt 1 ]]; then
   echo "✗ action-pins: could not inspect workflow and composite-action manifests" >&2
   exit 1
 fi

@@ -153,7 +153,7 @@ if [[ "$mode" == "write" ]]; then
   mkdir -p .claude/agents .codex/agents .cursor/agents
   for existing in .claude/agents/*.md .codex/agents/*.toml .cursor/agents/*.md; do
     [[ -f "$existing" ]] || continue
-    if rg -q 'native (Claude Code|Codex|Cursor) adapter, not the source of truth' "$existing"; then
+    if grep -Eq 'native (Claude Code|Codex|Cursor) adapter, not the source of truth' "$existing"; then
       rm -f "$existing"
     fi
   done
@@ -181,11 +181,24 @@ elif ! diff -u "$out/.codex/config.toml" .codex/config.toml; then
   status=1
 fi
 
-if rg -n '(codex|claude|cursor)[[:space:]]+(exec|run|agent)' \
-  .claude/agents .codex/agents .cursor/agents >/dev/null; then
-  echo "✗ agents: an adapter appears to invoke an agent platform" >&2
-  status=1
-fi
+set +e
+platform_invocations="$(grep -ERn \
+  '(codex|claude|cursor)[[:space:]]+(exec|run|agent)' \
+  .claude/agents .codex/agents .cursor/agents)"
+grep_status=$?
+set -e
+case "$grep_status" in
+  0)
+    echo "✗ agents: an adapter appears to invoke an agent platform" >&2
+    echo "$platform_invocations" >&2
+    status=1
+    ;;
+  1) ;;
+  *)
+    echo "✗ agents: could not inspect native adapters for platform invocation" >&2
+    status=1
+    ;;
+esac
 
 [[ "$status" -eq 0 ]] || {
   echo "✗ agents: native adapters drifted; run bash scripts/agents.sh write" >&2

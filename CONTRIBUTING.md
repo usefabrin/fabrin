@@ -54,13 +54,18 @@ instrumentation, or a schedule the local quality recipe should not have:
 target under a couple of seconds, and require no Docker, network, or build. Add
 new hygiene checks as a script in `scripts/gates/`, list it in
 `scripts/gates/run-all.sh`, and **give it a header comment saying which failure it
-prevents.** A check whose purpose nobody remembers is the first one deleted.
+prevents.** Gates may use only the baseline shell tools available before CI's
+pinned-tool installation step; a developer convenience such as `rg` is not a
+gate dependency. A check whose purpose nobody remembers is the first one deleted.
 
 ### The gate scripts
 
 | Script | Prevents |
 |--------|----------|
+| `scripts/gates/check-action-pins.sh` | A mutable workflow or composite-action reference changing CI without a repository commit |
 | `scripts/gates/check-depguard-coverage.sh` | A new public package landing with nobody having decided whether it needs boundary rules |
+| `scripts/gates/check-docs-freshness-policy.sh` | Deletions, invalid ranges, and unrelated docs satisfying a governed-surface change |
+| `scripts/gates/check-hook-worktrees.sh` | A shared hook dispatcher resolving the wrong linked worktree or dangling after removal |
 | `scripts/install-hooks.sh` | A pre-commit hook that reports installed and enforces nothing, including across linked worktrees |
 | `scripts/gates/check-agent-docs.sh` | Rules accumulating in `CLAUDE.md`, giving Fabrin two working agreements that disagree |
 | `scripts/gates/check-examples.sh` | An example quietly ceasing to be a runnable program |
