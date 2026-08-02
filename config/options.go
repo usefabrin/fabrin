@@ -62,8 +62,9 @@ type Options struct {
 	// all of them, and a name matching no registered module is a startup error
 	// rather than a silent no-op.
 	//
-	// This is the process-slicing mechanism: one binary, many deployment shapes.
-	// Env: FABRIN_MODULES (comma-separated).
+	// This is route/capability slicing after modules have been constructed. It does
+	// not prevent main from opening resources before it calls fabrin.New. Env:
+	// FABRIN_MODULES (comma-separated).
 	//
 	// Note the asymmetry with the App's Modules method: this field is the
 	// SELECTION, while that reports what actually got MOUNTED. They differ whenever

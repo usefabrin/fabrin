@@ -26,22 +26,15 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── config/              layered settings          (Django: settings.py)
 ├── health/              liveness + readiness      (Django: system checks)
 ├── logging/             slog setup, request ids
-├── fabrintest/          test client for Fabrin apps
 ├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine over *sql.DB
-├── auth/                users, sessions, perms    (F3)
-├── admin/               auto-CRUD admin site      (F4)
-├── render/              templates, static files   (F5)
-├── forms/               binding and validation    (F5)
-├── signals/             event bus                 (F6)
-├── tasks/               background jobs, cron      (F6)
 ├── cmd/fabrin/          the CLI — `new`, `startapp`, `version`
 │
 ├── internal/scaffold/   go:embed project templates — unimportable by users
 ├── examples/            runnable apps, built and smoked by `just check`
 ├── api/fabrin.txt       checked-in snapshot of the exported surface
 ├── specs/               behaviour spec + test matrix
-└── tools/               SEPARATE Go module — dev tooling
+└── tools/               SEPARATE Go module — apicheck, speccheck, agentcheck
 ```
 
 ### Why `tools/` is its own module
@@ -52,6 +45,8 @@ their `go.sum` to run a tool they will never invoke. A library's dependency list
 is part of its cost to adopt, so dev tooling gets its own module.
 
 Anything under `tools/` that a user might want at runtime is in the wrong place.
+Planned packages such as rendering, forms, auth, admin, signals, and tasks live
+in the roadmap, not this current package map.
 
 ### Why `orm/` holds no database handle
 
@@ -82,7 +77,7 @@ gin.Recovery                         a panic becomes a 500, not a dead process
 logging.RequestID                    X-Request-ID on the context and the response
         │
         ▼
-logging.Logger                       one structured line per completed request
+logging.Logger                       logs completion and recovers handler panics
         │
         ├──────────────▶ /healthz    liveness — consults nothing
         ├──────────────▶ /readyz     readiness — every mounted module's checks
@@ -96,11 +91,12 @@ gin.Engine                           blessed and public — every Gin middleware
 
 There is no adapter layer between your handler and Gin. That is deliberate.
 
-**The middleware order is load-bearing.** `Recovery` is outermost so a panic in
-either of the others still produces a response. `RequestID` precedes `Logger`
-because `Logger` reads the id off the request context — reversed, every request is
-logged without one and *nothing fails*, which is the kind of defect that survives
-a refactor. The health routes are mounted before module routes and without any
+**The middleware order is load-bearing.** An outer `Recovery` protects Fabrin's
+middleware. `Logger`'s own deferred recovery turns an uncommitted handler panic
+into a 500 and records even a post-commit panic at error level with its actual
+wire status. `RequestID` precedes `Logger` because `Logger` reads the id off the
+request context — reversed, every request is logged without one and *nothing
+fails*. The health routes are mounted before module routes and without any
 module opting in, so an orchestrator's probes work against a stock app; a module
 that declares `/healthz` itself panics at construction, which is Gin's
 duplicate-route behaviour and the right moment to find out.
@@ -168,6 +164,11 @@ no resources should not have to write an empty `Start`. The cost is that a typo
 in a method name means the interface silently is not satisfied — which is why the
 registry logs which optional interfaces each module matched.
 
+Lifecycle order is caller-owned. Fabrin starts in the order passed to `New` and
+stops in reverse; it has no dependency metadata or topological sorter. Reverse
+order is useful only when `main` registers consumers after the resources they
+need, so wiring code and tests must make that order explicit.
+
 ## Ports, not imports
 
 **A module never imports another module.** It declares the interface it needs in
@@ -187,7 +188,8 @@ app, err := fabrin.New(cfg, blog.New(clock), reports.New(clock))
 ```
 
 That interface is the **extraction seam**. Nothing in `blog` changes when its
-dependency moves to another process — only `main.go` does.
+dependency moves to another process; wiring changes and a remote adapter are
+still required outside the module.
 
 A direct import welds the two modules together permanently, and the weld is
 invisible until someone tries to split them. By then it is load-bearing.
@@ -208,10 +210,12 @@ FABRIN_MODULES=blog,auth fabrin serve  # the web tier
 FABRIN_MODULES=reports fabrin serve    # the reports service
 ```
 
-One binary, N deployment shapes. Splitting a monolith becomes a deploy-config
-change rather than a rewrite. An unknown module name is an **error**, never a
-silent no-op — a typo that quietly serves nothing is the worst possible outcome
-here, because the process looks healthy.
+One binary can expose N route/capability shapes. Selection happens in
+`fabrin.New`, after `main` has constructed the module arguments. A selected-out
+module may therefore already have opened resources, and changing an in-process
+port to a remote one still changes wiring. Lazy selection-before-construction is
+a separate pre-v0 design decision, not behavior the current API claims. An
+unknown module name is an **error**, never a silent no-op.
 
 **3. Swappable satisfaction.** A port satisfied in-process by a direct call can
 instead be satisfied by an HTTP client adapter. The module cannot tell, and its

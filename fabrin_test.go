@@ -3,6 +3,7 @@ package fabrin_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -81,7 +82,7 @@ func TestApp_RunReturnsWhenContextCancelled(t *testing.T) {
 
 	// Wait for a real listener rather than sleeping: a fixed sleep is either
 	// slower than needed or flaky on a loaded runner, usually both.
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("server never listened: %v", err)
 	}
 
@@ -118,7 +119,7 @@ func TestApp_RunStopsLifecycleModulesOnShutdown(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- app.Run(ctx) }()
 
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("server never listened: %v", err)
 	}
 	cancel()
@@ -151,7 +152,7 @@ func TestApp_RunRejectsSecondCall(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- app.Run(ctx) }()
-	if _, err := waitForAddr(app); err != nil {
+	if _, err := waitForAddr(app, done); err != nil {
 		t.Fatalf("server never listened: %v", err)
 	}
 
@@ -177,7 +178,7 @@ func TestApp_RunServesRequests(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- app.Run(ctx) }()
 
-	addr, err := waitForAddr(app)
+	addr, err := waitForAddr(app, done)
 	if err != nil {
 		t.Fatalf("server never listened: %v", err)
 	}
@@ -198,15 +199,27 @@ func TestApp_RunServesRequests(t *testing.T) {
 
 // waitForAddr blocks until the app is listening and returns its resolved address.
 // Addr "127.0.0.1:0" asks the kernel for a free port, so tests never collide.
-func waitForAddr(app *fabrin.App) (string, error) {
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
+func waitForAddr(app *fabrin.App, done <-chan error) (string, error) {
+	ticker := time.NewTicker(2 * time.Millisecond)
+	defer ticker.Stop()
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+
+	for {
 		if addr := app.Addr(); addr != "" {
 			return addr, nil
 		}
-		time.Sleep(2 * time.Millisecond)
+		select {
+		case err := <-done:
+			if err == nil {
+				return "", errors.New("server returned before listening")
+			}
+			return "", fmt.Errorf("server returned before listening: %w", err)
+		case <-ticker.C:
+		case <-timer.C:
+			return "", errors.New("timed out waiting for listener")
+		}
 	}
-	return "", errors.New("timed out waiting for listener")
 }
 
 // ── Options ─────────────────────────────────────────────────────────────────

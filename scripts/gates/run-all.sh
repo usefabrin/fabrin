@@ -20,6 +20,9 @@ gates=(
   check-depguard-coverage.sh
   check-examples.sh
   check-agent-docs.sh
+  check-docs-freshness-policy.sh
+  check-hook-worktrees.sh
+  check-action-pins.sh
 )
 
 status=0

@@ -134,10 +134,10 @@ func New(opts Options, modules ...Module) (*App, error) {
 		return nil, fmt.Errorf("fabrin: trusted proxies: %w", err)
 	}
 
-	// Order is load-bearing in all three positions. Recovery outermost, so a panic
-	// in either of the others still produces a response. RequestID before Logger,
-	// because Logger reads the id off the request context — reversed, it silently
-	// logs every request without one, and nothing fails.
+	// Order is load-bearing. Recovery is outermost as a fail-safe for Fabrin's own
+	// middleware. Logger performs handler recovery itself so it can record the
+	// panic and actual committed status. RequestID precedes Logger because Logger
+	// reads the id from the request context.
 	engine.Use(gin.Recovery())
 	engine.Use(logging.RequestID())
 	engine.Use(logging.Logger(opts.Logger))

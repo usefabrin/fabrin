@@ -6,7 +6,7 @@
 // Run it:
 //
 //	go run ./examples/hello                      # every module
-//	FABRIN_MODULES=greet go run ./examples/hello # only greet; /time is a 404
+//	FABRIN_MODULES=greet go run ./examples/hello # only greet mounts; /time is a 404
 //
 // Then:
 //
@@ -43,7 +43,10 @@ import (
 func main() {
 	// The conventional stack, later layers winning: defaults ← .env ← env ← flags.
 	// Load with no sources at all is an error rather than a silent no-op.
-	cfg := config.MustLoad(config.Standard()...)
+	cfg, err := config.Load(config.Standard()...)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	app, err := newApp(cfg)
 	if err != nil {
@@ -73,6 +76,9 @@ func main() {
 func newApp(opts fabrin.Options) (*fabrin.App, error) {
 	clk := clock.New()
 
+	// Module selection currently happens inside fabrin.New, after this wiring has
+	// constructed dependencies. A greet-only process still opens this database;
+	// lazy selection-before-construction is a separate pre-v0 design decision.
 	db, err := openDB(context.Background())
 	if err != nil {
 		return nil, err

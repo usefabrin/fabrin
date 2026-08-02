@@ -161,7 +161,7 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 }
 
 func isHelp(arg string) bool {
-	return arg == "-h" || arg == "--help" || arg == "help"
+	return arg == "-h" || arg == "-help" || arg == "--help" || arg == "help"
 }
 
 func find(cmds []Command, name string) (Command, bool) {

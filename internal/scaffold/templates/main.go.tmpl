@@ -21,7 +21,10 @@ import (
 func main() {
 	// defaults ← .env ← environment ← flags, later layers winning. Loading with
 	// no sources at all is an error rather than a silent no-op.
-	opts := config.MustLoad(config.Standard()...)
+	opts, err := config.Load(config.Standard()...)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	app, err := newApp(opts)
 	if err != nil {

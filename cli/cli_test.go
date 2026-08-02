@@ -195,7 +195,7 @@ func TestDispatch_NoArgsWritesUsageAndSucceeds(t *testing.T) {
 func TestDispatch_HelpFlagWritesUsageAndSucceeds(t *testing.T) {
 	t.Parallel()
 
-	for _, arg := range []string{"-h", "--help", "help"} {
+	for _, arg := range []string{"-h", "-help", "--help", "help"} {
 		var out bytes.Buffer
 		if err := cli.Dispatch(t.Context(), &out, []cli.Command{noop("routes")}, []string{arg}); err != nil {
 			t.Errorf("%s should print usage and succeed, got: %v", arg, err)

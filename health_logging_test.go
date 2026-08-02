@@ -1,6 +1,7 @@
 package fabrin_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -275,6 +276,56 @@ func TestRequestID_HonoursAnInboundHeader(t *testing.T) {
 	// or a request is uncorrelatable the moment it crosses a service boundary.
 	if got := rec.Header().Get(logging.HeaderRequestID); got != "upstream-trace-1" {
 		t.Errorf("request id = %q, want the inbound value preserved", got)
+	}
+}
+
+func TestRecoveredPanic_IsRequestLoggedWithFailureStatus(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		beforePanic func(*fabrin.Context)
+		wantStatus  int
+	}{
+		{name: "before response commitment", beforePanic: func(*fabrin.Context) {}, wantStatus: http.StatusInternalServerError},
+		{name: "after response commitment", beforePanic: func(c *fabrin.Context) { c.String(http.StatusOK, "partial") }, wantStatus: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			app, err := fabrin.New(fabrin.Options{
+				Logger: slog.New(slog.NewJSONHandler(&out, nil)),
+			}, testModule{
+				name: "m",
+				routes: func(r fabrin.Router) {
+					r.GET("/panic", func(c *fabrin.Context) {
+						tc.beforePanic(c)
+						panic("boom")
+					})
+				},
+			})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+
+			rec := get(t, app, "/panic")
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("panic response = %d, want actual committed status %d", rec.Code, tc.wantStatus)
+			}
+
+			var line map[string]any
+			if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &line); err != nil {
+				t.Fatalf("panic request log is not one JSON line: %v (%s)", err, out.String())
+			}
+			if line["msg"] != logging.MsgRequest || line["status"] != float64(tc.wantStatus) {
+				t.Errorf("panic request log = %v, want actual status %d", line, tc.wantStatus)
+			}
+			if line["level"] != "ERROR" || line["panic_recovered"] != true {
+				t.Errorf("panic request must be explicit error evidence: %v", line)
+			}
+			if line[logging.LogKeyRequestID] != rec.Header().Get(logging.HeaderRequestID) {
+				t.Errorf("panic request log must carry the response request id: %v", line)
+			}
+		})
 	}
 }
 

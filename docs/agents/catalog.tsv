@@ -1,0 +1,7 @@
+# id	access	capabilities	description
+api-guardian	read-only	read,search,shell	Review public API changes for export-worthiness, semver cost, naming, and irreversible shapes.
+boundary-auditor	owned-write	read,search,shell,edit	Prove a changed gate bites with isolated violations and negative controls, then return the evidence.
+django-parity	owned-write	read,search,shell,edit	Translate the problem Django solves into an idiomatic Go design and record the explicit trade.
+docs-syncer	owned-write	read,search,shell,edit	Synchronize documentation after implementation and tests are complete, within explicitly owned paths.
+perf-sentinel	read-only	read,search,shell	Analyze Lead-supplied request-path measurements and attribute regressions without running benchmarks or implementing optimizations.
+test-first	owned-write	read,search,shell,edit	Write the failing test and planned spec rows, prove the expected red result, and stop.

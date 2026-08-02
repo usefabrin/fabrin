@@ -64,7 +64,11 @@ before applying the rule elsewhere. `config.Load` *produces* settings from
 defaults, a file, the environment, and flags. Functional options would force every
 caller to translate between two shapes — a loaded struct and a list of
 `Option` functions — so the struct wins. The cost is accepted and written down in
-`CHANGELOG.md`: **fields may be added, never removed or retyped.**
+`CHANGELOG.md`: fields are a public promise. Removing or retyping one is
+breaking, and adding one can also break downstream unkeyed literals or code that
+depends on reflection, comparability, or serialization shape. Add fields only as
+an explicit compatibility decision; prefer accessors or functional options when
+the loader does not require a struct.
 
 The rule to take from this is not "structs are fine" but: *choose the shape the
 value's producer already has.* Nothing produces a `cache.Option`; something does

@@ -93,7 +93,8 @@ func OSEnv() Lookup {
 //
 //	defaults ← .env file ← environment ← command-line flags
 //
-//	cfg := config.MustLoad(config.Standard()...)
+//	cfg, err := config.Load(config.Standard()...)
+//	if err != nil { log.Fatal(err) }
 //
 // This is the batteries-included answer, and the one the error from [ErrNoSources]
 // points at. Spelled as a helper rather than as the behaviour of an empty [Load]
@@ -221,9 +222,11 @@ type flagSource struct{ args []string }
 
 // FromFlags reads settings from command-line arguments, e.g. os.Args[1:].
 //
-// Only flags actually PASSED contribute a value. A layer that wrote its zero
-// values over everything beneath it would make FromFlags erase the environment
-// merely by being present, which is the most likely bug in a precedence chain.
+// Only flags actually PASSED contribute a value. Help requests contribute no
+// setting and are left for [github.com/usefabrin/fabrin.App.Execute] to render.
+// A layer that wrote its zero values over everything beneath it would make
+// FromFlags erase the environment merely by being present, which is the most
+// likely bug in a precedence chain.
 func FromFlags(args []string) Source { return flagSource{args: args} }
 
 func (s flagSource) name() string { return "flag" }
@@ -232,33 +235,33 @@ func (s flagSource) values() (map[string]string, error) {
 	fs := flag.NewFlagSet("fabrin", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // the returned error is the diagnostic
 
-	// Flag name → settings key. Flags are the terse spelling of the same settings.
 	byFlag := map[string]string{
-		"addr":                KeyAddr,
-		"modules":             KeyModules,
-		"debug":               KeyDebug,
-		"log-format":          KeyLogFormat,
-		"log-level":           KeyLogLevel,
-		"shutdown-timeout":    KeyShutdownTimeout,
+		"addr": KeyAddr, "debug": KeyDebug, "log-format": KeyLogFormat,
+		"log-level": KeyLogLevel, "modules": KeyModules,
 		"read-header-timeout": KeyReadHeaderTimeout,
-		"trusted-proxies":     KeyTrustedProxies,
+		"shutdown-timeout":    KeyShutdownTimeout, "trusted-proxies": KeyTrustedProxies,
 	}
-
 	names := make([]string, 0, len(byFlag))
-	for n := range byFlag {
-		names = append(names, n)
+	for name := range byFlag {
+		names = append(names, name)
 	}
 	sort.Strings(names)
-	for _, n := range names {
-		if byFlag[n] == KeyDebug {
-			fs.Bool(n, false, "enable development conveniences")
+	for _, name := range names {
+		if byFlag[name] == KeyDebug {
+			fs.Bool(name, false, "enable development conveniences")
 			continue
 		}
-		fs.String(n, "", "see "+byFlag[n])
+		fs.String(name, "", "see "+byFlag[name])
 	}
 
-	if err := fs.Parse(s.args); err != nil {
-		return nil, fmt.Errorf("config: parse flags: %w", err)
+	parseErr := fs.Parse(s.args)
+	if parseErr != nil {
+		// Help belongs to the application command surface. Treating it as a
+		// configuration failure makes the conventional MustLoad call panic before
+		// App.Execute has a chance to print usage.
+		if !errors.Is(parseErr, flag.ErrHelp) {
+			return nil, fmt.Errorf("config: parse flags: %w", parseErr)
+		}
 	}
 
 	out := map[string]string{}

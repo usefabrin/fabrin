@@ -76,7 +76,7 @@ func (a *App) Routes() []Route {
 // that used to serve would print usage and exit 0, which every orchestrator
 // reads as a successful run.
 //
-// # A leading flag is a setting, not a command
+// # A leading setting flag serves; a leading help flag prints usage
 //
 // config.Standard() parses os.Args for -addr, -log-level and the rest, and Go's
 // flag package stops at the first positional argument. So `./myapp -addr :9000`
@@ -84,13 +84,48 @@ func (a *App) Routes() []Route {
 // dispatching it would report `unknown command "-addr"` for an invocation that
 // worked before this method existed. It serves, which is what it did before.
 //
-// The two layers do not fight, because a subcommand is a positional: config's
-// parser stops at `routes` and never sees the flags after it.
+// Help is the exception: config recognises flag.ErrHelp without treating it as a
+// startup failure, and Execute hands -h, -help, or --help to the usage renderer
+// rather than starting a server. The two layers otherwise do not fight, because
+// a subcommand is a positional: config's parser stops at `routes` and never sees
+// the flags after it.
 func (a *App) Execute(ctx context.Context, out io.Writer, args []string) error {
+	if leadingHelpRequest(args) {
+		return cli.Dispatch(ctx, out, a.commands(), []string{"--help"})
+	}
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return a.Run(ctx)
 	}
 	return cli.Dispatch(ctx, out, a.commands(), args)
+}
+
+// leadingHelpRequest mirrors config's deliberately small flag surface. The
+// duplication is intentional: config and root are separated by a depguard leaf
+// boundary, so a shared Fabrin helper would make configuration depend on another
+// framework package. Tests cover every current setting spelling.
+func leadingHelpRequest(args []string) bool {
+	valueFlags := map[string]bool{
+		"addr": true, "log-format": true, "log-level": true, "modules": true,
+		"read-header-timeout": true, "shutdown-timeout": true, "trusted-proxies": true,
+	}
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" || arg == "-" || !strings.HasPrefix(arg, "-") {
+			return false
+		}
+		if arg == "-h" || arg == "-help" || arg == "--help" ||
+			strings.HasPrefix(arg, "-h=") || strings.HasPrefix(arg, "-help=") || strings.HasPrefix(arg, "--help=") {
+			return true
+		}
+		name := strings.TrimLeft(arg, "-")
+		if strings.Contains(name, "=") {
+			continue
+		}
+		if valueFlags[name] {
+			i++
+		}
+	}
+	return false
 }
 
 // commands is what Dispatch selects from: the built-ins plus whatever the

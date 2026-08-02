@@ -6,7 +6,9 @@ description: Take a Fabrin issue from open to merged — branch, failing test, i
 # Issue → PR
 
 The repository's working agreement, as a sequence. Read `AGENTS.md` and
-`CONTRIBUTING.md` for the reasoning; this is the order of operations.
+`CONTRIBUTING.md` for the reasoning; this is the order of operations. In a
+multi-agent run, also read `docs/agents/ORCHESTRATION.md`: only the Lead may run
+the Git and GitHub steps below.
 
 ## 0. There is an issue
 
@@ -19,17 +21,17 @@ done, not your reading of the title.
 
 ## 1. Branch
 
-```bash
-git checkout main && git pull
-git checkout -b <type>/<short-slug>
-```
+First require a clean status and record the base SHA. Never switch or pull over
+uncommitted work. The Lead creates a short-lived branch and, for a writable
+worker, an isolated worktree with explicit owned paths. Workers never create or
+switch branches, stage, commit, push, or mutate GitHub.
 
 Trunk-based: short-lived branches off `main`, merged frequently. Incomplete work
 hides behind a flag, not a long-running branch.
 
-**Check `git branch --show-current` before your first commit.** Committing to
-local `main` is recoverable — `git branch <name>`, `git checkout <name>`,
-`git branch -f main origin/main` — but only if you notice before pushing.
+**Check `git branch --show-current` before the Lead's first commit.** If the base
+moved or the worktree is dirty, stop and reconcile explicitly rather than
+rewriting shared state.
 
 ## 2. Red
 
@@ -61,8 +63,9 @@ When they conflict, security wins, and the trade gets named in the commit body.
 
 ## 4. Docs — the last step, not an afterthought
 
-`AGENTS.md` makes this the last step of *every* change. `just docs-check` counts
-files; it cannot read them, so run the `docs-syncer` agent — and **do not tell it
+`AGENTS.md` makes this the last step of *every* change. `just docs-check` maps
+governed surfaces to owning docs but cannot read prose, so run the `docs-syncer`
+agent — and **do not tell it
 what you already checked.**
 
 Working the list inline is the tempting shortcut, and it has now been measured.
@@ -91,8 +94,9 @@ same change.
 
 ## 5. `just check`
 
-Exactly what CI runs — the workflow calls `just ci` rather than re-listing the
-steps, so a green `check` means a green CI. There is no second command.
+Exactly what CI's quality job runs — the workflow calls `just ci` rather than
+re-listing the steps. The Lead also runs `just race`; range-aware docs freshness
+and main-only benchmarks remain explicit CI jobs.
 
 If it is red, read *all* the output: gates report every failure rather than the
 first, so you can fix them in one pass instead of one round trip per gate.

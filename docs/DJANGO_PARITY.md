@@ -124,9 +124,11 @@ without one, and this package's tests finish in microseconds. Django pays the
 opposite way — `django.setup()` before anything, which is why its test suite
 needs a database to ask what a field is called.
 
-The cost is that nothing here links a table back to a Go type, which the admin
-(F4) will need. It will add that rather than reshape this: `Model` is a struct of
-exported fields, so it may gain fields forever and lose none.
+The cost is that nothing here links a table back to a Go type and the
+consumer-owned stores expose no generic CRUD seam. Admin will need both. A
+vertical internal admin slice must prove that seam before public metadata or
+repository APIs are frozen; exported fields cannot safely be assumed additive
+for every downstream caller.
 
 ## Requests, responses, routing
 
@@ -155,11 +157,11 @@ is part of Fabrin's semver contract — was accepted deliberately.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.admin` | `fabrin/admin`, generated from metadata | 📋 F4 |
-| `ModelAdmin` customisation | Per-model overrides | 📋 F4 |
-| `list_display`, `list_filter`, `search_fields` | Same concepts | 📋 F4 |
-| Admin actions | 📋 F4 | 📋 F4 |
-| Admin templates overridable | Overridable `html/template` blocks | 📋 F4 |
+| `django.contrib.admin` | `fabrin/admin`, generated from metadata | 📋 F5 |
+| `ModelAdmin` customisation | Per-model overrides | 📋 F5 |
+| `list_display`, `list_filter`, `search_fields` | Same concepts | 📋 F5 |
+| Admin actions | 📋 F5 | 📋 F5 |
+| Admin templates overridable | Overridable `html/template` blocks | 📋 F5 |
 
 **The one place Django is simply ahead, and honestly so.** Django's admin is the
 product of eighteen years of iteration on a language with runtime introspection
@@ -178,14 +180,14 @@ your binary.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.auth` | `fabrin/auth` | 📋 F3 |
-| `User` model, swappable | Replaceable user model | 📋 F3 |
-| Permissions and groups | Same | 📋 F3 |
-| Sessions | Server-side, pluggable store | 📋 F3 |
-| `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F5 |
-| Django template language | `html/template`, or `templ` if you prefer | 📋 F5 |
+| `django.contrib.auth` | `fabrin/auth` | 📋 F4 |
+| `User` model, swappable | Replaceable user model | 📋 F4 |
+| Permissions and groups | Same | 📋 F4 |
+| Sessions | Server-side, pluggable store | 📋 F4 |
+| `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
+| Django template language | `html/template`, or `templ` if you prefer | 📋 F3 |
 | `{% csrf_token %}` | CSRF middleware + template helper | 📋 F3 |
-| Static files, `collectstatic` | `fabrin/render` static serving + embedding | 📋 F5 |
+| Static files, `collectstatic` | `fabrin/render` static serving + embedding | 📋 F3 |
 
 **Where the port would read badly.** Django's template language deliberately
 restricts logic to keep designers out of trouble. `html/template` already does
@@ -215,9 +217,9 @@ Not parity — the reason a Go framework can be worth building.
 
 | Capability | Why it matters |
 |---|---|
-| **Process slicing** — `FABRIN_MODULES=blog,auth` | One binary, N deployment shapes. Splitting a monolith is a deploy-config change, not a rewrite. Django has no equivalent; you split by creating another project. |
+| **Route/capability slicing** — `FABRIN_MODULES=blog,auth` | One binary, N mounted shapes after construction. It does not suppress resources opened before `fabrin.New`, and remote extraction still changes wiring. Django has no direct equivalent. |
 | **Ports, not imports** | A module declares the interface it needs, so it is extractable by construction. Django apps import each other's models freely, which is why "extract this app into a service" is a rewrite. |
-| **A single static binary** | The admin, templates, and static files are `go:embed`ded. No virtualenv, no WSGI server, no `collectstatic` step in the deploy. |
+| **A single static binary** | Go can embed the planned admin, templates, and static assets; those batteries are not implemented yet. Avoiding a user-facing JS build step is the design constraint. |
 | **A checked public API surface** | `api/fabrin.txt` plus a gate. Django's public/private boundary is documentation and convention. |
 | **Compile-time module wiring** | A missing dependency is a build error, not a runtime `ImproperlyConfigured`. |
 | **Liveness and readiness as separate endpoints** | `/healthz` consults nothing; `/readyz` aggregates module checks and fails closed. Django's `manage.py check` is a *command*, not a probe an orchestrator can poll, so every Django deployment writes this by hand — usually conflating the two and earning a restart loop. |

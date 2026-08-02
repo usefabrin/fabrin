@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -159,41 +160,55 @@ func newID() string {
 	return hex.EncodeToString(b[:])
 }
 
-// Logger middleware logs one line per completed request, including the request id.
+// Logger middleware logs one line per completed request, including the request
+// id. It also recovers downstream handler panics so the failure is logged: an
+// uncommitted response becomes 500, while an already committed status is kept
+// and the request is still logged at error level with panic_recovered=true.
 //
 // Deliberately not gin.Logger(): that writes unstructured text to a global writer,
 // which defeats both the structured-logging and the no-global goals.
 func Logger(log *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		recoveredPanic := false
+		defer func() {
+			if recover() != nil {
+				recoveredPanic = true
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+
+			attrs := []any{
+				"method", c.Request.Method,
+				"path", c.Request.URL.Path,
+				"status", c.Writer.Status(),
+			}
+			if id := RequestIDFromContext(c.Request.Context()); id != "" {
+				attrs = append(attrs, LogKeyRequestID, id)
+			}
+
+			// Gin collects handler errors rather than returning them, so they are
+			// invisible unless read back here.
+			if len(c.Errors) > 0 {
+				attrs = append(attrs, "errors", c.Errors.String())
+			}
+			if recoveredPanic {
+				attrs = append(attrs, "panic_recovered", true)
+			}
+
+			// A CONSTANT message, with the varying parts as attributes. "GET /users/123"
+			// as the message would make every distinct path its own message string,
+			// which defeats grouping and alerting in every log aggregator — the thing
+			// structured logging exists to enable. Method and path are already attrs
+			// above, so the interpolated form also duplicated them.
+			switch {
+			case recoveredPanic || c.Writer.Status() >= 500:
+				log.Error(MsgRequest, attrs...)
+			case c.Writer.Status() >= 400:
+				log.Warn(MsgRequest, attrs...)
+			default:
+				log.Info(MsgRequest, attrs...)
+			}
+		}()
+
 		c.Next()
-
-		attrs := []any{
-			"method", c.Request.Method,
-			"path", c.Request.URL.Path,
-			"status", c.Writer.Status(),
-		}
-		if id := RequestIDFromContext(c.Request.Context()); id != "" {
-			attrs = append(attrs, LogKeyRequestID, id)
-		}
-
-		// Gin collects handler errors rather than returning them, so they are
-		// invisible unless read back here.
-		if len(c.Errors) > 0 {
-			attrs = append(attrs, "errors", c.Errors.String())
-		}
-
-		// A CONSTANT message, with the varying parts as attributes. "GET /users/123"
-		// as the message would make every distinct path its own message string,
-		// which defeats grouping and alerting in every log aggregator — the thing
-		// structured logging exists to enable. Method and path are already attrs
-		// above, so the interpolated form also duplicated them.
-		switch {
-		case c.Writer.Status() >= 500:
-			log.Error(MsgRequest, attrs...)
-		case c.Writer.Status() >= 400:
-			log.Warn(MsgRequest, attrs...)
-		default:
-			log.Info(MsgRequest, attrs...)
-		}
 	}
 }

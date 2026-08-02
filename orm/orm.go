@@ -27,9 +27,10 @@
 // description and nothing else — and a description does not need a zero value of
 // the user's type to be constructed in order to answer questions about it.
 //
-// The cost is that nothing here links a table back to a Go type. The admin (F4)
-// will need that link, and will add it rather than reshape this: Model is a
-// struct of exported fields, so it may gain fields forever and lose none.
+// The cost is that nothing here links a table back to a Go type or provides a
+// generic CRUD seam. Admin will need both. Model is already public, so changing
+// its representation — including adding fields that break unkeyed literals — is
+// a pre-v0 API decision, not something future code may assume is free.
 package orm
 
 import (
@@ -72,10 +73,9 @@ func (t Type) Valid() bool {
 
 // Field is one column.
 //
-// A struct of exported fields, which means it may gain fields forever and lose
-// none. Deliberately minimal for that reason: Default and foreign keys are not
-// here yet because the first migration does not need them, and adding them later
-// is allowed where removing anything would not be.
+// Deliberately minimal: every field is a public representation promise. Adding a
+// field can break unkeyed literals even though removing or retyping one is more
+// obviously breaking.
 type Field struct {
 	// Name is the column name, as it appears in SQL.
 	Name string
@@ -88,6 +88,9 @@ type Field struct {
 	// dialect would either ignore or refuse.
 	MaxLen int
 
+	// Nullable, Unique, and Index are provisional metadata. The current migration
+	// engine does not consume them; their DDL and composite-constraint semantics
+	// must be decided before the metadata API is frozen.
 	Nullable   bool
 	PrimaryKey bool
 	Unique     bool
