@@ -42,6 +42,14 @@ linters:
       #     lives here by definition. The root package's discipline is enforced on
       #     its exported surface by apicheck, not by import restrictions.
       #
+      # boundary: admin — no deny rules yet. The package currently exports
+      #     nothing: it is a private vertical proving the metadata/form/CRUD seam
+      #     before that API is frozen. It consumes orm metadata by design, and
+      #     its future auth, forms, and render dependencies are not implemented
+      #     yet. The public surface is still guarded by apicheck; add boundary
+      #     rules when those dependency directions exist rather than guessing
+      #     them from one proof.
+      #
       # boundary: config — must not import Gin or net/http (config-is-transport-free)
       #     and must not import the root package (config-is-standalone). Settings
       #     load from a CLI, a test, or a migrate-only process, none of which should

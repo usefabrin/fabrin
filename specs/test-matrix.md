@@ -381,3 +381,11 @@ would fail first, but a reader tracing either claim needs all three.
 Also covered without a spec entry: a failing `Down` leaves its version recorded
 rather than deleted, and the applied-state table records name and time alongside
 the version.
+
+## Admin seam proof
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| ADM-001 | One private, reflection-free resource flows from metadata and forms through CRUD persistence | `admin/admin_test.go::TestResource_CRUDFlowsFromMetadataFormsToPersistence` |
+| ADM-002 | Unsafe CRUD validates CSRF then authorization before binding or persistence | `admin/admin_test.go::TestResource_UnsafeActionsFailClosedBeforeBindingOrPersistence` |
+| ADM-003 | Metadata and typed adapters retain field errors and skip invalid persistence | `admin/admin_test.go::TestResource_FormErrorsStayWithMetadataFieldsAndSkipPersistence` |

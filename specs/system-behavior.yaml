@@ -462,3 +462,25 @@ behaviours:
     requirement: FR-ORM-4
     status: implemented
     test: .golangci.yml
+
+  # ── Admin seam proof ───────────────────────────────────────────────────────
+  - id: ADM-001
+    what: One unexported admin resource flows a concrete Go value through Fabrin model metadata, metadata-derived form fields, and resource-specific create, list, update, and delete persistence callbacks without reflection or a public repository contract.
+    why: The metadata registry describes tables but cannot construct Go values, while consumer-owned stores deliberately expose no generic CRUD. A real vertical must prove the minimum link before Fabrin freezes a public model, form, or repository seam.
+    requirement: FR-ADMIN-5
+    status: implemented
+    test: admin/admin_test.go::TestResource_CRUDFlowsFromMetadataFormsToPersistence
+
+  - id: ADM-002
+    what: Every private admin resource requires authorization and CSRF callbacks; an unsafe create, update, or delete validates CSRF and then authorization before binding a field or calling persistence.
+    why: A future admin is a privileged write surface. Making either gate optional or checking it after binding lets a registration mistake become a bypass and lets rejected input reach code it never needed to touch.
+    requirement: FR-ADMIN-5
+    status: implemented
+    test: admin/admin_test.go::TestResource_UnsafeActionsFailClosedBeforeBindingOrPersistence
+
+  - id: ADM-003
+    what: Metadata field order and length constraints plus explicit type adapters produce private field errors, retain submitted values, and skip persistence when binding fails.
+    why: The vertical must prove a form boundary rather than merely call CRUD callbacks. Keeping errors attached to the metadata allowlist prevents unknown-field mass assignment and gives the future renderer deterministic state without exporting a premature forms API.
+    requirement: FR-ADMIN-5
+    status: implemented
+    test: admin/admin_test.go::TestResource_FormErrorsStayWithMetadataFieldsAndSkipPersistence

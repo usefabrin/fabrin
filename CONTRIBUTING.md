@@ -35,7 +35,7 @@ uses, so local and CI run the same ruleset.
 | Style | `just lint` (gofmt, `go vet`, golangci-lint) | Formatting and vet checks |
 | Tests | `just test` | Behaviour |
 | Boundaries | `just arch` | depguard layering rules |
-| API surface | `just api-check` | The public API changed only on purpose |
+| API surface | `just api-check` | The exported API changed only on purpose; packages with no exports add no blank snapshot section |
 | Scaffold | `just examples` | The generator emits a project that builds, tests, and **boots** — built against the working tree, not the published module |
 | Examples | `just examples` | Every example still builds and serves |
 | Specs | `just specs` | Every behaviour has a matrix row and a test |
@@ -127,6 +127,11 @@ suite could not have caught: a package in the manifest with nothing recorded.
   compiled fine and this rule was the only thing rejecting it. `migrate` is in
   exactly that window now — nothing imports it until `Migrator` lands — so for it
   the rule carries **both** directions rather than just the sibling one.
+- `fabrin/admin` has no deny rule yet. Its unexported seam proof intentionally
+  reads `fabrin/orm`, while its eventual forms, auth, and render dependencies do
+  not exist. The required boundary marker records that decision; `apicheck`
+  guards its currently empty exported surface until real dependency directions
+  can be enforced instead of guessed.
 - `fabrin/orm` must not import `database/sql` either. It describes models and
   opens nothing: that is what lets the admin and forms read a schema with no
   database running, and what keeps its tests in microseconds. The query API is
@@ -153,6 +158,12 @@ exported signatures because `apicheck`'s allowlist says so; nothing else may.
 That allowlist is a `map` in `tools/apicheck/main.go` with one entry, and a test
 asserts it has exactly one — so a second entry fails the build until the ADR that
 hard rule 1 requires actually happens.
+
+Snapshot rendering omits a package whose scope contains no exported symbols. A
+package path is inventory for boundary review, not itself an exported symbol; an
+empty section would create a diff with no promise to review. The regression test
+pairs that negative control with the real gate: injecting an exported type into
+the same package must still make `just api-check` fail.
 
 ## When you change a governed surface
 

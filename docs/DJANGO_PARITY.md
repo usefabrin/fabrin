@@ -8,7 +8,7 @@ what is the idiomatic Go answer?"* Never *"how do we transliterate Python?"*
 Fabrin should feel like Go that happens to come with batteries. A framework that
 feels like Django-in-Go would be worse than either.
 
-Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ deliberately not
+Status: ✅ shipped · 🧪 private proof only · 🚧 in progress · 📋 planned (with milestone) · ❌ deliberately not
 
 ---
 
@@ -126,11 +126,12 @@ without one, and this package's tests finish in microseconds. Django pays the
 opposite way — `django.setup()` before anything, which is why its test suite
 needs a database to ask what a field is called.
 
-The cost is that nothing here links a table back to a Go type and the
-consumer-owned stores expose no generic CRUD seam. Admin will need both. A
-vertical internal admin slice must prove that seam before public metadata or
-repository APIs are frozen; exported fields cannot safely be assumed additive
-for every downstream caller.
+The cost is that metadata alone links no table back to a Go type and
+consumer-owned stores expose no generic CRUD seam. The first private admin
+vertical now supplies an explicit constructor, key reader, typed field adapters,
+and resource-specific persistence callbacks. That proves the missing link
+without changing `orm.Model` or exporting a repository; it deliberately leaves
+the reusable seam unresolved until more than one vertical supplies evidence.
 
 ## Requests, responses, routing
 
@@ -159,7 +160,7 @@ is part of Fabrin's semver contract — was accepted deliberately.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.admin` | `fabrin/admin`, generated from metadata | 📋 F5 |
+| `django.contrib.admin` | `fabrin/admin`; one private metadata/form/CRUD seam is proven, with no public handler yet | 🧪 F5 |
 | `ModelAdmin` customisation | Per-model overrides | 📋 F5 |
 | `list_display`, `list_filter`, `search_fields` | Same concepts | 📋 F5 |
 | Admin actions | 📋 F5 | 📋 F5 |
@@ -172,6 +173,22 @@ of everything. Fabrin's admin will be less capable at v1.
 **Where the port would read badly.** Django's admin discovers models by importing
 every app's `admin.py` for side effects. Fabrin's modules *declare* their models,
 so the wiring is greppable.
+
+**What the first vertical learned from Django without copying its machinery.**
+Django's `ModelAdmin` separates metadata-derived forms from `get_queryset`,
+`save_model`, and `delete_model`, while permission hooks and CSRF protection gate
+the privileged endpoints. Fabrin keeps that separation but cannot rely on Python
+model introspection: one unexported resource uses explicit typed construction and
+field adapters plus resource-specific persistence callbacks. Reads authorize
+before persistence; writes validate CSRF and then authorization before binding.
+The authenticated principal remains owned by the future auth context. These are
+private integration boundaries, not a user, repository, form, or token API.
+
+Reflection, struct-tag discovery, a type-erased row map, and a wide exported CRUD
+repository were rejected. The explicit glue is noisier, but renaming or retyping
+a Go field stays a compile-time edit at registration instead of becoming a
+runtime request failure. [ADR 0005](adr/0005-admin-crud-seam-remains-private.md)
+records the costs and the public decisions intentionally deferred.
 
 `html/template` + htmx rather than a JS framework is the other deliberate
 divergence: an admin that requires Node or Bun to build is an admin most Go teams
