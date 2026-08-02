@@ -50,13 +50,30 @@ them, and jump-to-definition works.
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
 | `select_related` / `prefetch_related` | GORM preloading | 📋 F2 |
-| `Model.objects` manager | Explicit repository or store, passed in | 📋 F2 |
+| `Model.objects` manager | Explicit repository or store, passed in — the module declares the interface, `main` satisfies it | ✅ F2 |
 | Lazy querysets | ❌ | ❌ |
 
 **Where the port would read badly.** Django's `Model.objects` is an implicit
 global connection: a model knows how to find the database by itself. In Go that
 makes tests order-dependent and hides the dependency from the type system. Fabrin
 passes a handle.
+
+**Why the `Model.objects` row is ✅ while the `QuerySet` row above it is not.**
+What ships for `Model.objects` is a *pattern*, and it is complete: `examples/hello/orders`
+declares the two-method `Store` it needs, `main.go` is the only file that names
+SQL, and there are two implementations of that port — so the seam is
+demonstrated rather than asserted. [ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)
+also forecloses anything further: there will be no `fabrin.DB()` and no manager
+type without a new ADR, so 📋 *planned* would name work nobody plans to do. The
+`QuerySet` row stays 📋 because its cell names GORM, and the GORM adapter
+genuinely is still ahead of us.
+
+A pattern counting as shipped is the unusual part, so it is worth being plain
+about the test applied: ✅ asks whether a Fabrin user has an answer to the
+problem Django solves, not whether Fabrin exports a type. Here they do, it is
+demonstrated in `examples/hello/orders` rather than described, and ADR 0002 says
+it is the final answer. Where that test is not met — the GORM adapter, which
+does not exist — the row stays 📋.
 
 **Lazy querysets are the one Django feature deliberately rejected.** They are
 elegant in Python and a trap in Go: an expression that looks like data but fires a

@@ -219,11 +219,12 @@ linters:
         # migration container carry an HTTP stack it never binds.
         #
         # The driver: the engine takes a *sql.DB and ships no driver (ADR 0002).
-        # modernc.org/sqlite is in go.mod for THIS package's tests, and the
-        # `!**/*_test.go` exclusion is what lets the tests use it while the
-        # engine cannot. Prefix matching cannot express "any driver" — dozens
-        # exist — so this names the one that is actually reachable, which is also
-        # the only one a slip could plausibly reach for.
+        # modernc.org/sqlite is in go.mod for THIS package's tests and for
+        # examples/hello, which is an application and therefore a place a driver
+        # belongs; the `!**/*_test.go` exclusion is what lets these tests use it
+        # while the engine cannot. Prefix matching cannot express "any driver" —
+        # dozens exist — so this names the one that is actually reachable, which
+        # is also the only one a slip could plausibly reach for.
         migrate-is-standalone:
           files:
             - "**/migrate/**"
