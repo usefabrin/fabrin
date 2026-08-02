@@ -20,7 +20,8 @@
 // never imports another module: it declares the interface it needs and receives
 // it as a dependency, and that interface is the seam along which the module can
 // later move into its own process. Setting FABRIN_MODULES selects which modules
-// this process mounts, so one binary serves many deployment shapes.
+// this process mounts. [NewFromFactories] applies that selection before module
+// construction, so excluded modules do not construct their dependency graphs.
 //
 // Fabrin deliberately ships no service discovery, service mesh, or RPC
 // framework. It ships the seam and service-ready defaults.

@@ -276,3 +276,183 @@ func TestApp_ModulesReportsOnlyMountedModules(t *testing.T) {
 		t.Errorf("Modules must report what is mounted, not what was registered; got %v", got)
 	}
 }
+
+func TestNewFromFactories_DoesNotBuildUnselectedModules(t *testing.T) {
+	t.Parallel()
+
+	built := make(map[string]int)
+	factory := func(name, path string) fabrin.ModuleFactory {
+		return fabrin.LazyModule(name, func(context.Context) (fabrin.Module, error) {
+			built[name]++
+			return route(name, path), nil
+		})
+	}
+
+	app, err := fabrin.NewFromFactories(
+		t.Context(),
+		fabrin.Options{Modules: []string{"greet"}},
+		factory("greet", "/greet"),
+		factory("clock", "/time"),
+	)
+	if err != nil {
+		t.Fatalf("NewFromFactories: %v", err)
+	}
+
+	if built["greet"] != 1 {
+		t.Errorf("selected factory built %d times, want once", built["greet"])
+	}
+	if built["clock"] != 0 {
+		t.Errorf("unselected factory built %d times, want zero", built["clock"])
+	}
+	if got := get(t, app, "/greet").Code; got != http.StatusOK {
+		t.Errorf("/greet: selected factory's module must be mounted, got %d", got)
+	}
+	if got := get(t, app, "/time").Code; got != http.StatusNotFound {
+		t.Errorf("/time: unselected factory's module must not be mounted, got %d", got)
+	}
+}
+
+func TestNewFromFactories_RejectsUnknownSelectionBeforeBuilding(t *testing.T) {
+	t.Parallel()
+
+	built := 0
+	_, err := fabrin.NewFromFactories(
+		t.Context(),
+		fabrin.Options{Modules: []string{"greet", "typo"}},
+		fabrin.LazyModule("greet", func(context.Context) (fabrin.Module, error) {
+			built++
+			return route("greet", "/greet"), nil
+		}),
+	)
+
+	if !errors.Is(err, fabrin.ErrUnknownModule) {
+		t.Fatalf("unknown selection must return ErrUnknownModule, got %v", err)
+	}
+	if built != 0 {
+		t.Errorf("selection must be validated before any factory runs, built %d module(s)", built)
+	}
+}
+
+func TestNewFromFactories_RejectsDuplicateCatalogBeforeBuilding(t *testing.T) {
+	t.Parallel()
+
+	built := 0
+	factory := func(path string) fabrin.ModuleFactory {
+		return fabrin.LazyModule("blog", func(context.Context) (fabrin.Module, error) {
+			built++
+			return route("blog", path), nil
+		})
+	}
+
+	_, err := fabrin.NewFromFactories(t.Context(), fabrin.Options{},
+		factory("/a"),
+		factory("/b"),
+	)
+
+	if !errors.Is(err, fabrin.ErrDuplicateModule) {
+		t.Fatalf("duplicate factory names must return ErrDuplicateModule, got %v", err)
+	}
+	if built != 0 {
+		t.Errorf("factory catalog must be validated before any factory runs, built %d module(s)", built)
+	}
+}
+
+func TestNewFromFactories_PropagatesBuildErrorAndContext(t *testing.T) {
+	t.Parallel()
+
+	type contextKey struct{}
+	ctx := context.WithValue(t.Context(), contextKey{}, "request-scoped")
+	boom := errors.New("open resource")
+
+	_, err := fabrin.NewFromFactories(ctx, fabrin.Options{},
+		fabrin.LazyModule("orders", func(got context.Context) (fabrin.Module, error) {
+			if got.Value(contextKey{}) != "request-scoped" {
+				t.Error("factory did not receive the construction context")
+			}
+			return nil, boom
+		}),
+	)
+
+	if !errors.Is(err, boom) {
+		t.Fatalf("factory error must remain identifiable through wrapping, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "orders") {
+		t.Errorf("factory error must name the module that failed, got %q", err)
+	}
+}
+
+func TestNewFromFactories_RejectsFactoryNameMismatch(t *testing.T) {
+	t.Parallel()
+
+	_, err := fabrin.NewFromFactories(t.Context(), fabrin.Options{},
+		fabrin.LazyModule("declared", func(context.Context) (fabrin.Module, error) {
+			return route("returned", "/x"), nil
+		}),
+	)
+
+	if err == nil {
+		t.Fatal("a factory returning a differently named module must fail")
+	}
+	for _, name := range []string{"declared", "returned"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("name mismatch error must contain %q, got %q", name, err)
+		}
+	}
+}
+
+func TestNewFromFactories_PreservesFactoryOrderRatherThanSelectionOrder(t *testing.T) {
+	t.Parallel()
+
+	var built []string
+	factory := func(name string) fabrin.ModuleFactory {
+		return fabrin.LazyModule(name, func(context.Context) (fabrin.Module, error) {
+			built = append(built, name)
+			return route(name, "/"+name), nil
+		})
+	}
+
+	app, err := fabrin.NewFromFactories(
+		t.Context(),
+		fabrin.Options{Modules: []string{"third", "first"}},
+		factory("first"),
+		factory("second"),
+		factory("third"),
+	)
+	if err != nil {
+		t.Fatalf("NewFromFactories: %v", err)
+	}
+
+	if got, want := strings.Join(built, ","), "first,third"; got != want {
+		t.Errorf("factory build order = %q, want registration order %q", got, want)
+	}
+	if got, want := strings.Join(app.Modules(), ","), "first,third"; got != want {
+		t.Errorf("mounted order = %q, want registration order %q", got, want)
+	}
+}
+
+func TestNewFromFactories_RejectsInvalidFactory(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		factory fabrin.ModuleFactory
+	}{
+		{name: "zero value", factory: fabrin.ModuleFactory{}},
+		{name: "empty name", factory: fabrin.LazyModule("  ", func(context.Context) (fabrin.Module, error) {
+			return route("unused", "/unused"), nil
+		})},
+		{name: "nil build", factory: fabrin.LazyModule("broken", nil)},
+		{name: "nil module", factory: fabrin.LazyModule("broken", func(context.Context) (fabrin.Module, error) {
+			return nil, nil
+		})},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := fabrin.NewFromFactories(t.Context(), fabrin.Options{}, tt.factory); err == nil {
+				t.Fatal("invalid factory must fail construction")
+			}
+		})
+	}
+}

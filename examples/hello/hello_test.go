@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"go/parser"
 	"go/token"
 	"net/http"
@@ -41,10 +44,18 @@ func send(t *testing.T, app *fabrin.App, method, path, body string) *httptest.Re
 // construct a *different* app prove nothing about the example a user runs.
 func build(t *testing.T, opts fabrin.Options) *fabrin.App {
 	t.Helper()
-	app, err := newApp(opts)
+	app, err := newApp(t.Context(), opts)
 	if err != nil {
 		t.Fatalf("newApp: %v", err)
 	}
+	if err := app.Start(t.Context()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Stop(context.Background()); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
+	})
 	return app
 }
 
@@ -81,8 +92,35 @@ func TestSlicing_RejectsAnUnknownModuleName(t *testing.T) {
 
 	// A process that starts, passes its liveness probe, and serves nothing is the
 	// worst available outcome, because nothing about it looks wrong.
-	if _, err := newApp(fabrin.Options{Modules: []string{"greet", "nope"}}); err == nil {
+	if _, err := newApp(t.Context(), fabrin.Options{Modules: []string{"greet", "nope"}}); err == nil {
 		t.Fatal("a selection naming an unregistered module must fail at construction")
+	}
+}
+
+func TestSlicing_DoesNotOpenAnUnselectedModulesResources(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	app, err := newAppWithDB(t.Context(), fabrin.Options{Modules: []string{"greet"}}, func(context.Context) (*sql.DB, error) {
+		called = true
+		return nil, errors.New("orders database must stay unopened")
+	})
+	if err != nil {
+		t.Fatalf("newAppWithDB: %v", err)
+	}
+	if err := app.Start(t.Context()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := app.Stop(context.Background()); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
+	})
+	if called {
+		t.Fatal("a greet-only process invoked the unselected orders database factory")
+	}
+	if rec := get(t, app, "/greet"); rec.Code != http.StatusOK {
+		t.Errorf("/greet = %d, want 200 after skipping the orders resource", rec.Code)
 	}
 }
 

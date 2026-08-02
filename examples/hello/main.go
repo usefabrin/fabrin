@@ -6,7 +6,7 @@
 // Run it:
 //
 //	go run ./examples/hello                      # every module
-//	FABRIN_MODULES=greet go run ./examples/hello # only greet mounts; /time is a 404
+//	FABRIN_MODULES=greet go run ./examples/hello # only greet builds and mounts; /time is a 404
 //
 // Then:
 //
@@ -48,7 +48,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	app, err := newApp(cfg)
+	app, err := newApp(context.Background(), cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,21 +73,36 @@ func main() {
 // ONLY place that knows both modules exist: greet asks for a greet.Clock, the
 // clock module happens to satisfy it, and neither package names the other.
 // Swapping in a remote clock is a change here and nowhere else.
-func newApp(opts fabrin.Options) (*fabrin.App, error) {
-	clk := clock.New()
+func newApp(ctx context.Context, opts fabrin.Options) (*fabrin.App, error) {
+	return newAppWithDB(ctx, opts, openDB)
+}
 
-	// Module selection currently happens inside fabrin.New, after this wiring has
-	// constructed dependencies. A greet-only process still opens this database;
-	// lazy selection-before-construction is a separate pre-v0 design decision.
-	db, err := openDB(context.Background())
-	if err != nil {
-		return nil, err
+type dbOpener func(context.Context) (*sql.DB, error)
+
+func newAppWithDB(ctx context.Context, opts fabrin.Options, open dbOpener) (*fabrin.App, error) {
+	// Both selected factories can need the same clock: greet as a typed port, and
+	// clock as the HTTP module. This memoized constructor is ordinary explicit Go
+	// wiring, not a service locator. A greet-only process constructs the dependency
+	// it actually needs without mounting the clock module's routes or checks.
+	var clk *clock.Module
+	clockFor := func() *clock.Module {
+		if clk == nil {
+			clk = clock.New()
+		}
+		return clk
 	}
 
-	return fabrin.New(opts,
-		greet.New(clk), // the port, satisfied in-process by a direct call
-		clk,
-		orders.New(&sqlStore{db: db}), // the data port, satisfied by SQLite
+	return fabrin.NewFromFactories(ctx, opts,
+		fabrin.LazyModule("greet", func(context.Context) (fabrin.Module, error) {
+			return greet.New(clockFor()), nil // the port, satisfied in-process
+		}),
+		fabrin.LazyModule("clock", func(context.Context) (fabrin.Module, error) {
+			return clockFor(), nil
+		}),
+		fabrin.LazyModule("orders", func(context.Context) (fabrin.Module, error) {
+			store := &sqlStore{open: open}
+			return &ordersRuntime{Module: orders.New(store), store: store}, nil
+		}),
 	)
 }
 
@@ -110,6 +125,7 @@ func openDB(ctx context.Context) (*sql.DB, error) {
 	db.SetMaxOpenConns(1)
 
 	if _, err := migrate.Run(ctx, db, migrations()); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return db, nil
@@ -145,7 +161,36 @@ func migrations() []migrate.M {
 // sqlStore satisfies orders.Store. It lives here rather than in the orders
 // package on purpose: the module must not know that SQL exists, and this file is
 // the one place allowed to.
-type sqlStore struct{ db *sql.DB }
+type sqlStore struct {
+	open dbOpener
+	db   *sql.DB
+}
+
+// ordersRuntime keeps resource ownership beside the module while preserving the
+// optional interfaces embedded orders.Module contributes. Construction is cheap;
+// Lifecycle.Start is the only place that opens the database.
+type ordersRuntime struct {
+	*orders.Module
+	store *sqlStore
+}
+
+func (m *ordersRuntime) Start(ctx context.Context) error {
+	db, err := m.store.open(ctx)
+	if err != nil {
+		return err
+	}
+	m.store.db = db
+	return nil
+}
+
+func (m *ordersRuntime) Stop(context.Context) error {
+	if m.store.db == nil {
+		return nil
+	}
+	err := m.store.db.Close()
+	m.store.db = nil
+	return err
+}
 
 func (s *sqlStore) Create(ctx context.Context, o *orders.Order) error {
 	res, err := s.db.ExecContext(ctx, `INSERT INTO orders (item) VALUES ($1)`, o.Item)
