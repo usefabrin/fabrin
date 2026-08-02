@@ -83,3 +83,4 @@ someone opens it to answer.
 |---|---|---|
 | [0001](0001-gin-as-a-type-alias.md) | Gin is blessed, and `fabrin.Context` is a type alias rather than a wrapper | Accepted |
 | [0002](0002-database-sql-is-the-orm-seam.md) | `database/sql` is the ORM seam; GORM is not blessed | Accepted |
+| [0003](0003-migrations-take-a-handle-not-a-transaction.md) | Migrations take a `Handle`, not a `*sql.Tx` | Accepted |

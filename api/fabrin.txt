@@ -162,10 +162,15 @@ pkg github.com/usefabrin/fabrin/logging, func RequestIDFromContext(ctx context.C
 pkg github.com/usefabrin/fabrin/migrate, const Table untyped string = "fabrin_migrations"
 pkg github.com/usefabrin/fabrin/migrate, func Rollback(ctx context.Context, db *database/sql.DB, ms []M, toVersion string) ([]M, error)
 pkg github.com/usefabrin/fabrin/migrate, func Run(ctx context.Context, db *database/sql.DB, ms []M) ([]M, error)
+pkg github.com/usefabrin/fabrin/migrate, type Handle interface
+pkg github.com/usefabrin/fabrin/migrate, type Handle interface, ExecContext(ctx context.Context, query string, args ...any) (database/sql.Result, error)
+pkg github.com/usefabrin/fabrin/migrate, type Handle interface, PrepareContext(ctx context.Context, query string) (*database/sql.Stmt, error)
+pkg github.com/usefabrin/fabrin/migrate, type Handle interface, QueryContext(ctx context.Context, query string, args ...any) (*database/sql.Rows, error)
+pkg github.com/usefabrin/fabrin/migrate, type Handle interface, QueryRowContext(ctx context.Context, query string, args ...any) *database/sql.Row
 pkg github.com/usefabrin/fabrin/migrate, type M struct
-pkg github.com/usefabrin/fabrin/migrate, type M struct, Down func(ctx context.Context, tx *database/sql.Tx) error
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Down func(ctx context.Context, h Handle) error
 pkg github.com/usefabrin/fabrin/migrate, type M struct, Name string
-pkg github.com/usefabrin/fabrin/migrate, type M struct, Up func(ctx context.Context, tx *database/sql.Tx) error
+pkg github.com/usefabrin/fabrin/migrate, type M struct, Up func(ctx context.Context, h Handle) error
 pkg github.com/usefabrin/fabrin/migrate, type M struct, Version string
 pkg github.com/usefabrin/fabrin/migrate, var ErrDuplicateVersion error
 pkg github.com/usefabrin/fabrin/migrate, var ErrInvalidMigration error

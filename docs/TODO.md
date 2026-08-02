@@ -120,25 +120,28 @@ a project shape to generate, and F0 defines that shape.
 Nothing here is a defect. Each is a shape that is free to change now and
 breaking afterwards, so it needs an answer rather than a discovery.
 
-- [ ] **Does a migration ever need to run outside a transaction?**
-      `M.Up`/`M.Down` are `func(ctx, *sql.Tx) error`, so the answer is currently
-      *no* — by construction, and silently. `CREATE INDEX CONCURRENTLY` is the
-      case that forces it: PostgreSQL refuses it inside a transaction block, and
-      it is how you index a large table without locking writes. Django ships
-      `Migration.atomic = False` for exactly this.
+- [x] **Does a migration ever need to run outside a transaction?** Answered
+      **yes**, and the *type* moved for it while the *feature* did not:
+      `M.Up`/`M.Down` are now `func(ctx, migrate.Handle) error`, over an exported
+      interface of four frozen methods that `*sql.Tx`, `*sql.DB` and `*sql.Conn`
+      satisfy unmodified. `CREATE INDEX CONCURRENTLY` is the case that forced it
+      — PostgreSQL refuses it inside a transaction block, and it is how you index
+      a large table without locking writes.
 
-      **Yes** means changing the signature *now*, to an interface both `*sql.Tx`
-      and `*sql.DB` satisfy — `ExecContext`, `QueryContext`, `QueryRowContext`.
-      That also closes a second hole: `*sql.Tx` exposes `Commit`/`Rollback`, so a
-      user calling `tx.Rollback()` inside `Up` breaks the engine's own promise
-      that the body and the bookkeeping row commit together.
+      **The engine still passes a transaction every time**, and the version row
+      still commits with the body, so MIG-001 is unchanged. Django's
+      `Migration.atomic = False` has **no** equivalent yet; what the change
+      bought is that `NonAtomic bool` can land later with no edit to anyone's
+      migration. Its polarity is bound now, because `Atomic bool` zero-values to
+      `false` and would silently make every existing migration non-atomic.
 
-      **No** means recording the foreclosure. [ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)
-      argued about `*sql.DB` — a handle Fabrin is *given* — and never about
-      `*sql.Tx`, which appears in every migration a **user writes**. Different
-      blast radius, unrecorded. Per [the ADR policy](adr/README.md#amending) an
-      accepted ADR is not edited for substance, so this is a new ADR, not a
-      footnote. (FR-ORM-4)
+      It does **not** close the `Commit`/`Rollback` hole, and the reverse was
+      claimed while this was open: a narrow interface restricts nothing —
+      `h.(*sql.Tx).Rollback()` still compiles. It converts an accident into a
+      deliberate act. What holds the wrapper option open is the doc comment
+      saying the dynamic type is not part of the contract, not the interface.
+      ([ADR 0003](adr/0003-migrations-take-a-handle-not-a-transaction.md), #67,
+      FR-ORM-4, MIG-010)
 - [ ] **Three `orm.Field` fields have no semantics.** `Nullable`, `Unique` and
       `Index` are exported and read by nothing — not `validate`, not `clone`.
       There is no answer to whether `Index: true` on a `Unique: true` field is

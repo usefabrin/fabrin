@@ -229,6 +229,32 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-007 | Two migrations claiming one version are rejected | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
 | MIG-008 | A pre-merge gate rejects two migration *files* at one version | _planned_ |
 | MIG-009 | Versions that do not sort as written are rejected | `migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten` |
+| MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
+
+MIG-010 is a type widening, so its tests read the **shape** of `M`'s fields by
+reflection rather than exercising a behaviour: the load-bearing half of ADR 0003
+is that the method set can never grow, and no behavioural test can see a fifth
+method. The plausible fifth — `Query`, `Exec`, `QueryRow`, `Stmt` — is one
+`*sql.Tx` already has, so a compile-time `var _ Handle = (*sql.Tx)(nil)` keeps
+compiling on the day it lands and every user's fake breaks instead. Same reason
+`TestModules_NeverImportEachOther` reads the import graph. `api/fabrin.txt`
+records the same set, but a snapshot diff is reviewed by a human; this fails with
+the reason attached.
+
+The cell names the frozen-set test because a spec entry may name only one. The
+other half — that `Up` and `Down` are the **same** named interface type, so one
+user helper serves both directions — is
+`migrate/handle_test.go::TestM_UpAndDownTakeAHandleRatherThanATransaction`.
+
+MIG-001 is **unchanged** by it, and deliberately not re-tested: the engine still
+opens a transaction and still writes the body and the bookkeeping row inside it,
+which `TestRun_LeavesNothingBehindWhenAMigrationFails` asserts behaviourally,
+without reference to what the handle's dynamic type is. ADR 0003's clause that
+the dynamic type is **not** part of the contract has no test and cannot have one:
+asserting the handle *is* a `*sql.Tx` would enshrine exactly what the clause
+de-contracts, and asserting it is *not* one would be false today and forbid the
+implementation the ADR mandates. It is held by a doc comment, and by Fabrin's own
+tests never asserting on it.
 
 MIG-008 is blocked, and on something outside the migration engine: there is no
 on-disk migration file format yet. The engine takes migrations as values and

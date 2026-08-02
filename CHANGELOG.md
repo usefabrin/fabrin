@@ -90,8 +90,8 @@ with their milestone rather than split into sections. Cutting a version is
   applied, err := migrate.Run(ctx, db, []migrate.M{{
       Version: "20260801120000",
       Name:    "add orders",
-      Up:      func(ctx context.Context, tx *sql.Tx) error { … },
-      Down:    func(ctx context.Context, tx *sql.Tx) error { … },
+      Up:      func(ctx context.Context, h migrate.Handle) error { … },
+      Down:    func(ctx context.Context, h migrate.Handle) error { … },
   }})
   ```
 
@@ -122,6 +122,50 @@ with their milestone rather than split into sections. Cutting a version is
   **No driver, no Gin, no `net/http`** — enforced, not merely intended, so
   migrations run from a process that mounts no routes. The engine takes a
   `*sql.DB`; the application supplies the driver.
+
+  **BREAKING — `Up` and `Down` take a `Handle`, not a `*sql.Tx`.** ([#67],
+  [ADR 0003])
+
+  ```go
+  type Handle interface {
+      ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+      QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+      QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+      PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+  }
+  ```
+
+  `*sql.Tx` answered "may a migration run outside a transaction?" with *no* — by
+  construction, silently, as a side effect of picking the obvious type.
+  `CREATE INDEX CONCURRENTLY` is the case that forces the question: PostgreSQL
+  refuses it inside a transaction block, and it is how you index a large table
+  without locking writes. Django ships `atomic = False` for exactly this.
+
+  **The engine still passes a transaction, and the version row still commits
+  with the body** — MIG-001 is unchanged. What changed is that the *type* no
+  longer promises it, so a future opt-in needs no edit to anyone's migration.
+  The package documentation states today's guarantee rather than hedging about a
+  mode that does not exist yet.
+
+  `*sql.Tx`, `*sql.DB` and `*sql.Conn` satisfy `Handle` **unmodified, with no
+  adapter** — that property is what makes the change clean, and it is the first
+  thing that would be lost if a signature drifted, so a test reads it.
+
+  **The method set is frozen at four**, and that is the one genuinely
+  irreversible part: users implement `Handle` with recording fakes, so a fifth
+  method breaks all of them at once. It is checked by reflection rather than by a
+  compile-time `var _ Handle = (*sql.Tx)(nil)`, because the fifth method someone
+  would plausibly add — `QueryRow` — is one `*sql.Tx` and `*sql.DB` **already
+  have**, so a satisfaction check keeps compiling on the day it lands while every
+  user's fake breaks.
+
+  Worth stating plainly, because the reverse was claimed while this was being
+  designed: **a narrow interface restricts nothing.** `h.(*sql.Tx).Rollback()`
+  still compiles. The interface turns an accident into a deliberate act — a
+  footgun sitting in autocomplete becomes something nobody reaches by mistake —
+  it does not remove the ability. For the same reason omitting `PrepareContext`
+  would not have prevented preparing, only made it uglier, which is why the set
+  is sized for ergonomics rather than for restriction.
 
   **Versions of unequal width are rejected.** `M` already documented that
   ordering is a plain lexicographic comparison and therefore needs a fixed-width
@@ -471,6 +515,25 @@ First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
 
+Changed in package `fabrin/migrate` ([#67]) — **breaking**:
+
+- `Handle` — a new exported interface of exactly four methods, and `M.Up`/`M.Down`
+  retyped from `func(ctx, *sql.Tx) error` to `func(ctx, Handle) error`. Nothing
+  removed; `database/sql` is standard library, so `apicheck`'s allowlist stays at
+  its single Gin entry.
+
+  The reasoning is [ADR 0003] and the entry above. In short: `*sql.Tx` answered a
+  question nobody asked — *may a migration run outside a transaction?* — with a
+  silent no. The engine still passes a transaction; the **type** stopped
+  promising one.
+
+  The method set is the part that cannot be walked back, because users implement
+  `Handle` in their own fakes. Four, frozen, and a test reads the set by
+  reflection rather than asserting satisfaction — the fifth method anyone would
+  plausibly add is one `*sql.Tx` and `*sql.DB` already have, so a
+  `var _ Handle = (*sql.Tx)(nil)` check would keep compiling while every user's
+  fake broke.
+
 Added in package `fabrin/migrate` ([#54]):
 
 - `M` — `Version`, `Name`, `Up`, `Down`. `Version` is a `string` rather than an
@@ -800,6 +863,8 @@ Added — package `fabrin`:
 [#53]: https://github.com/usefabrin/fabrin/issues/53
 [#54]: https://github.com/usefabrin/fabrin/issues/54
 [#55]: https://github.com/usefabrin/fabrin/issues/55
+[#67]: https://github.com/usefabrin/fabrin/issues/67
+[ADR 0003]: docs/adr/0003-migrations-take-a-handle-not-a-transaction.md
 [#12]: https://github.com/usefabrin/fabrin/pull/12
 [#13]: https://github.com/usefabrin/fabrin/pull/13
 [#14]: https://github.com/usefabrin/fabrin/issues/14
