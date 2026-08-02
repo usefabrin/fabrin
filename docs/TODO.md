@@ -93,7 +93,7 @@ are green. Public API, ADR, security, migration, orchestration, CI, and gate
 changes require human review.
 
 The stabilization epic is complete. Lazy selection-before-construction is
-resolved by [#77](https://github.com/usefabrin/fabrin/issues/77) and proposed
+resolved by [#77](https://github.com/usefabrin/fabrin/issues/77) and accepted
 [ADR 0004](adr/0004-module-factories-select-before-construction.md). Remaining
 pre-v0 decisions are the admin CRUD/type seam
 ([#78](https://github.com/usefabrin/fabrin/issues/78)), provisional ORM

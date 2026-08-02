@@ -1,6 +1,6 @@
 # 0004. Named module factories select before construction
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-02
 - **Deciders:** Fabrin contributors
 - **Requirement / issue:** FR-MODULES-4, [#77](https://github.com/usefabrin/fabrin/issues/77)
