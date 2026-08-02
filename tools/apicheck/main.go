@@ -192,6 +192,9 @@ func snapshot(out *os.File, pkgs []*packages.Package) error {
 		}
 
 		sort.Strings(lines)
+		if len(lines) == 0 {
+			continue
+		}
 		fmt.Fprintln(out)
 		for _, l := range lines {
 			fmt.Fprintf(out, "pkg %s, %s\n", p.PkgPath, l)

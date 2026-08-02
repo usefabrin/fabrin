@@ -85,3 +85,4 @@ someone opens it to answer.
 | [0002](0002-database-sql-is-the-orm-seam.md) | `database/sql` is the ORM seam; GORM is not blessed | Accepted |
 | [0003](0003-migrations-take-a-handle-not-a-transaction.md) | Migrations take a `Handle`, not a `*sql.Tx` | Accepted |
 | [0004](0004-module-factories-select-before-construction.md) | Named module factories select before construction | Accepted |
+| [0005](0005-admin-crud-seam-remains-private.md) | The first admin CRUD seam remains private | Proposed |

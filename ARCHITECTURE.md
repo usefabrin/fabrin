@@ -22,9 +22,10 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
-├── cli/                 Command + Dispatch        (Django: manage.py commands)
-├── config/              layered settings          (Django: settings.py)
-├── health/              liveness + readiness      (Django: system checks)
+├── admin/               private CRUD seam proof — exports nothing yet
+├── cli/                 Command + Dispatch         (Django: manage.py commands)
+├── config/              layered settings           (Django: settings.py)
+├── health/              liveness + readiness       (Django: system checks)
 ├── logging/             slog setup, request ids
 ├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine over *sql.DB
@@ -45,8 +46,31 @@ their `go.sum` to run a tool they will never invoke. A library's dependency list
 is part of its cost to adopt, so dev tooling gets its own module.
 
 Anything under `tools/` that a user might want at runtime is in the wrong place.
-Planned packages such as rendering, forms, auth, admin, signals, and tasks live
-in the roadmap, not this current package map.
+Planned packages such as rendering, forms, auth, signals, and tasks live in the
+roadmap, not this current package map.
+
+### Why `admin/` exports nothing yet
+
+The package proves one metadata-to-form-to-persistence CRUD vertical before its
+public seam is frozen. Existing `orm.Registered` metadata supplies the field
+allowlist, order, and length constraints. Private, typed adapters construct the
+record and read or write each field; private, resource-specific callbacks cross
+the persistence boundary. There is no reflection, model scanning, generic
+repository, database handle, or third-party type in an exported signature.
+
+The security boundary is equally provisional but mandatory. A resource cannot
+be constructed without authorization and CSRF callbacks. Reads authorize before
+persistence; unsafe actions validate CSRF and then authorization before binding
+or persistence. The future auth middleware may place its principal in the
+context, but the proof defines no user, session, permission, route, or token API.
+F3 forms/CSRF and F4 auth must supply those real contracts before a usable admin
+handler ships.
+
+The package is root-level because the eventual API is user-facing; putting it in
+`internal/` would make that path unreachable and would violate the repository's
+public-to-internal dependency direction when the proof reads `orm`. Keeping every
+current symbol unexported preserves the future path without creating a semver
+promise. See [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md).
 
 ### Why `orm/` holds no database handle
 
@@ -54,7 +78,7 @@ The map entry is deliberate and depguard enforces it: `orm` may not import
 `database/sql`, and no driver appears anywhere near it. The package describes
 tables and columns; it opens nothing.
 
-That is what lets the admin (F4) and forms (F5) render a schema with no database
+That is what lets forms (F3) and the admin (F5) render a schema with no database
 running, and it is why this package's tests finish in microseconds instead of
 waiting on a container. It is also what keeps the ORM swappable — the admin reads
 **Fabrin** metadata, so it never becomes GORM-shaped. The query API is
@@ -254,6 +278,7 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 |---|---|
 | `config` must not import Gin or `net/http` | Settings must load from the CLI, from tests, and from a migrate-only process without constructing an HTTP stack |
 | `config`, `logging`, `health`, `cli`, `orm`, `migrate` must not import the root package **or a sibling** | They sit *below* it. For the five the root package imports, the root direction is a cycle the compiler already rejects, so the rule's real work is catching a *sibling* import, which compiles cleanly and quietly makes a leaf depend on half the framework. Nothing imports `migrate` yet — `Migrator` is unwritten — so there the rule is the only thing rejecting **either** direction. A leaf that lands before anything imports it has no compiler backstop at all until it does, which is why the rule is written when the package lands |
+| `admin` has no deny rule yet | Its private proof intentionally consumes `orm` metadata, while the forms, auth, and render packages that will determine its eventual dependency directions do not exist. `apicheck` still guards the exported surface; a boundary rule lands with the real dependencies rather than guessing from one vertical. |
 | `orm` must not import `database/sql` | Metadata is a description; the handle belongs to the application. Otherwise the admin needs a database running to render a form, and this package's tests need one to run |
 | `migrate` must not import Gin, `net/http`, or a driver | Migrations run from a process that mounts no routes, which is a deployment shape Fabrin promises. The engine takes a `*sql.DB`; the application supplies the driver. The SQLite driver is permitted in this package's `_test.go` files only — and, being an application rather than the engine, in `examples/hello`. See [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) |
 | `internal/**` must not import the root package | The dependency runs public → internal |
@@ -267,7 +292,10 @@ needed" is a valid decision — it just has to be written down, so *considered* 
 
 `api/fabrin.txt` is a checked-in snapshot of every exported symbol. `just api`
 regenerates it; `just api-check` fails when code and snapshot disagree. A
-governed-surface change must also update `CHANGELOG.md`.
+governed-surface change must also update `CHANGELOG.md`. A package with no
+exported symbols contributes no section at all: package existence is not an API
+promise, and a blank separator would be snapshot noise rather than reviewable
+surface.
 
 **Type aliases are recorded unexpanded** — `type Context = github.com/gin-gonic/gin.Context`
 is one line, not Gin's forty-odd methods. Expanding them would churn the snapshot

@@ -37,6 +37,17 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Private admin CRUD seam proof.** A new `admin` package exports no symbols yet,
+  but proves one concrete record through existing ORM metadata, metadata-ordered
+  private form state, typed field conversion, and resource-specific create,
+  list, update, and delete callbacks without reflection or a framework-owned
+  repository. Unknown inputs cannot be mass-assigned, invalid forms do not reach
+  persistence, and mandatory CSRF then authorization gates fail closed before an
+  unsafe action binds or persists. The public API snapshot and ORM metadata stay
+  unchanged; rendering, auth, CSRF middleware, and a usable admin remain future
+  work. `apicheck` now skips empty packages when rendering the snapshot, while an
+  injected exported admin type still makes the gate fail; a private package no
+  longer creates a blank-line-only API diff. ([ADR 0005], [#78])
 - **Selection-before-construction module factories.** The new opaque
   `fabrin.ModuleFactory`, `fabrin.LazyModule`, and
   `fabrin.NewFromFactories` API validates the full named catalogue and selection
@@ -987,7 +998,9 @@ Added — package `fabrin`:
 [#75]: https://github.com/usefabrin/fabrin/issues/75
 [#76]: https://github.com/usefabrin/fabrin/issues/76
 [#77]: https://github.com/usefabrin/fabrin/issues/77
+[#78]: https://github.com/usefabrin/fabrin/issues/78
 [ADR 0004]: docs/adr/0004-module-factories-select-before-construction.md
+[ADR 0005]: docs/adr/0005-admin-crud-seam-remains-private.md
 [#41]: https://github.com/usefabrin/fabrin/issues/41
 [ADR 0003]: docs/adr/0003-migrations-take-a-handle-not-a-transaction.md
 [#12]: https://github.com/usefabrin/fabrin/pull/12

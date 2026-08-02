@@ -6,9 +6,12 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"os"
 	"sort"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 )
 
 const (
@@ -199,6 +202,35 @@ func described(t *testing.T, pkg *types.Package) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func TestSnapshot_SkipsPackagesWithNoExportedSymbols(t *testing.T) {
+	t.Parallel()
+
+	empty := check(t, testModule+"/admin", "package admin")
+	public := check(t, testModule+"/cli", "package cli\n\nfunc Dispatch() {}")
+
+	out, err := os.CreateTemp(t.TempDir(), "api-snapshot-*")
+	if err != nil {
+		t.Fatalf("create snapshot: %v", err)
+	}
+	defer out.Close()
+
+	pkgs := []*packages.Package{
+		{PkgPath: empty.Path(), Types: empty},
+		{PkgPath: public.Path(), Types: public},
+	}
+	if err := snapshot(out, pkgs); err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	got, err := os.ReadFile(out.Name())
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+
+	if strings.Contains(string(got), "\n\n\n") {
+		t.Fatalf("empty package contributed a blank snapshot section:\n%s", got)
+	}
 }
 
 func TestDescribe_RecordsAliasesUnexpanded(t *testing.T) {
