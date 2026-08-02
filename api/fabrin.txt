@@ -10,7 +10,9 @@
 pkg github.com/usefabrin/fabrin, const DefaultAddr untyped string = ":8080"
 pkg github.com/usefabrin/fabrin, const DefaultReadHeaderTimeout time.Duration = 10000000000
 pkg github.com/usefabrin/fabrin, const DefaultShutdownTimeout time.Duration = 15000000000
+pkg github.com/usefabrin/fabrin, func LazyModule(name string, build func(context.Context) (Module, error)) ModuleFactory
 pkg github.com/usefabrin/fabrin, func New(opts Options, modules ...Module) (*App, error)
+pkg github.com/usefabrin/fabrin, func NewFromFactories(ctx context.Context, opts Options, factories ...ModuleFactory) (*App, error)
 pkg github.com/usefabrin/fabrin, method (*App) Addr() string
 pkg github.com/usefabrin/fabrin, method (*App) Capabilities() map[string][]string
 pkg github.com/usefabrin/fabrin, method (*App) Engine() *github.com/gin-gonic/gin.Engine
@@ -39,6 +41,7 @@ pkg github.com/usefabrin/fabrin, type Modeler interface, Models() []github.com/u
 pkg github.com/usefabrin/fabrin, type Module interface
 pkg github.com/usefabrin/fabrin, type Module interface, Name() string
 pkg github.com/usefabrin/fabrin, type Module interface, Routes(r Router)
+pkg github.com/usefabrin/fabrin, type ModuleFactory struct
 pkg github.com/usefabrin/fabrin, type Options = github.com/usefabrin/fabrin/config.Options
 pkg github.com/usefabrin/fabrin, type Route struct
 pkg github.com/usefabrin/fabrin, type Route struct, Method string

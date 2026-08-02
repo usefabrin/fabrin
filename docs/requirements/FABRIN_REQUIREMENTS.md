@@ -30,6 +30,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-MODULES-1 | `Options.Modules` selects which already-constructed registered modules mount routes and optional capabilities; empty means all. It does not suppress dependency construction performed before `fabrin.New`. `fabrin/config` populates it from `FABRIN_MODULES`. | done (core) |
 | FR-MODULES-2 | A selected name matching no registered module is a startup **error**, and the error lists what *is* registered. A typo that silently serves nothing is worse than a crash, because the process passes its liveness probe while doing no work. | done |
 | FR-MODULES-3 | A module declares its dependencies as interfaces in its own package and receives them as arguments. Fabrin provides no service locator or global registry to fetch another module from. | done |
+| FR-MODULES-4 | `fabrin.NewFromFactories` validates the complete named factory catalogue and `Options.Modules` selection before invoking a builder, then builds only selected modules in factory registration order. A factory name must match the module it returns. Dependencies remain explicit, compiler-checked values captured by each builder; Fabrin introduces no service locator. | done |
 
 ## FR-CONFIG — settings
 

@@ -34,10 +34,10 @@ Tracked by [#1](https://github.com/usefabrin/fabrin/issues/1).
 - [x] `fabrin.App`, module registry, router, graceful shutdown, reverse-order
       `Stop`. (FR-CORE-1…6, CORE-001…004)
 - [x] Route/capability slicing via `Options.Modules`, unknown name is an error.
-      Construction remains caller-owned and happens before selection.
-      (FR-MODULES-1,2, MOD-001,002)
-      Lazy selection is tracked in
-      [#77](https://github.com/usefabrin/fabrin/issues/77).
+      `New` retains eager semantics; `NewFromFactories` validates before callbacks
+      and constructs only the selected set in registration order.
+      ([ADR 0004](adr/0004-module-factories-select-before-construction.md),
+      FR-MODULES-1…4, MOD-001…005, #77)
 - [x] `fabrin/config` — layered settings with provenance; owns the `Options`
       declaration the root package aliases. (FR-CONFIG-1…5, CFG-001…004)
 - [x] `fabrin/health` — `/healthz` liveness, `/readyz` failing closed,
@@ -92,8 +92,10 @@ stabilization epic's runtime, harness, orchestration, and contract corrections
 are green. Public API, ADR, security, migration, orchestration, CI, and gate
 changes require human review.
 
-Pre-v0 decisions split out of stabilization: lazy selection-before-construction
-([#77](https://github.com/usefabrin/fabrin/issues/77)), the admin CRUD/type seam
+The stabilization epic is complete. Lazy selection-before-construction is
+resolved by [#77](https://github.com/usefabrin/fabrin/issues/77) and proposed
+[ADR 0004](adr/0004-module-factories-select-before-construction.md). Remaining
+pre-v0 decisions are the admin CRUD/type seam
 ([#78](https://github.com/usefabrin/fabrin/issues/78)), provisional ORM
 constraints ([#79](https://github.com/usefabrin/fabrin/issues/79)), and the auth
 threat model ([#80](https://github.com/usefabrin/fabrin/issues/80)).

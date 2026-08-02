@@ -117,11 +117,26 @@ FABRIN_MODULES=blog,auth fabrin serve # only these two
 FABRIN_MODULES=reports fabrin serve   # the reports service
 ```
 
-Today this selects mounted routes and optional capabilities after `main` has
-already constructed every module argument. A selected-out module may therefore
-still open resources, and service extraction is not a deploy-config-only change.
-Lazy selection before construction is a separate design decision. An unknown
-module name is an error, never a silent no-op.
+Use named factories when excluded modules must not construct their dependency
+graphs:
+
+```go
+app, err := fabrin.NewFromFactories(ctx, cfg,
+    fabrin.LazyModule("blog", func(context.Context) (fabrin.Module, error) {
+        return blog.New(store), nil
+    }),
+)
+```
+
+Fabrin validates the complete catalogue and selection before invoking a builder,
+then builds only selected modules in factory registration order. `fabrin.New`
+remains the eager path for already-constructed modules. Dependencies remain
+ordinary typed Go values captured by each callback; there is no service locator.
+An unknown module name is an error, never a silent no-op.
+
+This prevents excluded modules from being constructed. It does not make service
+extraction deploy-config-only: selected modules still need their dependencies,
+and a remote adapter remains explicit wiring.
 
 **3. Swappable satisfaction.** A port satisfied in-process by a direct call can
 instead be satisfied by an HTTP client adapter. The module cannot tell the
@@ -141,7 +156,7 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `INSTALLED_APPS` | `fabrin.Module` | ✅ F0 |
+| `INSTALLED_APPS` | `fabrin.Module` values or named `ModuleFactory` values | ✅ F0 |
 | `settings.py` | `fabrin/config` (defaults ← file ← env ← flags) | ✅ F0 |
 | `runserver`, graceful shutdown | `fabrin.App.Run` | ✅ F0 |
 | System checks | `Module.Checks()` → `/readyz` | ✅ F0 |

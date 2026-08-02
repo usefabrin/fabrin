@@ -30,6 +30,8 @@ the Gin aliases proving identical in both directions.
 | MOD-001 | `FABRIN_MODULES` mounts only named modules | `module_test.go::TestNew_MountsOnlySelectedModules` |
 | MOD-002 | Unknown module name is a startup error | `module_test.go::TestNew_RejectsSelectionNamingUnregisteredModule` |
 | MOD-003 | Cross-module dependency is a locally declared interface | `examples/hello/hello_test.go::TestModules_NeverImportEachOther` |
+| MOD-004 | Factory selection happens before construction | `module_test.go::TestNewFromFactories_DoesNotBuildUnselectedModules` |
+| MOD-005 | A greet-only example never opens the orders database | `examples/hello/hello_test.go::TestSlicing_DoesNotOpenAnUnselectedModulesResources` |
 
 ## Config
 

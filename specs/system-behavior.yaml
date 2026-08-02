@@ -66,6 +66,20 @@ behaviours:
     status: implemented
     test: examples/hello/hello_test.go::TestModules_NeverImportEachOther
 
+  - id: MOD-004
+    what: NewFromFactories validates the complete named catalogue and selection before invoking any builder, then builds only selected modules in factory registration order.
+    why: Selection after construction cannot prevent excluded modules from opening dependencies; validation first prevents a bad deployment shape from partially constructing before startup fails.
+    requirement: FR-MODULES-4
+    status: implemented
+    test: module_test.go::TestNewFromFactories_DoesNotBuildUnselectedModules
+
+  - id: MOD-005
+    what: Starting the runnable hello example with only greet selected never invokes the orders database opener.
+    why: The framework-level factory test could stay green while real application wiring still opens every dependency before selection. The example proves the promised deployment shape end to end, including lifecycle startup.
+    requirement: FR-MODULES-4
+    status: implemented
+    test: examples/hello/hello_test.go::TestSlicing_DoesNotOpenAnUnselectedModulesResources
+
   # ── Config ──────────────────────────────────────────────────────────────────
   - id: CFG-001
     what: Settings resolve defaults then file then environment then flags, each layer overriding the previous.

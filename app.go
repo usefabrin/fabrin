@@ -21,8 +21,8 @@ import (
 )
 
 // Options configures an [App]. It is an ALIAS for [config.Options], not a
-// separate type, so a value from [config.Load] passes straight to [New] with no
-// mapping layer.
+// separate type, so a value from [config.Load] passes straight to [New] or
+// [NewFromFactories] with no mapping layer.
 //
 // The declaration lives in fabrin/config because the boundary rules forbid that
 // package from importing this one — settings must load from a CLI, a test, or a
@@ -51,7 +51,7 @@ const (
 // App is a Fabrin application: a set of mounted modules, an HTTP server, and the
 // lifecycle that ties them together.
 //
-// Construct one with [New] and run it with [App.Run].
+// Construct one with [New] or [NewFromFactories] and run it with [App.Run].
 type App struct {
 	opts     Options
 	registry *registry
@@ -79,7 +79,22 @@ type App struct {
 	addr string
 }
 
-// New builds an App from opts and modules.
+// NewFromFactories validates the full module catalogue, applies opts.Modules,
+// builds only the selected modules, and constructs an App from them.
+//
+// Use it when constructing a module or its dependency graph has work that an
+// excluded deployment shape must not perform. Registration order remains the
+// order of factories, never the order in opts.Modules. Existing applications
+// whose module constructors are cheap can continue to use [New].
+func NewFromFactories(ctx context.Context, opts Options, factories ...ModuleFactory) (*App, error) {
+	modules, err := buildSelectedModules(ctx, factories, opts.Modules)
+	if err != nil {
+		return nil, err
+	}
+	return New(opts, modules...)
+}
+
+// New builds an App from opts and already-constructed modules.
 //
 // It fails rather than warns when the module set cannot produce a working app:
 // no modules, an empty or duplicated module name, or a selection naming something

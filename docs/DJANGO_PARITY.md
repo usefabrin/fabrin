@@ -16,7 +16,7 @@ Status: ✅ shipped · 🚧 in progress · 📋 planned (with milestone) · ❌ 
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `INSTALLED_APPS` | `fabrin.Module` — a name plus routes; everything else optional | ✅ F0 |
+| `INSTALLED_APPS` | `fabrin.Module` — or a named `ModuleFactory` when selection must precede construction; everything else optional | ✅ F0 |
 | `settings.py` | `fabrin/config` — defaults ← file ← env ← flags, each value reporting its source | ✅ F0 |
 | `django-admin startproject` | `fabrin new` — go.mod, main, one module, justfile, README; `go mod tidy` run for you | ✅ F1 |
 | `django-admin startapp` | `fabrin startapp` — and it wires the module into `newApp`, which Django cannot do because `INSTALLED_APPS` is a list of strings | ✅ F1 |
@@ -36,8 +36,10 @@ the type system and a test constructs its own without touching the environment.
 
 Same reasoning for `INSTALLED_APPS`: Django names apps as **strings** and imports
 them by reflection, so a typo is a runtime `ImportError` and no tool can find an
-app's usages. Fabrin's modules are **values in a slice** — the compiler checks
-them, and jump-to-definition works.
+app's usages. Fabrin's modules are values in a slice: either eagerly constructed
+`Module` values or named `ModuleFactory` values whose callbacks capture typed
+dependencies. Names and selections are validated at startup, while the compiler
+still checks the module and every dependency; jump-to-definition still works.
 
 ## Models and the database
 
@@ -217,7 +219,7 @@ Not parity — the reason a Go framework can be worth building.
 
 | Capability | Why it matters |
 |---|---|
-| **Route/capability slicing** — `FABRIN_MODULES=blog,auth` | One binary, N mounted shapes after construction. It does not suppress resources opened before `fabrin.New`, and remote extraction still changes wiring. Django has no direct equivalent. |
+| **Construction and capability slicing** — `FABRIN_MODULES=blog,auth` | One binary, N shapes. `NewFromFactories` validates first and builds only selected modules; `New` remains eager. Remote extraction still changes wiring. Django has no direct equivalent. |
 | **Ports, not imports** | A module declares the interface it needs, so it is extractable by construction. Django apps import each other's models freely, which is why "extract this app into a service" is a rewrite. |
 | **A single static binary** | Go can embed the planned admin, templates, and static assets; those batteries are not implemented yet. Avoiding a user-facing JS build step is the design constraint. |
 | **A checked public API surface** | `api/fabrin.txt` plus a gate. Django's public/private boundary is documentation and convention. |

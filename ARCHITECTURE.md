@@ -141,7 +141,7 @@ information, so `apicheck` enforces it and depguard does not.
 
 ## Modules — Fabrin's `INSTALLED_APPS`
 
-The required interface is one method. Everything else is an **optional**
+The required interface is two methods. Everything else is an **optional**
 interface, type-asserted at registration, so a module pays only for what it uses:
 
 ```go
@@ -164,10 +164,11 @@ no resources should not have to write an empty `Start`. The cost is that a typo
 in a method name means the interface silently is not satisfied — which is why the
 registry logs which optional interfaces each module matched.
 
-Lifecycle order is caller-owned. Fabrin starts in the order passed to `New` and
-stops in reverse; it has no dependency metadata or topological sorter. Reverse
-order is useful only when `main` registers consumers after the resources they
-need, so wiring code and tests must make that order explicit.
+Lifecycle order is caller-owned. Fabrin starts in the order passed to `New`, or
+the order of factories passed to `NewFromFactories`, and stops in reverse; it has
+no dependency metadata or topological sorter. Reverse order is useful only when
+`main` registers consumers after the resources they need, so wiring code and
+tests must make that order explicit.
 
 ## Ports, not imports
 
@@ -184,7 +185,14 @@ func New(clock Clock) *Blog { return &Blog{clock: clock} }
 ```go
 // main.go — the only place that knows both sides exist
 clock := systemClock{}
-app, err := fabrin.New(cfg, blog.New(clock), reports.New(clock))
+app, err := fabrin.NewFromFactories(ctx, cfg,
+    fabrin.LazyModule("blog", func(context.Context) (fabrin.Module, error) {
+        return blog.New(clock), nil
+    }),
+    fabrin.LazyModule("reports", func(context.Context) (fabrin.Module, error) {
+        return reports.New(clock), nil
+    }),
+)
 ```
 
 That interface is the **extraction seam**. Nothing in `blog` changes when its
@@ -210,12 +218,18 @@ FABRIN_MODULES=blog,auth fabrin serve  # the web tier
 FABRIN_MODULES=reports fabrin serve    # the reports service
 ```
 
-One binary can expose N route/capability shapes. Selection happens in
-`fabrin.New`, after `main` has constructed the module arguments. A selected-out
-module may therefore already have opened resources, and changing an in-process
-port to a remote one still changes wiring. Lazy selection-before-construction is
-a separate pre-v0 design decision, not behavior the current API claims. An
-unknown module name is an **error**, never a silent no-op.
+One binary can expose N route/capability shapes. `fabrin.New` retains eager
+semantics for already-constructed modules. `fabrin.NewFromFactories` first
+validates the complete named catalogue and selection, then constructs only the
+selected modules in factory registration order. Unknown and duplicate names
+fail before any builder runs. Dependencies stay explicit in typed closures; no
+service locator or dependency graph is introduced. Long-lived I/O belongs in
+`Lifecycle.Start`, where Fabrin can unwind it. See
+[ADR 0004](docs/adr/0004-module-factories-select-before-construction.md).
+
+This suppresses construction of excluded modules, but it does not make service
+extraction deploy-only. A selected module still constructs the dependencies it
+needs, and changing an in-process port to a remote one still changes wiring.
 
 **3. Swappable satisfaction.** A port satisfied in-process by a direct call can
 instead be satisfied by an HTTP client adapter. The module cannot tell, and its

@@ -59,8 +59,9 @@ client adapter here and changing nothing in `greet`.
 
 ## 2. Process slicing
 
-`FABRIN_MODULES=greet` mounts only `greet`. `/time` is not a handler returning
-404 — the route is **never registered**, which `routes` shows directly:
+`FABRIN_MODULES=greet` builds and mounts only `greet`. `/time` is not a handler
+returning 404 — the route is **never registered** — and the `orders` database
+opener is never invoked. `routes` shows the mounted half directly:
 
 ```console
 $ go run ./examples/hello routes
@@ -105,9 +106,11 @@ interface the consuming module declares for itself — the same shape as `Clock`
 above, one layer down. Swapping SQLite for Postgres, for GORM, or for an HTTP
 call to a service that owns orders is a change in `main.go` and nowhere else.
 
-`main.go` is the only file that names SQL. It opens SQLite, runs a `migrate.M` to
-create the table, and translates `sql.ErrNoRows` into `orders.ErrNotFound` at
-that boundary — so the module answers 404 without importing `database/sql` to
+`main.go` is the only file that names SQL. The selected `orders` factory builds
+the typed store and module without opening a connection. Its `Lifecycle.Start`
+opens SQLite and runs a `migrate.M` to create the table; `Lifecycle.Stop` closes
+it. The store translates `sql.ErrNoRows` into `orders.ErrNotFound` at that
+boundary — so the module answers 404 without importing `database/sql` to
 recognise the error, which is the difference between a port and an indirection.
 
 There are **two** implementations of that one interface — `main`'s SQLite store
@@ -130,6 +133,7 @@ much as the app is:
 | `TestOrders_ImportsNoDatabaseHandleNorAnythingOutsideFabrin` | the same trick for the data port: `orders` names no ORM, no driver, and not `database/sql`. An **allowlist** — standard library plus Fabrin — rather than a deny list, because "no ORM" is a claim about every ORM there will ever be |
 | `TestSlicing_MountsOnlyTheSelectedModule` | `/greet` 200, `/time` 404 under a selection |
 | `TestSlicing_RejectsAnUnknownModuleName` | a typo'd selection fails at construction, never silently serving nothing |
+| `TestSlicing_DoesNotOpenAnUnselectedModulesResources` | the greet-only shape reaches lifecycle startup without invoking the orders database opener |
 | `TestOrders_RoundTripsAnOrderThroughTheStoreMainWiredIn` | POST then GET against whatever `main` opened. Two requests, not one: the second can only answer if the first reached storage that outlives a request, which an echo cannot fake |
 | `orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven` | the *same* module answering the same requests against a map, with no database anywhere. The in-memory store counts its writes, because a response body cannot distinguish a handler that went through the port from one that echoed the request back |
 | `TestOrders_DeclaresTheTableItOwnsSoAGeneratorHasSomethingToDiff` | `App.Models()` attributes a table to `orders`, so `makemigrations` will have something to diff |

@@ -44,6 +44,31 @@ type Module interface {
 	Routes(r Router)
 }
 
+// ModuleFactory is an immutable, named module construction plan.
+//
+// Its fields are private so the representation can evolve without breaking
+// callers. Create values with [LazyModule] and pass them to
+// [NewFromFactories]. The zero value is invalid.
+type ModuleFactory struct {
+	name  string
+	build func(context.Context) (Module, error)
+}
+
+// LazyModule declares how to build one named module after process selection.
+//
+// build runs exactly once when name is selected, and not at all when it is not.
+// It receives the construction context and must return a module whose [Module.Name]
+// matches name. Dependencies stay explicit and compile-time checked by capturing
+// typed values or constructors in build; Fabrin provides no service locator.
+//
+// Long-lived I/O belongs in [Lifecycle.Start], not build. That keeps an error
+// from a later factory or from [New] from leaking a resource that no App owns.
+// Validation is deferred to [NewFromFactories] so all wiring failures follow the
+// same error-returning construction path.
+func LazyModule(name string, build func(context.Context) (Module, error)) ModuleFactory {
+	return ModuleFactory{name: name, build: build}
+}
+
 // Checker is an optional [Module] interface for a module that has a dependency
 // whose availability decides whether this process should receive traffic.
 //
@@ -91,9 +116,10 @@ type Lifecycle interface {
 	Stop(ctx context.Context) error
 }
 
-// Errors returned by [New] and [App.Run]. They are sentinels so callers can
-// branch on them with errors.Is rather than matching message text — a caller
-// matching on a string is a caller broken by editing that string.
+// Errors returned by [New], [NewFromFactories], and [App.Run]. They are
+// sentinels so callers can branch on them with errors.Is rather than matching
+// message text — a caller matching on a string is a caller broken by editing
+// that string.
 var (
 	// ErrDuplicateModule means two modules claim the same name, which would make
 	// one module's routes silently shadow the other's.
@@ -102,8 +128,8 @@ var (
 	// ErrUnknownModule means a module selection named something not registered.
 	ErrUnknownModule = errors.New("fabrin: unknown module in selection")
 
-	// ErrNoModules means no modules were passed to New, so the app would serve
-	// nothing.
+	// ErrNoModules means no modules or module factories were passed to an App
+	// constructor, so the app would serve nothing.
 	ErrNoModules = errors.New("fabrin: no modules registered")
 
 	// ErrAlreadyRunning means Run was called on an app that is already serving.
@@ -161,6 +187,54 @@ func newRegistry(modules []Module, selection []string) (*registry, error) {
 		r.capabilities[name] = capabilitiesOf(m)
 	}
 	return r, nil
+}
+
+// buildSelectedModules validates the complete factory catalogue before it
+// invokes anything, then builds the selected set in caller-supplied registration
+// order. Validation first is load-bearing: a typo must not partially open a
+// deployment shape before startup fails.
+func buildSelectedModules(ctx context.Context, factories []ModuleFactory, selection []string) ([]Module, error) {
+	if len(factories) == 0 {
+		return nil, ErrNoModules
+	}
+
+	byName := make(map[string]ModuleFactory, len(factories))
+	order := make([]string, 0, len(factories))
+	for i, factory := range factories {
+		name := factory.name
+		if strings.TrimSpace(name) == "" {
+			return nil, fmt.Errorf("fabrin: module factory at position %d has an empty name: it could not be selected by FABRIN_MODULES", i)
+		}
+		if factory.build == nil {
+			return nil, fmt.Errorf("fabrin: module factory %q has no build function", name)
+		}
+		if _, dup := byName[name]; dup {
+			return nil, fmt.Errorf("%w: factory %q registered twice", ErrDuplicateModule, name)
+		}
+		byName[name] = factory
+		order = append(order, name)
+	}
+
+	wanted, err := resolveSelection(order, selection)
+	if err != nil {
+		return nil, err
+	}
+
+	modules := make([]Module, 0, len(wanted))
+	for _, name := range wanted {
+		module, err := byName[name].build(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("fabrin: build module %q: %w", name, err)
+		}
+		if module == nil {
+			return nil, fmt.Errorf("fabrin: module factory %q returned nil", name)
+		}
+		if got := module.Name(); got != name {
+			return nil, fmt.Errorf("fabrin: module factory %q returned module named %q", name, got)
+		}
+		modules = append(modules, module)
+	}
+	return modules, nil
 }
 
 // resolveSelection returns the module names to mount, in registration order.

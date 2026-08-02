@@ -37,6 +37,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Selection-before-construction module factories.** The new opaque
+  `fabrin.ModuleFactory`, `fabrin.LazyModule`, and
+  `fabrin.NewFromFactories` API validates the full named catalogue and selection
+  before callbacks run, then builds only selected modules in registration order.
+  `fabrin.New` remains the eager, source-compatible path. Typed closures keep
+  dependency wiring compiler-checked; Fabrin introduces no service locator, and
+  owned I/O stays in `Lifecycle.Start` so startup can unwind it. The runnable
+  hello example proves a greet-only process never invokes the orders database
+  opener. ([ADR 0004], [#77])
 - **Platform-local multi-agent orchestration.** `docs/agents/` is the canonical
   contract for Lead authority, risk-based fan-out, isolated path ownership,
   serialized integration, task/result packets, and high-risk human review.
@@ -977,6 +986,8 @@ Added — package `fabrin`:
 [#74]: https://github.com/usefabrin/fabrin/issues/74
 [#75]: https://github.com/usefabrin/fabrin/issues/75
 [#76]: https://github.com/usefabrin/fabrin/issues/76
+[#77]: https://github.com/usefabrin/fabrin/issues/77
+[ADR 0004]: docs/adr/0004-module-factories-select-before-construction.md
 [#41]: https://github.com/usefabrin/fabrin/issues/41
 [ADR 0003]: docs/adr/0003-migrations-take-a-handle-not-a-transaction.md
 [#12]: https://github.com/usefabrin/fabrin/pull/12

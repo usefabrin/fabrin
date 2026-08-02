@@ -235,11 +235,14 @@ mechanisms, and no more:
 1. **Ports, not imports** (hard rule 3). The interface a module declares for its
    dependency *is* the extraction seam.
 2. **Process slicing.** `FABRIN_MODULES=blog,auth` mounts routes and optional
-   capabilities only for the named modules. Selection currently happens inside
-   `fabrin.New`, after the application has constructed the module arguments and
-   their dependencies. It does **not** prevent a selected-out module's resources
-   from being opened by `main`, and is not by itself a deploy-only extraction.
-   An unknown module name is an error, never a silent no-op.
+   capabilities only for the named modules. `fabrin.New` keeps eager semantics
+   for already-constructed modules. `fabrin.NewFromFactories` validates the
+   complete named catalogue and selection before invoking a builder, then builds
+   only selected modules in factory registration order. Dependencies remain
+   explicit typed closure captures; Fabrin adds no service locator. Long-lived
+   I/O belongs in `Lifecycle.Start`. This prevents selected-out modules from
+   constructing resources, but is not by itself deploy-only extraction. An
+   unknown module name is an error, never a silent no-op.
 3. **Swappable satisfaction.** A port satisfied in-process by a direct call can
    instead be satisfied by an HTTP client adapter; the signals bus is in-process
    by default and swappable. The module cannot tell the difference.
