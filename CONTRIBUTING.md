@@ -143,15 +143,17 @@ suite could not have caught: a package in the manifest with nothing recorded.
   `go.mod` is there for this package's own tests **and** for `examples/hello`,
   which is an application and therefore the place a driver belongs. The
   `!**/*_test.go` exclusion is what keeps it out of the shipped engine.
-- `migratediff` records **no deny rules yet**, because it currently exports
-  nothing: it is a private vertical proving the schema differ and DDL emitters
-  before that API freezes (#57), on the same terms as the admin proof
-  ([ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md)). It reads `orm`
-  metadata by design — which is also why it lives at the repository root rather
-  than under `internal/`, whose boundary forbids sibling imports. When #59
-  graduates a public seam, its dependency directions get real rules rather than
-  guesses from one proof. (`pgx` reaches consumers' `go.sum` through this
-  package's tests alone, measured in the CHANGELOG like its sqlite predecessor.)
+- `migratediff` must not import the root package (`$`-exact deny — `orm` is
+  allowed deliberately, because reading model metadata is its whole job, which
+  is also why it lives at the repository root rather than under `internal/`),
+  nor Gin or `net/http`. It graduated from the admin-proof terms of
+  [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md) in #59, when
+  `makemigrations` became its first consumer: hiding the differ from users would
+  have meant shipping two differ APIs. The command wiring lives in root, so the
+  dependency runs root → migratediff; reversing it would weld the differ to the
+  framework it exists to stay describable beside. (`pgx` reaches consumers'
+  `go.sum` through this package's tests alone, measured in the CHANGELOG like
+  its sqlite predecessor.)
 - `internal/**` must not import the root package.
 
 `fabrin/cli` is a leaf for a concrete reason: the root package imports it to

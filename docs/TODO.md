@@ -158,8 +158,16 @@ pre-v0 decisions are provisional ORM constraints
       first, sliced processes refuse, and a missing database names `Options.DB`.
       Still open: `makemigrations` generating files into module directories plus
       the on-disk format. (FR-ORM-4, [#59](https://github.com/usefabrin/fabrin/issues/59))
-- [ ] `fabrin makemigrations`, migrations as files on disk. The engine takes them
-      as values; nothing reads a directory yet. (FR-ORM-4)
+- [x] `fabrin makemigrations` as `./myapp makemigrations`, and migrations as
+      files on disk: `<module>/migrations/<version>_<name>.go` plus `.state.json`
+      sidecars in the #56 codec, an ordered manifest (hand-written entries carry
+      no state and are carried forward), and a generated `all.go` the module's
+      `Migrator` returns. One migration per changed module with distinct
+      versions; unchanged projects say "no changes" and rewrite nothing;
+      corrupted records fail naming their file. The `migratediff` seam graduated
+      to public here — #59 consuming it was ADR 0005's anticipated moment.
+      Remaining F2: transactions/pooling config. (FR-ORM-4, MIG-033…038,
+      [#59](https://github.com/usefabrin/fabrin/issues/59))
 - [~] Duplicate-version gate — two branches claiming one version is a matter of
       when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)
 

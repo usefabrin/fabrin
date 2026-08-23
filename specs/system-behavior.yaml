@@ -609,6 +609,47 @@ behaviours:
     requirement: FR-ORM-4
     status: implemented
     test: migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced
+  - id: MIG-033
+    what: makemigrations writes one migration per changed module into that module's migrations directory - a Go file whose filename prefix is its version (fixed-width timestamp), a state sidecar in the #56 codec recording the full schema the version yields, a manifest ordering them, and a generated all.go aggregating what the module's Migrator returns.
+    why: The on-disk format everything downstream waits for. Filename-equals-version makes the duplicate-version gate readable without compiling; the sidecar being DATA means a non-compiling branch still diffs; regenerating all.go from the manifest rather than scanning source cannot silently lose a hand-written migration.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsGeneratesFilesForANewTable
+
+  - id: MIG-034
+    what: Running makemigrations on an unchanged project says "no changes" and rewrites no files.
+    why: An empty diff is the normal case on a redeploy. A generator that rewrote files on every run produces spurious review noise until somebody stops reading it - which is how a real change eventually ships unnoticed.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsTwiceSaysNoChanges
+
+  - id: MIG-035
+    what: Recorded state that exists but does not parse fails makemigrations loudly, wrapping orm.ErrBadState and naming the file.
+    why: A corrupted record must never become a silently empty "before" - that is the create-everything-against-a-live-schema disaster, and it is discovered at deploy time unless it fails at generation time.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsRefusesUnparsableRecordedState
+
+  - id: MIG-036
+    what: A hand-written migration - registered in the manifest with NO state file - carries the last known state forward, so the next generated diff runs against reality instead of against nothing.
+    why: Fabrin has no operation vocabulary to fold free-form SQL into schema state; refusing such chains would make hand-written and generated migrations unable to coexist. The test also pins the failure mode of getting this wrong - recreating existing tables.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsCarriesHandWrittenStepsForward
+
+  - id: MIG-037
+    what: When two modules change in one run, each gets its own migration file and its own distinct version.
+    why: Ownership comes free from the registry, one file per owner keeps review attributable, and two files claiming one version would be rejected by the engine the engine rejects duplicates - each file's Down must be undoable on its own anyway.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration
+
+  - id: MIG-038
+    what: makemigrations refuses outright when the process is sliced by FABRIN_MODULES, naming registered versus mounted.
+    why: Same refusal as migrate, sharper consequence here - a subset diff would propose DROPPING every table whose module was selected out. Route selection is never schema selection.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced
 
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.

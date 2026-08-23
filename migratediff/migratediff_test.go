@@ -42,20 +42,20 @@ func ordersModel() orm.Model {
 
 // opKinds reduces a diff to "create orders / addcol orders.total / ..." so the
 // table-driven tests assert shape without spelling out rendered SQL.
-func opKinds(ops []operation) []string {
+func opKinds(ops []Operation) []string {
 	out := make([]string, 0, len(ops))
 	for _, op := range ops {
 		switch o := op.(type) {
-		case createTable:
-			out = append(out, "create "+o.model.Table)
-		case dropTable:
-			out = append(out, "drop "+o.table)
-		case addColumn:
-			out = append(out, "addcol "+o.table+"."+o.field.Name)
-		case dropColumn:
-			out = append(out, "dropcol "+o.table+"."+o.column)
-		case changeType:
-			out = append(out, "retype "+o.table+"."+o.column)
+		case CreateTable:
+			out = append(out, "create "+o.Model.Table)
+		case DropTable:
+			out = append(out, "drop "+o.Table)
+		case AddColumn:
+			out = append(out, "addcol "+o.Table+"."+o.Field.Name)
+		case DropColumn:
+			out = append(out, "dropcol "+o.Table+"."+o.Column)
+		case ChangeType:
+			out = append(out, "retype "+o.Table+"."+o.Column)
 		default:
 			out = append(out, "?")
 		}
@@ -156,7 +156,7 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 			before := mustSnap(t, tc.before...)
 			after := mustSnap(t, tc.after...)
 
-			got := diff(before, after)
+			got := Diff(before, after)
 			if strings.Join(opKinds(got), ",") != strings.Join(tc.want, ",") {
 				t.Errorf("diff = %v, want %v", opKinds(got), tc.want)
 			}
@@ -174,7 +174,7 @@ func TestDiff_EmitsNothingWhenStatesAgree(t *testing.T) {
 		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
 	})
 
-	if got := diff(snap, snap); len(got) != 0 {
+	if got := Diff(snap, snap); len(got) != 0 {
 		t.Errorf("a state diffed against itself produced %d ops: %v", len(got), opKinds(got))
 	}
 }
@@ -204,8 +204,8 @@ func TestDiff_IsDeterministicAndOrdersItsOps(t *testing.T) {
 		orm.Model{Table: "invoices", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
 	)
 
-	first := opKinds(diff(before, after))
-	second := opKinds(diff(before, after))
+	first := opKinds(Diff(before, after))
+	second := opKinds(Diff(before, after))
 	if strings.Join(first, "|") != strings.Join(second, "|") {
 		t.Errorf("two diffs of one pair differ:\n%v\n%v", first, second)
 	}
@@ -241,7 +241,7 @@ func TestDiff_TreatsAReorderedFieldListAsNoChange(t *testing.T) {
 	}
 	b := mustSnap(t, reordered)
 
-	if got := diff(a, b); len(got) != 0 {
+	if got := Diff(a, b); len(got) != 0 {
 		t.Errorf("a pure field reorder produced %d ops: %v", len(got), opKinds(got))
 	}
 }
@@ -249,7 +249,7 @@ func TestDiff_TreatsAReorderedFieldListAsNoChange(t *testing.T) {
 func TestSQLite_CreatesTablesThatAcceptRows(t *testing.T) {
 	t.Parallel()
 
-	// Emitted DDL is tested against a real database, not eyeballed: a dialect
+	// Emitted DDL is tested against a real database, not eyeballed: a Dialect
 	// that renders plausible SQL nobody's server accepts is worse than none.
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -258,8 +258,8 @@ func TestSQLite_CreatesTablesThatAcceptRows(t *testing.T) {
 	defer func() { _ = db.Close() }()
 
 	snap := mustSnap(t, ordersModel())
-	ops := diff(mustSnap(t), snap)
-	if err := apply(context.Background(), db, sqliteDialect{}, ops); err != nil {
+	ops := Diff(mustSnap(t), snap)
+	if err := Apply(context.Background(), db, SQLite{}, ops); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 
@@ -278,28 +278,28 @@ func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 	// SQLite cannot alter or drop a column in place; the honest options are the
 	// table-rebuild dance or a stated refusal. This iteration refuses, naming
 	// what it will not do — emitting SQL that fails halfway through a live
-	// migration is the worst place to discover a dialect limit.
+	// migration is the worst place to discover a Dialect limit.
 	dropErr := func() error {
-		_, err := dropColumn{table: "orders", column: "reference"}.render(sqliteDialect{})
+		_, err := DropColumn{Table: "orders", Column: "reference"}.Render(SQLite{})
 		return err
 	}()
-	if !errors.Is(dropErr, errUnsupported) {
-		t.Errorf("dropColumn: got %v, want errUnsupported", dropErr)
+	if !errors.Is(dropErr, ErrUnsupported) {
+		t.Errorf("DropColumn: got %v, want ErrUnsupported", dropErr)
 	}
 	retypeErr := func() error {
-		_, err := changeType{
-			table:  "orders",
-			column: "reference",
-			to:     orm.Field{Name: "reference", Type: orm.Int},
-		}.render(sqliteDialect{})
+		_, err := ChangeType{
+			Table:  "orders",
+			Column: "reference",
+			To:     orm.Field{Name: "reference", Type: orm.Int},
+		}.Render(SQLite{})
 		return err
 	}()
-	if !errors.Is(retypeErr, errUnsupported) {
-		t.Errorf("changeType: got %v, want errUnsupported", retypeErr)
+	if !errors.Is(retypeErr, ErrUnsupported) {
+		t.Errorf("ChangeType: got %v, want ErrUnsupported", retypeErr)
 	}
 	for _, err := range []error{dropErr, retypeErr} {
 		if !strings.Contains(err.Error(), "QLite") {
-			t.Errorf("the refusal should name the dialect, got: %v", err)
+			t.Errorf("the refusal should name the Dialect, got: %v", err)
 		}
 	}
 }
@@ -325,7 +325,7 @@ func TestPostgres_RendersDDLThatALiveServerAccepts(t *testing.T) {
 
 	before := mustSnap(t)
 	after := mustSnap(t, ordersModel())
-	if err := apply(context.Background(), db, postgresDialect{}, diff(before, after)); err != nil {
+	if err := Apply(context.Background(), db, Postgres{}, Diff(before, after)); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -336,8 +336,8 @@ func TestPostgres_RendersDDLThatALiveServerAccepts(t *testing.T) {
 		m.Fields = append(m.Fields, orm.Field{Name: "total", Type: orm.Float})
 		return m
 	}())
-	if err := apply(context.Background(), db, postgresDialect{}, diff(after, added)); err != nil {
-		t.Fatalf("add column: %v", err)
+	if err := Apply(context.Background(), db, Postgres{}, Diff(after, added)); err != nil {
+		t.Fatalf("add Column: %v", err)
 	}
 
 	var dataType string
@@ -355,7 +355,7 @@ func TestDataLossIsStatedInTheEmittedSQL(t *testing.T) {
 	// Dropping a column destroys whatever it held, and that is exactly the one
 	// line a reviewer must not skim past. It rides in the emitted SQL itself,
 	// where the migration file carries it, rather than in a log nobody diffs.
-	stmt, err := dropColumn{table: "orders", column: "reference"}.render(postgresDialect{})
+	stmt, err := DropColumn{Table: "orders", Column: "reference"}.Render(Postgres{})
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}

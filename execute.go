@@ -154,6 +154,7 @@ func (a *App) builtins() []cli.Command {
 			Run:   func(_ context.Context, out io.Writer, _ []string) error { return a.printRoutes(out) },
 		},
 		migrateCommand(a),
+		makemigrationsCommand(a),
 		{
 			Name:  "version",
 			Short: "print the Fabrin version this binary was built against",

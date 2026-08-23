@@ -297,6 +297,12 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-030 | `migrate` applies pending, prints what ran, says "up to date" on nothing | `migrator_test.go::TestExecute_MigrateAppliesPendingMigrationsAndSaysSo` |
 | MIG-031 | `-to` moves forward or rolls back to an exclusive target, direction stated first | `migrator_test.go::TestExecute_MigrateToRollsBackToAnExclusiveTarget` |
 | MIG-032 | Migration commands refuse on a sliced process, naming registered vs mounted | `migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced` |
+| MIG-033 | `makemigrations` writes per-module Go + state + manifest + generated `all.go` | `makemigrations_test.go::TestExecute_MakemigrationsGeneratesFilesForANewTable` |
+| MIG-034 | Unchanged project: "no changes", no files rewritten | `makemigrations_test.go::TestExecute_MakemigrationsTwiceSaysNoChanges` |
+| MIG-035 | Corrupt recorded state fails naming the file, wrapping `ErrBadState` | `makemigrations_test.go::TestExecute_MakemigrationsRefusesUnparsableRecordedState` |
+| MIG-036 | Hand-written steps carry the last known state forward | `makemigrations_test.go::TestExecute_MakemigrationsCarriesHandWrittenStepsForward` |
+| MIG-037 | Two changed modules → two files, two distinct versions | `makemigrations_test.go::TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration` |
+| MIG-038 | `makemigrations` refuses on a sliced process | `makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
@@ -314,9 +320,29 @@ whose module was selected out.
 
 `migrate -to` decides direction by reading the applied-state table through
 `migrate.Ensure` + a plain SELECT before anything runs; every mutation still
-goes through the engine, which owns the transactional guarantees. Forward-to
+goes through the engine, which owns the transactional guarantees. 
+Forward-to
 filters the subset at or below the target and hands it to `Run` unchanged — no
 new engine mode, so MIG-003's ordering and idempotence guarantees apply as-is.
+
+MIG-033…038 complete #59's second slice: the generator and the on-disk format.
+The format's load-bearing property is that **everything downstream can read it
+without compiling** — filename prefix equals version (what #55's gate will
+check), and the state sidecar is data in the #56 codec. `all.go` is regenerated
+from the manifest rather than scanned from source, so regeneration cannot
+silently drop a hand-written migration; MIG-036 pins the carry-forward rule that
+makes hand-written and generated migrations able to mix at all.
+
+Two graduation notes. The `migratediff` seam went public here (#59 consuming it
+is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact
+depguard deny pinning root-import out while leaving the orm import in — the
+mutation check for THAT gate surfaced as an import-cycle typecheck error, since
+root already imports migratediff; the depguard rule stands as documentation and
+backstop. And SQLite's stated refusal met its limit honestly: an `Up` with a
+drop/retype still refuses generation ("hand-write this migration"), but a
+generated DOWN whose inverse hits the refusal falls back to the plain statement
+with the caveat riding in the file — without that fallback even adding a column
+would be ungeneratable, since its rollback is a column drop.
 
 MIG-011…018 are the recorded-state mechanism
 ([#56](https://github.com/usefabrin/fabrin/issues/56)): the "before" that
