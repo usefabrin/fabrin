@@ -11,5 +11,6 @@ cli
 config
 health
 logging
+migratediff
 migrate
 orm

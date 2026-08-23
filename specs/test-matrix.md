@@ -283,6 +283,14 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-016 | Parsed state is revalidated through registration's rules | `orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads` |
 | MIG-017 | Replay carries hand-written steps forward, starts empty, reconstructs identically | `orm/state_test.go::TestReplayState_IsDeterministicAndCarriesHandWrittenStepsForward` |
 | MIG-018 | A replay chain with repeating, descending, or empty versions is rejected | `orm/state_test.go::TestReplayState_RejectsBrokenSequences` |
+| MIG-019 | The differ detects new/dropped tables, added/dropped fields, type and length changes | `migratediff/migratediff_test.go::TestDiff_DetectsEachShapeOfChange` |
+| MIG-020 | Diffing a state against itself emits nothing | `migratediff/migratediff_test.go::TestDiff_EmitsNothingWhenStatesAgree` |
+| MIG-021 | Deterministic op order — creates, alterations, drops last | `migratediff/migratediff_test.go::TestDiff_IsDeterministicAndOrdersItsOps` |
+| MIG-022 | A pure field reorder produces no operations | `migratediff/migratediff_test.go::TestDiff_TreatsAReorderedFieldListAsNoChange` |
+| MIG-023 | SQLite DDL executes against a real database and accepts rows | `migratediff/migratediff_test.go::TestSQLite_CreatesTablesThatAcceptRows` |
+| MIG-024 | SQLite refuses drop/retype with a stated error before anything runs | `migratediff/migratediff_test.go::TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors` |
+| MIG-025 | PostgreSQL verified live when `FABRIN_TEST_PG_DSN` is set; skipped **with a notice** otherwise | `migratediff/migratediff_test.go::TestPostgres_RendersDDLThatALiveServerAccepts` |
+| MIG-026 | A dropped column's SQL carries its data-loss warning naming the column | `migratediff/migratediff_test.go::TestDataLossIsStatedInTheEmittedSQL` |
 
 MIG-011…018 are the recorded-state mechanism
 ([#56](https://github.com/usefabrin/fabrin/issues/56)): the "before" that
@@ -308,6 +316,31 @@ runs against: a key this version does not understand would be silently dropped,
 and the next generated migration would diff against an impoverished schema.
 Unknown-key rejection plus MIG-016's revalidation means anything that parses can
 be trusted as far as anything registered directly.
+
+MIG-019…026 are the differ half of the generator (#57), proved in package
+`migratediff` under the same terms as the admin proof (ADR 0005): the package
+**exports nothing**, so nothing here is a public promise while the right seam
+shape is still being discovered. It lives at the root rather than `internal/`
+because `internal/`'s boundary forbids sibling imports and this package exists
+to read `orm` metadata. Nullability detection is deliberately absent — the
+provisional flags are withheld from recorded state (MIG-013) until #79 decides
+them, so a "changed nullability" operation cannot exist honestly yet.
+
+Two dialects ship together on purpose. SQLite keeps the gate hermetic
+(MIG-023 runs against an in-process database); PostgreSQL is what people deploy,
+and MIG-025 skips with a notice rather than passing silently when no DSN is
+configured — the skip is visible in verbose output, so an always-skipped check
+cannot masquerade as green forever. MIG-024's refusal is the honest half of
+SQLite support: emitting drop/retype SQL that fails mid-migration is the worst
+place to learn a dialect limit, so the refusal names itself before anything
+executes. The table-rebuild dance that would un-refuse it needs multi-statement
+operations, which is #59's decision to make deliberately.
+
+The pgx driver enters `go.mod` as a test-only dependency for MIG-025, measured
+like its sqlite predecessor: `go list -deps .` reaches zero `jackc/*` modules;
+only `-test` reach does (16). Without it, a configured DSN would skip on
+"unknown driver" and the live check could never truly run — which is exactly the
+silently-never-passing outcome this row forbids.
 
 MIG-010 is a type widening, so its tests read the **shape** of `M`'s fields by
 reflection rather than exercising a behaviour: the load-bearing half of ADR 0003

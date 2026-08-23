@@ -49,6 +49,8 @@ still checks the module and every dependency; jump-to-definition still works.
 | Models found by importing each app in `INSTALLED_APPS` | `Modeler` on a module — models are handed over, never scanned for | ✅ F2 |
 | `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` — the engine and the recorded-state mechanism exist; the commands and on-disk files do not yet | 🚧 F2 |
 | Each migration serializes the model state it produces; `makemigrations` reconstructs "before" by replaying them | `orm.Snapshot` + `ReplayState` — deterministic JSON codec, provisional flags withheld, hand-written steps carry the last known state forward | ✅ F2 (mechanism) / 📋 F2 (files) |
+| The migration autodetector (`django.db.migrations.autodetector`) | `migratediff` — schema differ plus SQLite/PostgreSQL DDL emitters; exports nothing yet, proved private under ADR 0005's terms; nullability detection waits on #79 | 🚧 F2 |
+| Database-specific SQL generation (`django.db.backends.*` SchemaEditor) | One `dialect` interface with two implementations from day one — SQLite keeps CI hermetic, PostgreSQL is what people deploy | ✅ F2 (private proof) / 📋 F2 (public seam) |
 | `migrations.RunPython` / reversible `RunSQL` | `M.Up` / `M.Down`, both `func(ctx, migrate.Handle) error` — and `Down` is **required**, where Django's is optional | ✅ F2 |
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
