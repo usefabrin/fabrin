@@ -393,6 +393,20 @@ behaviours:
     status: implemented
     test: examples/hello/orders/orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven
 
+  - id: ORM-012
+    what: A primary key marked Nullable is rejected at registration - primary keys are NOT NULL by definition.
+    why: The two flags on one column contradict each other, and every dialect would either ignore one or refuse - a mystery in the most expensive available place. Part of #79 deciding the provisional flags (ADR 0006): columns are NOT NULL unless Nullable opts out, so the combination became expressible and therefore had to become impossible.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate
+
+  - id: ORM-013
+    what: A field both Unique and Index is rejected at registration - UNIQUE already implies an index on every database Fabrin renders for.
+    why: Accepting it would freeze redundant DDL into generated migrations forever, presented as a tuning hint when it is a misunderstanding. Same decision, same ADR.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate
+
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001
     what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.

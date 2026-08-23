@@ -207,19 +207,13 @@ breaking afterwards, so it needs an answer rather than a discovery.
       saying the dynamic type is not part of the contract, not the interface.
       ([ADR 0003](adr/0003-migrations-take-a-handle-not-a-transaction.md), #67,
       FR-ORM-4, MIG-010)
-- [ ] **Three `orm.Field` fields have no semantics.** `Nullable`, `Unique` and
-      `Index` are exported and read by nothing — not `validate`, not `clone`.
-      There is no answer to whether `Index: true` on a `Unique: true` field is
-      redundant or additive, and after v0.1 the answer has to stay compatible
-      with whatever users assumed. Either give them meaning in the generator
-      (#57) or withhold them until it needs them.
-
-      Related: `validate` rejects composite keys today, so when they land they
-      need `Model.PrimaryKey []string` — leaving two permanent ways to say the
-      same thing, with `Field.PrimaryKey` unable to express the composite case.
-      Same for multi-column `UNIQUE` and named indexes. Resolve the representation
-      intentionally rather than assuming an exported struct can grow for free.
-      ([#79](https://github.com/usefabrin/fabrin/issues/79), FR-ORM-1)
+- [~] **Three `orm.Field` fields have no semantics.** DECIDED in
+      [ADR 0006](adr/0006-field-constraint-semantics.md): NOT NULL default with
+      explicit opt-out, UNIQUE inline (implying its index), plain auto-named
+      indexes; `PrimaryKey+Nullable` and `Unique+Index` rejected at registration;
+      composite keys / named indexes / multi-column UNIQUE reserved-but-unwritten
+      so `Field.PrimaryKey` stays singular. Wiring through state format, differ,
+      emitters, and generator lands in #79's second slice. (FR-ORM-1)
 - [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
       uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
       `orm.Time` sits one letter from `time.Time` in code that imports both.

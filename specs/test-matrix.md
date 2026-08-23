@@ -159,6 +159,8 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-009 | Two modules claiming one table fail at construction | `modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable` |
 | ORM-010 | A module names no database handle — read off the import graph | `examples/hello/hello_test.go::TestOrders_ImportsNoDatabaseHandleNorAnythingOutsideFabrin` |
 | ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | `examples/hello/orders/orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven` |
+| ORM-012 | A primary key marked `Nullable` is rejected at registration | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
+| ORM-013 | A field both `Unique` and `Index` is rejected at registration | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
 
 ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3; ORM-010…011 cite FR-ORM-2,
 which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a
@@ -206,6 +208,12 @@ because registration order carries `FABRIN_MODULES` and the argument order in
 is the author's intent about column layout. Both exist to make the generator's
 output a function of the schema alone — a generator that emits a spurious diff on
 a project nobody changed is one nobody trusts.
+
+ORM-012 and ORM-013 are [ADR 0006](../docs/adr/0006-field-constraint-semantics.md)
+landing: the three provisional flags have decided semantics (NOT NULL default,
+UNIQUE inline, plain auto-named index), which made two combinations
+*expressible* — and therefore impossible. They ride ORM-002's table-driven test,
+the same pattern as MIG-004/MIG-007 sharing one table across two requirements.
 
 ORM-002 is one row over a table-driven test plus three siblings —
 `TestRegistry_RejectsAModelWithNoPrimaryKey`,
