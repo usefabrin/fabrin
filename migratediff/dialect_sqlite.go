@@ -6,14 +6,14 @@ import (
 	"github.com/usefabrin/fabrin/orm"
 )
 
-// sqliteDialect renders for SQLite, which is how the migration gate stays
-// hermetic: it runs in CI with no server, so every dialect claim is testable
+// SQLite renders for SQLite, which is how the migration gate stays
+// hermetic: it runs in CI with no server, so every Dialect claim is testable
 // against a real database rather than asserted.
-type sqliteDialect struct{}
+type SQLite struct{}
 
-func (sqliteDialect) name() string { return "SQLite" }
+func (SQLite) Name() string { return "SQLite" }
 
-func (sqliteDialect) createTable(m orm.Model) (string, error) {
+func (SQLite) CreateTable(m orm.Model) (string, error) {
 	body, err := columnList(sqliteType, m)
 	if err != nil {
 		return "", err
@@ -24,7 +24,7 @@ func (sqliteDialect) createTable(m orm.Model) (string, error) {
 // Adding is the one alteration SQLite supports in place, and only for nullable
 // columns — which, until the provisional flags are decided (#79), is every
 // column this package emits.
-func (sqliteDialect) addColumn(table string, f orm.Field) (string, error) {
+func (SQLite) AddColumn(table string, f orm.Field) (string, error) {
 	typ, err := sqliteType(f)
 	if err != nil {
 		return "", err
@@ -32,25 +32,25 @@ func (sqliteDialect) addColumn(table string, f orm.Field) (string, error) {
 	return "ALTER TABLE " + table + " ADD COLUMN " + f.Name + " " + typ, nil
 }
 
-// dropColumn refuses. SQLite cannot drop a column in place; the honest options
+// DropColumn refuses. SQLite cannot drop a column in place; the honest options
 // are the documented table-rebuild dance or a stated refusal, and this
 // iteration states the refusal — from render, before anything executes, never
 // halfway through a live migration. The rebuild dance lands when a command
-// exists to carry its extra statements; one-statement-per-operation would have
+// exists to carry its extra statements; one-statement-per-Operation would have
 // to be relaxed deliberately for it.
-func (sqliteDialect) dropColumn(_, _ string) (string, error) {
+func (SQLite) DropColumn(_, _ string) (string, error) {
 	return "", fmt.Errorf("%w: %s cannot drop a column in place; the table-rebuild dance is not implemented yet",
-		errUnsupported, sqliteDialect{}.name())
+		ErrUnsupported, SQLite{}.Name())
 }
 
-// changeType refuses, for the same reason dropColumn does: altering a column's
+// ChangeType refuses, for the same reason DropColumn does: altering a column's
 // type in place is outside what SQLite accepts.
-func (sqliteDialect) changeType(_, _ string, to orm.Field) (string, error) {
+func (SQLite) ChangeType(_, _ string, to orm.Field) (string, error) {
 	return "", fmt.Errorf("%w: %s cannot alter a column's type in place; the table-rebuild dance is not implemented yet",
-		errUnsupported, sqliteDialect{}.name())
+		ErrUnsupported, SQLite{}.Name())
 }
 
-func (sqliteDialect) dropTable(table string) (string, error) {
+func (SQLite) DropTable(table string) (string, error) {
 	return "-- fabrin: dropping " + table + " discards its data\nDROP TABLE " + table, nil
 }
 

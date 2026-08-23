@@ -50,15 +50,14 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
-      # boundary: migratediff — no deny rules yet. The package currently exports
-      #     nothing: it is a private vertical proving the schema differ and the
-      #     per-database DDL emitters before that API is frozen (#57), on the
-      #     same terms as admin's proof (ADR 0005). It reads orm metadata by
-      #     design — which is also why it lives at the root rather than under
-      #     internal/, whose boundary forbids sibling imports. database/sql is
-      #     test-only here today; when fabrin makemigrations (#59) graduates a
-      #     public seam, its dependency directions get real rules rather than
-      #     guesses from one proof.
+      # boundary: migratediff — must not import the root package (root →
+      #     migratediff is the dependency direction; makemigrations' command
+      #     wiring lives in root), Gin, or net/http. Graduated from the ADR 0005
+      #     private-proof terms in #59: the generator consumes this seam, and
+      #     hiding it from users would have meant shipping two differ APIs. orm
+      #     is allowed deliberately — reading model metadata is its whole job,
+      #     which is why it lives at the root rather than internal/. database/sql
+      #     is test-only; Apply takes the caller's *sql.DB.
       #
       # boundary: config — must not import Gin or net/http (config-is-transport-free)
       #     and must not import the root package (config-is-standalone). Settings
@@ -256,6 +255,32 @@ linters:
               desc: "migrate must stay transport-free: migrations run from a process that mounts no routes (see CONTRIBUTING.md)"
             - pkg: "modernc.org/sqlite"
               desc: "migrate takes a *sql.DB and ships no driver — the application chooses one. This driver is a TEST dependency only (see docs/adr/0002-database-sql-is-the-orm-seam.md)"
+
+        # migratediff graduated from the ADR 0005 private-proof terms in #59:
+        # makemigrations' generator consumes its seam, and hiding it from users
+        # would have meant shipping two differ APIs. What it may import stays
+        # narrow on purpose.
+        #
+        # The root deny is the load-bearing one. The command wiring lives in
+        # root (it needs App, Options, cli), so the dependency runs
+        # root → migratediff; the reverse compiles cleanly and would weld the
+        # differ to the framework it exists to stay describable beside. orm is
+        # ALLOWED here — reading model metadata is this package's entire job,
+        # and that is exactly why it lives at the root rather than internal/.
+        migratediff-is-standalone:
+          files:
+            - "**/migratediff/**"
+            - "!**/*_test.go"
+          deny:
+            # $ pins an EXACT match: without it, depguard's prefix matching
+            # would also deny fabrin/orm — which this package is ALLOWED to
+            # import, deliberately, because reading model metadata is its job.
+            - pkg: "$github.com/usefabrin/fabrin"
+              desc: "migratediff must not import the root package: the dependency runs root → migratediff (makemigrations wires commands in root), and reversing it welds the differ to the framework (see CONTRIBUTING.md)"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "migratediff must stay transport-free: it renders DDL, not HTTP (see CONTRIBUTING.md)"
+            - pkg: "net/http"
+              desc: "migratediff must stay transport-free: it renders DDL, not HTTP (see CONTRIBUTING.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

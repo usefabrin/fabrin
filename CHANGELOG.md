@@ -49,6 +49,58 @@ with their milestone rather than split into sections. Cutting a version is
   fixture trees (a duplicate timestamp across two modules plus a legacy `0009_`
   file turn it red naming all three problems). Follow-up: the project scaffold
   should ship the same script.
+- **`./myapp makemigrations`** — generates migration files for schema changes
+  the mounted modules declared, and **graduates `migratediff`'s seam to public**
+  as the deliberate API decision ADR 0005 anticipated. ([#59])
+
+  ```console
+  $ ./myapp makemigrations
+  wrote shop/migrations/20260823120000_create_orders.go
+  wrote shop/migrations/20260823120000_create_orders.state.json
+  20260823120000: create table orders
+
+  $ ./myapp makemigrations          # again, unchanged:
+  no changes detected in any module's models
+  ```
+
+  The on-disk shape, one directory per owning module:
+
+  - `<NNNN>_name.go` — real Go: `Up`/`Down` over `migrate.Handle`, hand-editable.
+    The filename prefix IS the version (fixed-width timestamp), which is what
+    makes #55's pre-merge gate readable without compiling anything.
+  - `<NNNN>_name.state.json` — the FULL application schema that version yields,
+    in the #56 codec. Data, readable on a branch that does not compile.
+  - `manifest.json` — ordered source of truth; a hand-written migration joins it
+    with an entry and NO state file, and replay carries forward.
+  - `all.go` — generated `var All []migrate.M`, which the module's `Migrator`
+    returns. Regenerated from the manifest (data), never scanned from source.
+
+  Behaviour worth recording:
+
+  - **One migration per changed module**, versions increasing within a run so
+    two files never claim one version. Ownership comes free from the registry.
+  - **`nextVersion` jumps past a future-dated recorded version** instead of
+    inching toward it one second at a time — the hand-written-placeholder case,
+    where the obvious loop does not terminate.
+  - **SQLite's stated refusal meets its limit here**: an `Up` containing a drop
+    or retype fails generation with "hand-write this migration" rather than
+    emitting SQL that fails mid-deploy. But a generated DOWN whose inverse hits
+    the refusal falls back to the plain statement with the caveat riding in the
+    file — without it, even adding a column would be ungeneratable, since its
+    rollback is a column drop.
+  - **Corrupt recorded state fails loudly naming the file** — never a silently
+    empty "before".
+
+- **Public surface of `fabrin/migratediff`** — `Diff`, the five `Operation`
+  types (`CreateTable`, `DropTable`, `AddColumn`, `DropColumn`, `ChangeType`),
+  the `Dialect` interface with `SQLite` and `Postgres`, and `ErrUnsupported`.
+  ([#59])
+
+  The #57 proof exported nothing on purpose; this is the planned graduation,
+  happening because the generator itself consumes the seam and hiding it from
+  users would mean shipping two differ APIs. What survived contact with the
+  first consumer: operation-per-statement held, the deterministic ordering
+  held, and nullability detection stayed absent pending #79.
 
 - **`Migrator`** — a module declares the migrations that bring its tables from
   one recorded state to the next. ([#59])

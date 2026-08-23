@@ -1,15 +1,15 @@
 // Package migratediff diffs recorded model state against current model state
-// and renders the difference as SQL through a per-database dialect.
+// and renders the difference as SQL through a per-database Dialect.
 //
 // This is the seam makemigrations will stand on: the differ produces a
-// deterministic list of operations, and a dialect turns operations into the
+// deterministic list of operations, and a Dialect turns operations into the
 // statements a real server accepts.
 //
 // # Why nothing here is exported
 //
 // This package exports no symbols, on purpose and for now. Every exported
 // symbol is a permanent promise, and the right public shape for a differ —
-// method granularity, whether the dialect interface is user-facing at all — is
+// method granularity, whether the Dialect interface is user-facing at all — is
 // exactly what a private vertical exists to discover before it freezes. The
 // admin CRUD proof set the precedent
 // (docs/adr/0005-admin-crud-seam-remains-private.md); this follows it. When
@@ -26,7 +26,7 @@
 //
 // Nullability is invisible, because the provisional Field flags are withheld
 // from recorded state (#79) and nothing consumes them yet. A changed
-// nullability therefore produces no operation today; when #79 decides those
+// nullability therefore produces no Operation today; when #79 decides those
 // flags, detection arrives with them. Saying so beats emitting NOT NULL on a
 // guess.
 //
@@ -50,69 +50,69 @@ import (
 	"github.com/usefabrin/fabrin/orm"
 )
 
-// errUnsupported means a dialect cannot express an operation at all — SQLite
+// ErrUnsupported means a Dialect cannot express an Operation at all — SQLite
 // altering or dropping a column in place, most notably. Callers get this
 // BEFORE anything executes, from render, never halfway through a migration.
-var errUnsupported = errors.New("migratediff: unsupported operation")
+var ErrUnsupported = errors.New("migratediff: unsupported Operation")
 
-// dialect renders operations as the SQL one database family accepts.
+// Dialect renders operations as the SQL one database family accepts.
 //
 // Two dialects ship from the start — SQLite, which runs hermetically in CI,
 // and PostgreSQL, which is what people deploy. Having two from the beginning
 // is what stops the interface being accidentally shaped around one.
-type dialect interface {
-	// name identifies the dialect in errors and generated-file headers.
-	name() string
+type Dialect interface {
+	// name identifies the Dialect in errors and generated-file headers.
+	Name() string
 
-	createTable(m orm.Model) (string, error)
-	addColumn(table string, f orm.Field) (string, error)
-	dropColumn(table, column string) (string, error)
-	changeType(table, column string, to orm.Field) (string, error)
-	dropTable(table string) (string, error)
+	CreateTable(m orm.Model) (string, error)
+	AddColumn(table string, f orm.Field) (string, error)
+	DropColumn(table, column string) (string, error)
+	ChangeType(table, column string, to orm.Field) (string, error)
+	DropTable(table string) (string, error)
 }
 
-// operation is one change between two states, rendered into SQL by a dialect.
-// Each operation is exactly one statement; when a future operation needs many
+// Operation is one change between two states, rendered into SQL by a Dialect.
+// Each Operation is exactly one statement; when a future Operation needs many
 // (a table rebuild), that changes deliberately, not by accident of signature.
-type operation interface {
-	render(d dialect) (string, error)
+type Operation interface {
+	Render(d Dialect) (string, error)
 
 	// describe names the change in one line, for errors and for the header of
 	// the migration file that carries it.
-	describe() string
+	Describe() string
 }
 
-// createTable brings a new table into being, columns in declared order.
-type createTable struct {
-	model orm.Model
+// CreateTable brings a new table into being, columns in declared order.
+type CreateTable struct {
+	Model orm.Model
 }
 
-// dropTable removes a table and everything in it. Data loss, stated in the SQL.
-type dropTable struct {
-	table string
+// DropTable removes a table and everything in it. Data loss, stated in the SQL.
+type DropTable struct {
+	Table string
 }
 
-// addColumn appends one column to an existing table.
-type addColumn struct {
-	table string
-	field orm.Field
+// AddColumn appends one column to an existing table.
+type AddColumn struct {
+	Table string
+	Field orm.Field
 }
 
-// dropColumn removes one column and its data. The rendered statement carries
+// DropColumn removes one column and its data. The rendered statement carries
 // the warning as a SQL comment, because that is the line a reviewer must not
 // skim past.
-type dropColumn struct {
-	table  string
-	column string
+type DropColumn struct {
+	Table  string
+	Column string
 }
 
-// changeType moves a column to a new type or length. What the server does with
-// the existing values is the server's semantics; the operation states the
+// ChangeType moves a column to a new type or length. What the server does with
+// the existing values is the server's semantics; the Operation states the
 // destination, not a promise about conversion.
-type changeType struct {
-	table  string
-	column string
-	to     orm.Field
+type ChangeType struct {
+	Table  string
+	Column string
+	To     orm.Field
 }
 
 // diff compares two recorded states and returns the operations that turn
@@ -122,17 +122,17 @@ type changeType struct {
 // inputs here. Fields are compared BY NAME — a pure reorder of the declared
 // field list produces nothing, because DDL cannot reorder columns without
 // rebuilding the table and destroying data over a cosmetic diff.
-func diff(before, after orm.Snapshot) []operation {
+func Diff(before, after orm.Snapshot) []Operation {
 	beforeByTable := index(before.Models())
 	afterModels := after.Models()
 	afterByTable := index(afterModels)
 
-	var ops []operation
+	var ops []Operation
 
 	// New tables, sorted.
 	for _, reg := range afterModels {
 		if _, exists := beforeByTable[reg.Model.Table]; !exists {
-			ops = append(ops, createTable{model: reg.Model})
+			ops = append(ops, CreateTable{Model: reg.Model})
 		}
 	}
 
@@ -147,10 +147,10 @@ func diff(before, after orm.Snapshot) []operation {
 		type ranked struct {
 			column string
 			rank   int
-			op     operation
+			op     Operation
 		}
 		var alters []ranked
-		add := func(column string, rank int, op operation) {
+		add := func(column string, rank int, op Operation) {
 			alters = append(alters, ranked{column: column, rank: rank, op: op})
 		}
 		beforeFields := indexFields(was.Model.Fields)
@@ -158,15 +158,15 @@ func diff(before, after orm.Snapshot) []operation {
 			prev, exists := beforeFields[f.Name]
 			switch {
 			case !exists:
-				add(f.Name, 2, addColumn{table: reg.Model.Table, field: f})
+				add(f.Name, 2, AddColumn{Table: reg.Model.Table, Field: f})
 			case prev.Type != f.Type || prev.MaxLen != f.MaxLen:
-				add(f.Name, 1, changeType{table: reg.Model.Table, column: f.Name, to: f})
+				add(f.Name, 1, ChangeType{Table: reg.Model.Table, Column: f.Name, To: f})
 			}
 		}
 		afterFields := indexFields(reg.Model.Fields)
 		for _, f := range was.Model.Fields {
 			if _, exists := afterFields[f.Name]; !exists {
-				add(f.Name, 0, dropColumn{table: reg.Model.Table, column: f.Name})
+				add(f.Name, 0, DropColumn{Table: reg.Model.Table, Column: f.Name})
 			}
 		}
 		slices.SortFunc(alters, func(a, b ranked) int {
@@ -188,62 +188,62 @@ func diff(before, after orm.Snapshot) []operation {
 	// Whole-table drops, sorted, last.
 	for _, reg := range before.Models() {
 		if _, exists := afterByTable[reg.Model.Table]; !exists {
-			ops = append(ops, dropTable{table: reg.Model.Table})
+			ops = append(ops, DropTable{Table: reg.Model.Table})
 		}
 	}
 
 	return ops
 }
 
-// apply renders every operation through d and executes it, in order, stopping
+// apply renders every Operation through d and executes it, in order, stopping
 // at the first failure. A convenience for tests and for whatever command
 // eventually runs generated migrations; anything transactional around it is
 // the caller's business, exactly as it is for migrate.Run.
-func apply(ctx context.Context, db *sql.DB, d dialect, ops []operation) error {
+func Apply(ctx context.Context, db *sql.DB, d Dialect, ops []Operation) error {
 	for _, op := range ops {
-		stmt, err := op.render(d)
+		stmt, err := op.Render(d)
 		if err != nil {
-			return fmt.Errorf("%s: %w", op.describe(), err)
+			return fmt.Errorf("%s: %w", op.Describe(), err)
 		}
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("%s: %w", op.describe(), err)
+			return fmt.Errorf("%s: %w", op.Describe(), err)
 		}
 	}
 	return nil
 }
 
-// render implementations. Each operation knows how to hand itself to a
-// dialect; the dialect owns the SQL, the operation owns the intent. Adding a
-// dialect means implementing the dialect interface once — not touching every
-// operation.
-func (o createTable) render(d dialect) (string, error) { return d.createTable(o.model) }
+// render implementations. Each Operation knows how to hand itself to a
+// Dialect; the Dialect owns the SQL, the Operation owns the intent. Adding a
+// Dialect means implementing the Dialect interface once — not touching every
+// Operation.
+func (o CreateTable) Render(d Dialect) (string, error) { return d.CreateTable(o.Model) }
 
-func (o dropTable) render(d dialect) (string, error) { return d.dropTable(o.table) }
+func (o DropTable) Render(d Dialect) (string, error) { return d.DropTable(o.Table) }
 
-func (o addColumn) render(d dialect) (string, error) { return d.addColumn(o.table, o.field) }
+func (o AddColumn) Render(d Dialect) (string, error) { return d.AddColumn(o.Table, o.Field) }
 
-func (o dropColumn) render(d dialect) (string, error) { return d.dropColumn(o.table, o.column) }
+func (o DropColumn) Render(d Dialect) (string, error) { return d.DropColumn(o.Table, o.Column) }
 
-func (o changeType) render(d dialect) (string, error) {
-	return d.changeType(o.table, o.column, o.to)
+func (o ChangeType) Render(d Dialect) (string, error) {
+	return d.ChangeType(o.Table, o.Column, o.To)
 }
 
 // Describe implementations. One line each: what changed, named precisely
 // enough that an error or a generated-file header carries its own context.
-func (o createTable) describe() string { return "create table " + o.model.Table }
+func (o CreateTable) Describe() string { return "create table " + o.Model.Table }
 
-func (o dropTable) describe() string { return "drop table " + o.table }
+func (o DropTable) Describe() string { return "drop table " + o.Table }
 
-func (o addColumn) describe() string {
-	return fmt.Sprintf("add column %s.%s", o.table, o.field.Name)
+func (o AddColumn) Describe() string {
+	return fmt.Sprintf("add column %s.%s", o.Table, o.Field.Name)
 }
 
-func (o dropColumn) describe() string {
-	return fmt.Sprintf("drop column %s.%s", o.table, o.column)
+func (o DropColumn) Describe() string {
+	return fmt.Sprintf("drop column %s.%s", o.Table, o.Column)
 }
 
-func (o changeType) describe() string {
-	return fmt.Sprintf("change type of %s.%s", o.table, o.column)
+func (o ChangeType) Describe() string {
+	return fmt.Sprintf("change type of %s.%s", o.Table, o.Column)
 }
 
 func index(models []orm.Registered) map[string]orm.Registered {
@@ -264,7 +264,7 @@ func indexFields(fields []orm.Field) map[string]orm.Field {
 
 // columnList renders a CREATE TABLE body — two-space indented columns in the
 // model's declared order, primary key inline. Shared by both dialects because
-// layout is not a dialect decision: identical structure across databases is
+// layout is not a Dialect decision: identical structure across databases is
 // what keeps generated files diffable when a project changes driver.
 func columnList(typeOf func(orm.Field) (string, error), m orm.Model) (string, error) {
 	lines := make([]string, 0, len(m.Fields))
