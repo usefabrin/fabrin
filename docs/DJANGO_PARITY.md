@@ -47,7 +47,8 @@ still checks the module and every dependency; jump-to-definition still works.
 |---|---|---|
 | `models.Model` | `orm.Model` + Fabrin's metadata registry — a description, with no database handle anywhere near it | 🚧 F2 |
 | Models found by importing each app in `INSTALLED_APPS` | `Modeler` on a module — models are handed over, never scanned for | ✅ F2 |
-| `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` — the engine exists; the commands and on-disk files do not yet | 🚧 F2 |
+| `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` — the engine and the recorded-state mechanism exist; the commands and on-disk files do not yet | 🚧 F2 |
+| Each migration serializes the model state it produces; `makemigrations` reconstructs "before" by replaying them | `orm.Snapshot` + `ReplayState` — deterministic JSON codec, provisional flags withheld, hand-written steps carry the last known state forward | ✅ F2 (mechanism) / 📋 F2 (files) |
 | `migrations.RunPython` / reversible `RunSQL` | `M.Up` / `M.Down`, both `func(ctx, migrate.Handle) error` — and `Down` is **required**, where Django's is optional | ✅ F2 |
 | `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |

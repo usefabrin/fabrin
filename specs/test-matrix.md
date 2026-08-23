@@ -275,6 +275,39 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-008 | A pre-merge gate rejects two migration *files* at one version | _planned_ |
 | MIG-009 | Versions that do not sort as written are rejected | `migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten` |
 | MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
+| MIG-011 | Recorded state round-trips — tables, modules, declared field order intact | `orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse` |
+| MIG-012 | Encoding one schema twice produces identical bytes | `orm/state_test.go::TestSnapshot_EncodeIsDeterministic` |
+| MIG-013 | The provisional `Nullable`/`Unique`/`Index` flags never reach the encoded form | `orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags` |
+| MIG-014 | Unreadable state is an error naming its source | `orm/state_test.go::TestParseSnapshot_ErrorsNameTheirSource` |
+| MIG-015 | Unknown keys in recorded state are rejected, not dropped | `orm/state_test.go::TestParseSnapshot_RejectsKeysItDoesNotKnow` |
+| MIG-016 | Parsed state is revalidated through registration's rules | `orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads` |
+| MIG-017 | Replay carries hand-written steps forward, starts empty, reconstructs identically | `orm/state_test.go::TestReplayState_IsDeterministicAndCarriesHandWrittenStepsForward` |
+| MIG-018 | A replay chain with repeating, descending, or empty versions is rejected | `orm/state_test.go::TestReplayState_RejectsBrokenSequences` |
+
+MIG-011…018 are the recorded-state mechanism
+([#56](https://github.com/usefabrin/fabrin/issues/56)): the "before" that
+`makemigrations` diffs the live registry against, reconstructed by replaying
+what each migration recorded — no database involved, because generating a
+migration has to work on a laptop with nothing running. They live in package
+`orm` rather than `migrate`, on purpose: both packages are leaves under the
+boundary rules, the state *is* model metadata, and #57's differ needs exactly
+this type. Nothing reads a directory yet, so the on-disk layout — file names,
+where the state travels relative to the Go file — stays #59's decision; what
+ships today is the codec and the replay rule.
+
+MIG-013 is the row doing double duty as the #79 guard: `Nullable`, `Unique` and
+`Index` have no agreed semantics, so they are withheld field-by-field at snapshot
+construction *and* absent from the wire struct — two layers, either of which
+alone would hold the line, which is why the mutation check had to leak through
+both before the test went red. A format change here (adding them) is deliberate,
+not something struct growth grants for free.
+
+MIG-015 turns `encoding/json`'s default inside out. Ignoring unknown fields is
+the polite choice for an RPC payload and exactly wrong for state a future diff
+runs against: a key this version does not understand would be silently dropped,
+and the next generated migration would diff against an impoverished schema.
+Unknown-key rejection plus MIG-016's revalidation means anything that parses can
+be trusted as far as anything registered directly.
 
 MIG-010 is a type widening, so its tests read the **shape** of `M`'s fields by
 reflection rather than exercising a behaviour: the load-bearing half of ADR 0003

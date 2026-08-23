@@ -37,6 +37,60 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Recorded model state per migration — the "before" `makemigrations` diffs
+  against.** ([#56])
+
+  ```go
+  snap, _ := orm.NewSnapshot(app.Models())
+  encoded, _ := orm.EncodeSnapshot(snap)          // deterministic JSON
+  before, _ := orm.ReplayState([]orm.StateStep{
+      {Version: "20260801120000", State: &snap1},
+      {Version: "20260802120000"},                // hand-written: no recorded state
+  })
+  ```
+
+  `makemigrations` diffs the live registry against the schema the last migration
+  left behind. That state cannot come from the database — generating a migration
+  has to work on a laptop with nothing running — so each generated migration
+  will carry the schema it results in, and reconstruction replays those records
+  in version order.
+
+  **The mechanism ships; the files do not.** Nothing reads a directory yet, so
+  the on-disk layout stays with the `makemigrations` command that will write it.
+  What exists today is the codec (`orm.Snapshot`, `EncodeSnapshot`,
+  `ParseSnapshot`) and the replay rule (`orm.StateStep`, `ReplayState`), in
+  package `orm` because both packages are leaves under the boundary rules and
+  the state *is* model metadata. MIG-011…018 in the spec cover it.
+
+  Three decisions worth recording:
+
+  - **Determinism is the contract.** Tables sort by name, columns keep their
+    declared order, and the wire struct fixes key order, so one schema encodes
+    to identical bytes every run. Anything unstable here becomes a generated
+    migration that differs between runs on an unchanged project.
+  - **The provisional `Nullable`/`Unique`/`Index` flags are withheld**, because
+    they have no agreed semantics (#79) and a format that carries bits nobody
+    gave meaning to freezes their accidental reading into every file users'
+    repositories hold. They are dropped field-by-field at snapshot construction
+    *and* absent from the wire struct — two layers either of which alone would
+    hold the line, which the mutation check had to get through both of before
+    the test went red.
+  - **Parsing is stricter than decoding.** Unknown keys are rejected rather than
+    silently dropped (a newer-format file read with its extra information
+    discarded would make the next generated migration diff against an
+    impoverished state), what parsed is revalidated through the same rules
+    `Registry.Register` applies, and every failure names the source it came
+    from. A silently empty "before" would emit a create-everything migration
+    against a live schema — the worst available outcome.
+
+  Hand-written migrations carry no recorded state, because Fabrin has no
+  operation vocabulary to fold; carrying the last known state forward is the
+  stated rule, chosen over refusing the chain so generated and hand-written
+  migrations can coexist. An empty chain reconstructs an empty snapshot — the
+  first generated migration creates everything, and nothing about the empty case
+  needs special-casing at the call site.
+
+=======
 - **Private admin CRUD seam proof.** A new `admin` package exports no symbols yet,
   but proves one concrete record through existing ORM metadata, metadata-ordered
   private form state, typed field conversion, and resource-specific create,
@@ -989,6 +1043,7 @@ Added — package `fabrin`:
 [#53]: https://github.com/usefabrin/fabrin/issues/53
 [#54]: https://github.com/usefabrin/fabrin/issues/54
 [#55]: https://github.com/usefabrin/fabrin/issues/55
+[#56]: https://github.com/usefabrin/fabrin/issues/56
 [#60]: https://github.com/usefabrin/fabrin/issues/60
 [#67]: https://github.com/usefabrin/fabrin/issues/67
 [#71]: https://github.com/usefabrin/fabrin/issues/71

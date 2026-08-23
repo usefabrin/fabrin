@@ -456,6 +456,62 @@ behaviours:
     status: implemented
     test: migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn
 
+  - id: MIG-011
+    what: Recorded model state round-trips - snapshot to bytes back to snapshot preserves every table, the module that declared it, and each column in its declared order.
+    why: makemigrations diffs the live registry against the state reconstructed from recorded migrations. Any loss on the round trip becomes a generated migration against a schema the user never wrote, which is the most expensive way to discover the format dropped something.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse
+
+  - id: MIG-012
+    what: Encoding one schema twice produces identical bytes, and construction order cannot reach them.
+    why: A generated migration that differs between two runs on an unchanged project is a spurious diff nobody can review honestly. Table order comes from the schema alone, never from registration order, map iteration, or the phase of the moon.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestSnapshot_EncodeIsDeterministic
+
+  - id: MIG-013
+    what: The provisional Field flags - Nullable, Unique, Index - never reach the encoded form.
+    why: They have no agreed semantics yet (#79), and a format that carries bits nobody gave meaning to freezes their accidental reading into every file users' repositories hold. When #79 decides them they arrive as a deliberate change; until then two schemas differing only in those flags are the same state. Mutation-checked at both layers that could leak them.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags
+
+  - id: MIG-014
+    what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
+    why: A state record nobody can parse must never become a silently empty "before" - which would make the next makemigrations emit a create-everything migration against a live schema. "Unparseable" without a file name sends the reader grepping a directory.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_ErrorsNameTheirSource
+
+  - id: MIG-015
+    what: Recorded state carrying keys this version does not know is rejected, not read with those keys dropped.
+    why: encoding/json ignores unknown fields by default, which is exactly wrong here - a newer-format or hand-edited file read silently with its extra information discarded would make the next generated migration diff against an impoverished state. Failing loud is the fail-closed answer.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_RejectsKeysItDoesNotKnow
+
+  - id: MIG-016
+    what: Parsed state is revalidated through the same rules Registry.Register applies - an unknown type, two primary keys, a duplicate column, or no fields fails with table-and-field context.
+    why: Bytes from disk are untrusted in exactly the sense registration input is. A corrupted or hand-mangled file must fail here instead of poisoning every later diff with a schema that could not exist.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads
+
+  - id: MIG-017
+    what: Replaying a step chain carries hand-written migrations' last known state forward, starts empty when nothing is recorded yet, and reconstructs byte-for-byte identically from the same files.
+    why: Hand-written migrations carry no recorded state because Fabrin has no operation vocabulary to fold; carrying forward is the stated rule rather than refusing the chain, so generated and hand-written migrations can coexist. Reconstruction touches no database - generating a migration has to work on a laptop with nothing running.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestReplayState_IsDeterministicAndCarriesHandWrittenStepsForward
+
+  - id: MIG-018
+    what: A replay chain whose versions repeat, descend, or include an empty version is rejected.
+    why: Steps arrive ordered off disk, and a chain that repeats or reverses is a corrupted directory presenting itself as history - replaying it would reconstruct some other project's timeline and present it as truth to the differ.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestReplayState_RejectsBrokenSequences
+
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
     why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.

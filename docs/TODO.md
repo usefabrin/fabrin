@@ -135,6 +135,14 @@ pre-v0 decisions are provisional ORM constraints
       unapplied migration sorting before an applied one is an error. Takes a
       `*sql.DB`, imports no driver, no Gin, no `net/http`, so it runs from a
       process that mounts no routes. (FR-ORM-4, MIG-001…006)
+- [~] Recorded model state per migration — the "before" `makemigrations` diffs
+      against. The **mechanism** is done: `orm.Snapshot`, a deterministic JSON
+      codec, and `ReplayState` over an ordered step chain; hand-written
+      migrations carry the last known state forward, unreadable state fails loud
+      naming its source, and the provisional `Nullable`/`Unique`/`Index` flags
+      are withheld until #79 decides them. Nothing reads a directory yet, so the
+      on-disk layout stays with the commands below. (FR-ORM-4, MIG-011…018,
+      [#56](https://github.com/usefabrin/fabrin/issues/56))
 - [ ] `fabrin migrate` / `makemigrations` as commands, and migrations as files on
       disk. The engine above takes them as values; nothing reads a directory yet.
       (FR-ORM-4)
