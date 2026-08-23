@@ -148,6 +148,10 @@ with their milestone rather than split into sections. Cutting a version is
   the live-database check could never actually run — exactly the silently-
   never-passing outcome MIG-025 forbids.
 
+  Housekeeping riding the same rebase: the snapshot's placeholder line for the
+  unexported `migratediff` package is gone, because #83's skip-empty `apicheck`
+  means an empty package renders nothing at all. No symbol moved.
+
 - **Selection-before-construction module factories.** The new opaque
   `fabrin.ModuleFactory`, `fabrin.LazyModule`, and
   `fabrin.NewFromFactories` API validates the full named catalogue and selection
