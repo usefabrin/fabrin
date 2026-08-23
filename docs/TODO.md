@@ -151,9 +151,15 @@ pre-v0 decisions are provisional ORM constraints
       `FABRIN_TEST_PG_DSN` is set. Nullability detection waits on #79. No
       exported symbols — the public seam is #59's decision.
       (FR-ORM-4, MIG-019…026)
-- [ ] `fabrin migrate` / `makemigrations` as commands, and migrations as files on
-      disk. The engine above takes them as values; nothing reads a directory yet.
-      (FR-ORM-4)
+- [~] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
+      interface collects declared migrations from mounted modules, cross-module
+      duplicate versions and mixed widths fail at construction, the command
+      applies forward or rolls back to an exclusive target stating its direction
+      first, sliced processes refuse, and a missing database names `Options.DB`.
+      Still open: `makemigrations` generating files into module directories plus
+      the on-disk format. (FR-ORM-4, [#59](https://github.com/usefabrin/fabrin/issues/59))
+- [ ] `fabrin makemigrations`, migrations as files on disk. The engine takes them
+      as values; nothing reads a directory yet. (FR-ORM-4)
 - [~] Duplicate-version gate — two branches claiming one version is a matter of
       when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)
 

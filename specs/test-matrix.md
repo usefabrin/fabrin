@@ -291,6 +291,32 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-024 | SQLite refuses drop/retype with a stated error before anything runs | `migratediff/migratediff_test.go::TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors` |
 | MIG-025 | PostgreSQL verified live when `FABRIN_TEST_PG_DSN` is set; skipped **with a notice** otherwise | `migratediff/migratediff_test.go::TestPostgres_RendersDDLThatALiveServerAccepts` |
 | MIG-026 | A dropped column's SQL carries its data-loss warning naming the column | `migratediff/migratediff_test.go::TestDataLossIsStatedInTheEmittedSQL` |
+| MIG-027 | `Migrator` declares a module's migrations; mounted modules only; reported in `Capabilities` | `migrator_test.go::TestApp_ReportsMigratorCapability` |
+| MIG-028 | Two modules claiming one version fail at construction, naming both | `migrator_test.go::TestNew_RejectsTwoModulesClaimingOneMigrationVersion` |
+| MIG-029 | Mixed version widths across modules fail at construction | `migrator_test.go::TestNew_RejectsMigrationsOfMixedWidthsAcrossModules` |
+| MIG-030 | `migrate` applies pending, prints what ran, says "up to date" on nothing | `migrator_test.go::TestExecute_MigrateAppliesPendingMigrationsAndSaysSo` |
+| MIG-031 | `-to` moves forward or rolls back to an exclusive target, direction stated first | `migrator_test.go::TestExecute_MigrateToRollsBackToAnExclusiveTarget` |
+| MIG-032 | Migration commands refuse on a sliced process, naming registered vs mounted | `migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced` |
+
+MIG-027…032 land the command half of #59's first slice: the `Migrator`
+interface (the counterpart of `Modeler` — models say what the schema IS,
+migrations say how it got there) and the built-in `migrate [-to]` command.
+Cross-module wiring mistakes are **construction** errors — duplicate versions
+(MIG-028) and mixed widths (MIG-029) — because two branches generating the same
+timestamped migration are green in isolation and collide only when their modules
+meet in one binary. Within-module mistakes stay with the engine's validation,
+which names the migration precisely.
+
+MIG-032 is the fail-closed answer to slicing: FABRIN_MODULES is route selection,
+never schema selection. A sliced process migrating would half-migrate the shared
+database; makemigrations run the same way would propose dropping every table
+whose module was selected out.
+
+`migrate -to` decides direction by reading the applied-state table through
+`migrate.Ensure` + a plain SELECT before anything runs; every mutation still
+goes through the engine, which owns the transactional guarantees. Forward-to
+filters the subset at or below the target and hands it to `Run` unchanged — no
+new engine mode, so MIG-003's ordering and idempotence guarantees apply as-is.
 
 MIG-011…018 are the recorded-state mechanism
 ([#56](https://github.com/usefabrin/fabrin/issues/56)): the "before" that

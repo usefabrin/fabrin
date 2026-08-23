@@ -9,6 +9,7 @@ import (
 
 	"github.com/usefabrin/fabrin/cli"
 	"github.com/usefabrin/fabrin/health"
+	"github.com/usefabrin/fabrin/migrate"
 	"github.com/usefabrin/fabrin/orm"
 )
 
@@ -105,6 +106,25 @@ type Modeler interface {
 	Models() []orm.Model
 }
 
+// Migrator is an optional [Module] interface for a module declaring the schema
+// migrations that bring its tables from one recorded state to the next. It is
+// the counterpart of [Modeler]: the models say what the schema IS, the
+// migrations say how it got there.
+//
+// The migrations are values — [migrate.M], Up and Down over a Handle — declared
+// by the module and collected from the MOUNTED modules only. Nothing reads a
+// directory at runtime: `fabrin makemigrations` generates files into the owning
+// module's migrations directory, and the module returns them by hand from here,
+// so an unregistered migration is a compile-time absence rather than a silent
+// one.
+//
+// Two modules claiming one version is an error at construction, naming both —
+// the same rule as duplicate tables, because both are wiring mistakes whose
+// only cheap moment of discovery is now.
+type Migrator interface {
+	Migrations() []migrate.M
+}
+
 // Lifecycle is an optional [Module] interface for a module owning a resource that
 // must be opened before serving and closed after.
 //
@@ -146,6 +166,18 @@ type registry struct {
 	// a mistyped signature means the module simply never starts, with no error
 	// anywhere — so what matched has to be inspectable.
 	capabilities map[string][]string
+
+	// sliced reports whether a selection mounted fewer modules than were
+	// registered. The migration commands refuse on a sliced process: its schema
+	// is a subset, and acting on the shared database from a subset would
+	// half-migrate it or propose dropping tables whose modules were selected
+	// out. Nil selections and full selections both leave this false.
+	sliced bool
+
+	// catalog is every REGISTERED module name, including ones a selection did
+	// not mount — so a refusal can name both what is present and what was
+	// selected out, instead of making the operator diff the lists themselves.
+	catalog []string
 }
 
 // newRegistry validates the module set, applies the selection, and records
@@ -180,7 +212,9 @@ func newRegistry(modules []Module, selection []string) (*registry, error) {
 	r := &registry{
 		modules:      make([]Module, 0, len(wanted)),
 		capabilities: make(map[string][]string, len(wanted)),
+		catalog:      order,
 	}
+	r.sliced = len(wanted) < len(order)
 	for _, name := range wanted {
 		m := byName[name]
 		r.modules = append(r.modules, m)
@@ -299,9 +333,9 @@ func quoteAll(ss []string) []string {
 
 // capabilitiesOf reports which optional Module interfaces m satisfies.
 //
-// Reserved for later milestones: Migrator (F2), Subscriber (F6). Each is added
-// here as its interface lands, so Capabilities stays the one place that answers
-// "what did this module actually contribute".
+// Reserved for later milestones: Subscriber (F6). Each is added here as its
+// interface lands, so Capabilities stays the one place that answers "what did
+// this module actually contribute".
 func capabilitiesOf(m Module) []string {
 	var caps []string
 	if _, ok := m.(Checker); ok {
@@ -315,6 +349,9 @@ func capabilitiesOf(m Module) []string {
 	}
 	if _, ok := m.(Modeler); ok {
 		caps = append(caps, "Modeler")
+	}
+	if _, ok := m.(Migrator); ok {
+		caps = append(caps, "Migrator")
 	}
 	sort.Strings(caps)
 	return caps

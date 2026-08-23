@@ -153,6 +153,7 @@ func (a *App) builtins() []cli.Command {
 			Short: "list mounted routes with the module that owns each",
 			Run:   func(_ context.Context, out io.Writer, _ []string) error { return a.printRoutes(out) },
 		},
+		migrateCommand(a),
 		{
 			Name:  "version",
 			Short: "print the Fabrin version this binary was built against",

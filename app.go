@@ -17,6 +17,7 @@ import (
 	"github.com/usefabrin/fabrin/config"
 	"github.com/usefabrin/fabrin/health"
 	"github.com/usefabrin/fabrin/logging"
+	"github.com/usefabrin/fabrin/migrate"
 	"github.com/usefabrin/fabrin/orm"
 )
 
@@ -69,6 +70,11 @@ type App struct {
 	// in New and never written again, which is the property orm.Registry's own
 	// doc comment relies on to justify having no mutex.
 	models *orm.Registry
+
+	// migrations is what the mounted modules contributed through Migrator, in
+	// registration order. Built once in New and never written again; the engine
+	// sorts by version when it runs.
+	migrations []migrate.M
 
 	mu      sync.Mutex
 	running bool
@@ -216,6 +222,14 @@ func New(opts Options, modules ...Module) (*App, error) {
 	}
 	app.models = models
 
+	// Same reasoning as models: nothing at construction needs the migrations,
+	// but a wiring mistake between modules is cheapest to reject now.
+	migrations, err := collectMigrations(reg)
+	if err != nil {
+		return nil, err
+	}
+	app.migrations = migrations
+
 	opts.Logger.Debug("fabrin: modules mounted",
 		"modules", reg.names(),
 		"capabilities", reg.capabilities,
@@ -277,6 +291,48 @@ func collectModels(reg *registry) (*orm.Registry, error) {
 		}
 	}
 	return models, nil
+}
+
+// collectMigrations gathers the migrations the MOUNTED modules declared through
+// [Migrator], rejecting cross-module wiring mistakes before anything runs.
+//
+// Two modules claiming one version is the deploy-time duplicate-version failure
+// the engine already rejects — caught here instead, at construction, because
+// two branches each generating the same timestamped version are both green in
+// isolation and collide only when their modules meet in one binary. The same
+// logic covers unequal version widths across modules: the engine applies the
+// collected union as ONE set, and a set mixing widths sorts into an order its
+// authors did not write.
+//
+// Within-module mistakes — no Up, no Down, an empty version — are left to the
+// engine's own validation, which names the migration precisely.
+func collectMigrations(reg *registry) ([]migrate.M, error) {
+	var out []migrate.M
+	seen := make(map[string]string)
+	width := 0
+	widthVersion := ""
+	for _, m := range reg.modules {
+		mg, ok := m.(Migrator)
+		if !ok {
+			continue
+		}
+		for _, mig := range mg.Migrations() {
+			if prev, dup := seen[mig.Version]; dup {
+				return nil, fmt.Errorf("%w: %q claimed by module %q and module %q",
+					migrate.ErrDuplicateVersion, mig.Version, prev, m.Name())
+			}
+			if width == 0 {
+				width = len(mig.Version)
+				widthVersion = mig.Version
+			} else if len(mig.Version) != width {
+				return nil, fmt.Errorf("%w: versions %q and %q are different widths, and ordering is lexicographic — give every migration in the application the same fixed width",
+					migrate.ErrInvalidMigration, widthVersion, mig.Version)
+			}
+			seen[mig.Version] = m.Name()
+			out = append(out, mig)
+		}
+	}
+	return out, nil
 }
 
 // Models returns the schema the mounted modules declared, sorted by table name,
