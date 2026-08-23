@@ -37,6 +37,19 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Duplicate-version pre-merge gate for migration files.** ([#55])
+  `scripts/gates/check-migration-versions.sh` scans every `<module>/migrations/`
+  directory, derives each version from its filename prefix (the MIG-033
+  contract), and fails on three things: one version claimed by two files
+  anywhere in the tree, mixed widths across the union, and malformed prefixes.
+  It reads files rather than running Go, so a colliding migration on a branch
+  that does not compile is still caught — the exact case a registry-based check
+  misses, and the reason MIG-008 waited for an on-disk format instead of
+  inventing one. Wired into `just gates` via `run-all.sh`; bite-proven with
+  fixture trees (a duplicate timestamp across two modules plus a legacy `0009_`
+  file turn it red naming all three problems). Follow-up: the project scaffold
+  should ship the same script.
+
 - **Private schema-differ proof — the autodetector half of `makemigrations`.**
   ([#57])
 
