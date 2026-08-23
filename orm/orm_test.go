@@ -121,6 +121,39 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 			want: orm.ErrInvalidField,
 			why:  "a negative length is not a bound — no dialect would accept it",
 		},
+		{
+			name: "primary key marked nullable",
+			model: orm.Model{Table: "orders", Fields: []orm.Field{
+				{Name: "id", Type: orm.Int64, PrimaryKey: true, Nullable: true},
+			}},
+			want: orm.ErrInvalidField,
+			why:  "a primary key is non-null by definition; both flags on one column contradict each other",
+		},
+		{
+			name: "unique and indexed on one field",
+			model: orm.Model{Table: "orders", Fields: []orm.Field{
+				{Name: "id", Type: orm.Int64, PrimaryKey: true},
+				{Name: "reference", Type: orm.String, Unique: true, Index: true},
+			}},
+			want: orm.ErrInvalidField,
+			why:  "a UNIQUE constraint already implies an index on every database Fabrin renders for; asking for a second one is a misunderstanding, not a tuning hint",
+		},
+		{
+			name: "primary key marked unique",
+			model: orm.Model{Table: "orders", Fields: []orm.Field{
+				{Name: "id", Type: orm.Int64, PrimaryKey: true, Unique: true},
+			}},
+			want: orm.ErrInvalidField,
+			why:  "a primary key is already unique; a second UNIQUE constraint is redundant",
+		},
+		{
+			name: "primary key separately indexed",
+			model: orm.Model{Table: "orders", Fields: []orm.Field{
+				{Name: "id", Type: orm.Int64, PrimaryKey: true, Index: true},
+			}},
+			want: orm.ErrInvalidField,
+			why:  "a primary key already has an index; a second plain index is redundant",
+		},
 	}
 
 	for _, tc := range tests {

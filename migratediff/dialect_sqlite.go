@@ -21,9 +21,9 @@ func (SQLite) CreateTable(m orm.Model) (string, error) {
 	return "CREATE TABLE " + m.Table + " (\n" + body + "\n)", nil
 }
 
-// Adding is the one alteration SQLite supports in place, and only for nullable
-// columns — which, until the provisional flags are decided (#79), is every
-// column this package emits.
+// Adding is the one alteration SQLite supports in place. This decision slice
+// still emits every added column as nullable; ADR 0006's following wiring slice
+// adds the stated refusal required for NOT NULL columns without a default.
 func (SQLite) AddColumn(table string, f orm.Field) (string, error) {
 	typ, err := sqliteType(f)
 	if err != nil {

@@ -88,9 +88,23 @@ type Field struct {
 	// dialect would either ignore or refuse.
 	MaxLen int
 
-	// Nullable, Unique, and Index are provisional metadata. The current migration
-	// engine does not consume them; their DDL and composite-constraint semantics
-	// must be decided before the metadata API is frozen.
+	// Nullable opts a column OUT of NOT NULL. Columns are NOT NULL unless this
+	// is set — Django's polarity, chosen because a silently nullable column
+	// hides bugs until data corrupts. Primary keys are NOT NULL by definition,
+	// so Nullable on a primary key is rejected.
+	//
+	// Unique makes the column UNIQUE, which already implies an index on every
+	// database Fabrin renders for; combining it with Index or PrimaryKey is
+	// rejected.
+	//
+	// Index creates a plain single-column index. Combining it with PrimaryKey is
+	// rejected because a primary key already has an index. Fabrin assigns all
+	// constraints and indexes deterministic, bounded names; ADR 0006 specifies
+	// that migration-format contract.
+	//
+	// All three were provisional until #79 decided them; see
+	// docs/adr/0006-field-constraint-semantics.md for the decision and what was
+	// deferred (composite keys, named indexes, multi-column UNIQUE).
 	Nullable   bool
 	PrimaryKey bool
 	Unique     bool
@@ -215,6 +229,22 @@ func validate(m Model) error {
 			return fmt.Errorf("%w: table %q, field %q is %s with MaxLen %d — a length applies only to %s", ErrInvalidField, m.Table, f.Name, f.Type, f.MaxLen, String)
 		case f.MaxLen < 0:
 			return fmt.Errorf("%w: table %q, field %q has a negative MaxLen", ErrInvalidField, m.Table, f.Name)
+		case f.PrimaryKey && f.Nullable:
+			// A primary key is non-null by definition; both flags on one column
+			// contradict each other. Caught here rather than at DDL time because
+			// every dialect would either ignore one flag or refuse — a mystery
+			// in the most expensive available place either way.
+			return fmt.Errorf("%w: table %q, field %q is both a primary key and nullable — primary keys are NOT NULL by definition; drop Nullable", ErrInvalidField, m.Table, f.Name)
+		case f.PrimaryKey && f.Unique:
+			return fmt.Errorf("%w: table %q, field %q is both a primary key and Unique — primary keys are unique by definition; drop Unique", ErrInvalidField, m.Table, f.Name)
+		case f.PrimaryKey && f.Index:
+			return fmt.Errorf("%w: table %q, field %q is both a primary key and Index — primary keys already have an index; drop Index", ErrInvalidField, m.Table, f.Name)
+		case f.Unique && f.Index:
+			// UNIQUE already implies an index on every database Fabrin renders
+			// for. Asking for a second one is a misunderstanding, not a tuning
+			// hint — and letting it through would freeze the redundancy into
+			// generated migrations forever.
+			return fmt.Errorf("%w: table %q, field %q is both Unique and Index — UNIQUE already implies an index; drop Index", ErrInvalidField, m.Table, f.Name)
 		}
 
 		seen[f.Name] = true

@@ -19,11 +19,10 @@
 //
 // # What the differ can and cannot see
 //
-// Nullability is invisible, because the provisional Field flags are withheld
-// from recorded state (#79) and nothing consumes them yet. A changed
-// nullability therefore produces no Operation today; when #79 decides those
-// flags, detection arrives with them. Saying so beats emitting NOT NULL on a
-// guess.
+// Nullability is temporarily invisible because the newly decided Field flags
+// remain withheld from recorded state until ADR 0006's versioned codec and
+// operation wiring land together. A changed nullability therefore produces no
+// Operation in this decision slice.
 //
 // # Ordering is part of the output
 //

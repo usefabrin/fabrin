@@ -159,6 +159,8 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-009 | Two modules claiming one table fail at construction | `modeler_test.go::TestNew_RejectsTwoModulesDeclaringOneTable` |
 | ORM-010 | A module names no database handle — read off the import graph | `examples/hello/hello_test.go::TestOrders_ImportsNoDatabaseHandleNorAnythingOutsideFabrin` |
 | ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | `examples/hello/orders/orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven` |
+| ORM-012 | A primary key marked `Nullable` is rejected at registration | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
+| ORM-013 | Redundant `Unique`/`Index` flags, including on a primary key, are rejected | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
 
 ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3; ORM-010…011 cite FR-ORM-2,
 which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a
@@ -206,6 +208,15 @@ because registration order carries `FABRIN_MODULES` and the argument order in
 is the author's intent about column layout. Both exist to make the generator's
 output a function of the schema alone — a generator that emits a spurious diff on
 a project nobody changed is one nobody trusts.
+
+ORM-012 and ORM-013 are [ADR 0006](../docs/adr/0006-field-constraint-semantics.md)
+landing: the three provisional flags have decided semantics (NOT NULL default,
+named UNIQUE constraint, plain auto-named index), which made contradictory and
+redundant combinations expressible — and therefore invalid. Generated database
+object names carry a readable prefix plus a bounded digest, avoiding both
+underscore ambiguity and PostgreSQL's silent identifier truncation. The
+validation rows ride ORM-002's table-driven test, the same pattern as
+MIG-004/MIG-007 sharing one table across two requirements.
 
 ORM-002 is one row over a table-driven test plus three siblings —
 `TestRegistry_RejectsAModelWithNoPrimaryKey`,
@@ -277,7 +288,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
 | MIG-011 | Recorded state round-trips — tables, modules, declared field order intact | `orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse` |
 | MIG-012 | Encoding one schema twice produces identical bytes | `orm/state_test.go::TestSnapshot_EncodeIsDeterministic` |
-| MIG-013 | The provisional `Nullable`/`Unique`/`Index` flags never reach the encoded form | `orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags` |
+| MIG-013 | Until the versioned codec lands, ADR 0006's flags remain withheld | `orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags` |
 | MIG-014 | Unreadable state is an error naming its source | `orm/state_test.go::TestParseSnapshot_ErrorsNameTheirSource` |
 | MIG-015 | Unknown keys in recorded state are rejected, not dropped | `orm/state_test.go::TestParseSnapshot_RejectsKeysItDoesNotKnow` |
 | MIG-016 | Parsed state is revalidated through registration's rules | `orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads` |
@@ -366,12 +377,11 @@ this type. Nothing reads a directory yet, so the on-disk layout — file names,
 where the state travels relative to the Go file — stays #59's decision; what
 ships today is the codec and the replay rule.
 
-MIG-013 is the row doing double duty as the #79 guard: `Nullable`, `Unique` and
-`Index` have no agreed semantics, so they are withheld field-by-field at snapshot
-construction *and* absent from the wire struct — two layers, either of which
-alone would hold the line, which is why the mutation check had to leak through
-both before the test went red. A format change here (adding them) is deliberate,
-not something struct growth grants for free.
+MIG-013 is the transition guard for #79: ADR 0006 has now decided `Nullable`,
+`Unique`, and `Index`, but the versioned codec lands separately. Until that
+complete encode/decode change arrives, the flags remain withheld field-by-field
+at snapshot construction *and* absent from the wire struct. A half-updated
+format is worse than either coherent version.
 
 MIG-015 turns `encoding/json`'s default inside out. Ignoring unknown fields is
 the polite choice for an RPC payload and exactly wrong for state a future diff
@@ -380,14 +390,12 @@ and the next generated migration would diff against an impoverished schema.
 Unknown-key rejection plus MIG-016's revalidation means anything that parses can
 be trusted as far as anything registered directly.
 
-MIG-019…026 are the differ half of the generator (#57), proved in package
-`migratediff` under the same terms as the admin proof (ADR 0005): the package
-**exports nothing**, so nothing here is a public promise while the right seam
-shape is still being discovered. It lives at the root rather than `internal/`
+MIG-019…026 began as the private differ proof (#57) and graduated to the public
+`migratediff` package with #59. It lives at the root rather than `internal/`
 because `internal/`'s boundary forbids sibling imports and this package exists
-to read `orm` metadata. Nullability detection is deliberately absent — the
-provisional flags are withheld from recorded state (MIG-013) until #79 decides
-them, so a "changed nullability" operation cannot exist honestly yet.
+to read `orm` metadata. Nullability detection remains absent in this decision
+slice: the flags stay withheld from recorded state (MIG-013) until ADR 0006's
+versioned codec and operation wiring land together.
 
 Two dialects ship together on purpose. SQLite keeps the gate hermetic
 (MIG-023 runs against an in-process database); PostgreSQL is what people deploy,

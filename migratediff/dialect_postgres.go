@@ -53,10 +53,9 @@ func (Postgres) DropTable(table string) (string, error) {
 
 // postgresType maps Fabrin's type vocabulary to PostgreSQL's.
 //
-// Nullability is deliberately absent: the provisional Field flags have no
-// agreed semantics yet (#79), so every column this renders is nullable until
-// that decision lands. Emitting NOT NULL now would be a guess written into
-// users' schema.
+// Nullability is deliberately absent in this decision slice. ADR 0006 has
+// decided the semantics, but state, differ, and both dialects switch together
+// in the following slice so no half-wired migration can be generated.
 func postgresType(f orm.Field) (string, error) {
 	switch f.Type {
 	case orm.String:

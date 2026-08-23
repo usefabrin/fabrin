@@ -19,11 +19,11 @@ import (
 //
 // # What a Snapshot deliberately does not hold
 //
-// The three provisional [Field] flags — Nullable, Unique, Index — never reach a
-// snapshot. They have no agreed semantics yet (#79), and a format that carries
-// bits nobody gave meaning to freezes their accidental reading into every file
-// users' repositories hold. When #79 decides them, they arrive here as a
-// deliberate change rather than an excavation.
+// [Field]'s Nullable, Unique, and Index flags do not reach a snapshot in this
+// decision slice. ADR 0006 now gives them semantics; the following state-format
+// slice adds them with an explicit version marker and a legacy decode. Keeping
+// the old withholding until that complete codec change lands prevents a
+// half-updated format from escaping.
 //
 // # Determinism is the contract
 //
@@ -106,9 +106,9 @@ func EncodeSnapshot(s Snapshot) ([]byte, error) {
 		for _, f := range reg.Model.Fields {
 			wf := wireField{Name: f.Name, Type: f.Type, MaxLen: f.MaxLen}
 			if f.PrimaryKey {
-				// Primary key has agreed semantics today (validate enforces
+				// Primary key has long-standing semantics (validate enforces
 				// exactly one per table), which is why it travels while the
-				// provisional flags do not.
+				// newly decided flags await the versioned codec slice.
 				wf.PrimaryKey = true
 			}
 			wm.Fields = append(wm.Fields, wf)

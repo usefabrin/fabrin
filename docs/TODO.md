@@ -139,9 +139,10 @@ pre-v0 decisions are provisional ORM constraints
       against. The **mechanism** is done: `orm.Snapshot`, a deterministic JSON
       codec, and `ReplayState` over an ordered step chain; hand-written
       migrations carry the last known state forward, unreadable state fails loud
-      naming its source, and the provisional `Nullable`/`Unique`/`Index` flags
-      are withheld until #79 decides them. Nothing reads a directory yet, so the
-      on-disk layout stays with the commands below. (FR-ORM-4, MIG-011…018,
+      naming its source, and the newly decided `Nullable`/`Unique`/`Index` flags
+      remain withheld until #79's versioned codec slice lands. Nothing reads a
+      directory yet, so the on-disk layout stays with the commands below.
+      (FR-ORM-4, MIG-011…018,
       [#56](https://github.com/usefabrin/fabrin/issues/56))
 - [~] Schema differ and DDL emitters (#57) — the private proof graduated to the
       public `migratediff` package with #59. It detects new/dropped tables and
@@ -209,19 +210,15 @@ breaking afterwards, so it needs an answer rather than a discovery.
       saying the dynamic type is not part of the contract, not the interface.
       ([ADR 0003](adr/0003-migrations-take-a-handle-not-a-transaction.md), #67,
       FR-ORM-4, MIG-010)
-- [ ] **Three `orm.Field` fields have no semantics.** `Nullable`, `Unique` and
-      `Index` are exported and read by nothing — not `validate`, not `clone`.
-      There is no answer to whether `Index: true` on a `Unique: true` field is
-      redundant or additive, and after v0.1 the answer has to stay compatible
-      with whatever users assumed. Either give them meaning in the generator
-      (#57) or withhold them until it needs them.
-
-      Related: `validate` rejects composite keys today, so when they land they
-      need `Model.PrimaryKey []string` — leaving two permanent ways to say the
-      same thing, with `Field.PrimaryKey` unable to express the composite case.
-      Same for multi-column `UNIQUE` and named indexes. Resolve the representation
-      intentionally rather than assuming an exported struct can grow for free.
-      ([#79](https://github.com/usefabrin/fabrin/issues/79), FR-ORM-1)
+- [~] **Three `orm.Field` fields have no semantics.** DECIDED in
+      [ADR 0006](adr/0006-field-constraint-semantics.md): NOT NULL default with
+      explicit opt-out, named UNIQUE constraints (implying their index), and
+      plain auto-named indexes. Redundant or contradictory primary/unique/index
+      combinations are rejected at registration. Generated names use a readable
+      prefix plus a bounded digest so underscore ambiguity and PostgreSQL
+      truncation cannot silently collide. Composite keys / user-named indexes /
+      multi-column UNIQUE remain unwritten. Wiring through state format, differ,
+      emitters, and generator lands in #79's later slices. (FR-ORM-1)
 - [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
       uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
       `orm.Time` sits one letter from `time.Time` in code that imports both.

@@ -154,12 +154,10 @@ func TestSnapshot_KeepsFieldOrderAsDeclared(t *testing.T) {
 func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
 	t.Parallel()
 
-	// Nullable, Unique and Index have no agreed semantics yet (#79), so they
-	// must not reach the encoded form. A format that carries bits nobody gave
-	// meaning to has frozen their accidental reading into every file users'
-	// repositories hold. Two schemas that differ ONLY in those flags are the
-	// same state as far as anything consuming snapshots can tell today, so
-	// they must encode identically.
+	// ADR 0006 has decided Nullable, Unique and Index, but the versioned codec is
+	// a separate slice. Until that complete encode/decode change lands, they must
+	// remain withheld at both snapshot construction and encoding rather than leak
+	// into a half-updated format.
 	withFlags := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
