@@ -187,9 +187,14 @@ pkg github.com/usefabrin/fabrin/orm, const Int Type = "int"
 pkg github.com/usefabrin/fabrin/orm, const Int64 Type = "int64"
 pkg github.com/usefabrin/fabrin/orm, const String Type = "string"
 pkg github.com/usefabrin/fabrin/orm, const Time Type = "time"
+pkg github.com/usefabrin/fabrin/orm, func EncodeSnapshot(s Snapshot) ([]byte, error)
 pkg github.com/usefabrin/fabrin/orm, func NewRegistry() *Registry
+pkg github.com/usefabrin/fabrin/orm, func NewSnapshot(models []Registered) (Snapshot, error)
+pkg github.com/usefabrin/fabrin/orm, func ParseSnapshot(data []byte, src string) (Snapshot, error)
+pkg github.com/usefabrin/fabrin/orm, func ReplayState(steps []StateStep) (Snapshot, error)
 pkg github.com/usefabrin/fabrin/orm, method (*Registry) Models() []Registered
 pkg github.com/usefabrin/fabrin/orm, method (*Registry) Register(module string, models ...Model) error
+pkg github.com/usefabrin/fabrin/orm, method (Snapshot) Models() []Registered
 pkg github.com/usefabrin/fabrin/orm, method (Type) Valid() bool
 pkg github.com/usefabrin/fabrin/orm, type Field struct
 pkg github.com/usefabrin/fabrin/orm, type Field struct, Index bool
@@ -206,7 +211,13 @@ pkg github.com/usefabrin/fabrin/orm, type Registered struct
 pkg github.com/usefabrin/fabrin/orm, type Registered struct, Model Model
 pkg github.com/usefabrin/fabrin/orm, type Registered struct, Module string
 pkg github.com/usefabrin/fabrin/orm, type Registry struct
+pkg github.com/usefabrin/fabrin/orm, type Snapshot struct
+pkg github.com/usefabrin/fabrin/orm, type StateStep struct
+pkg github.com/usefabrin/fabrin/orm, type StateStep struct, State *Snapshot
+pkg github.com/usefabrin/fabrin/orm, type StateStep struct, Version string
 pkg github.com/usefabrin/fabrin/orm, type Type string
+pkg github.com/usefabrin/fabrin/orm, var ErrBadState error
+pkg github.com/usefabrin/fabrin/orm, var ErrBadSteps error
 pkg github.com/usefabrin/fabrin/orm, var ErrDuplicateTable error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidField error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidModel error
