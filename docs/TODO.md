@@ -143,6 +143,14 @@ pre-v0 decisions are provisional ORM constraints
       are withheld until #79 decides them. Nothing reads a directory yet, so the
       on-disk layout stays with the commands below. (FR-ORM-4, MIG-011…018,
       [#56](https://github.com/usefabrin/fabrin/issues/56))
+- [~] Schema differ and DDL emitters (#57) — proved **private** in package
+      `migratediff` on the admin-proof terms of ADR 0005: detects new/dropped
+      tables and fields plus type/length changes with a deterministic op order;
+      SQLite executes against an in-process database but refuses drop/retype
+      until the table-rebuild dance exists; PostgreSQL verifies live when
+      `FABRIN_TEST_PG_DSN` is set. Nullability detection waits on #79. No
+      exported symbols — the public seam is #59's decision.
+      (FR-ORM-4, MIG-019…026)
 - [ ] `fabrin migrate` / `makemigrations` as commands, and migrations as files on
       disk. The engine above takes them as values; nothing reads a directory yet.
       (FR-ORM-4)

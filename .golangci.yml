@@ -50,6 +50,16 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
+      # boundary: migratediff — no deny rules yet. The package currently exports
+      #     nothing: it is a private vertical proving the schema differ and the
+      #     per-database DDL emitters before that API is frozen (#57), on the
+      #     same terms as admin's proof (ADR 0005). It reads orm metadata by
+      #     design — which is also why it lives at the root rather than under
+      #     internal/, whose boundary forbids sibling imports. database/sql is
+      #     test-only here today; when fabrin makemigrations (#59) graduates a
+      #     public seam, its dependency directions get real rules rather than
+      #     guesses from one proof.
+      #
       # boundary: config — must not import Gin or net/http (config-is-transport-free)
       #     and must not import the root package (config-is-standalone). Settings
       #     load from a CLI, a test, or a migrate-only process, none of which should

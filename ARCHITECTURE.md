@@ -29,6 +29,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── logging/             slog setup, request ids
 ├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine over *sql.DB
+├── migratediff/         schema differ + DDL emitters — exports nothing yet (#57)
 ├── cmd/fabrin/          the CLI — `new`, `startapp`, `version`
 │
 ├── internal/scaffold/   go:embed project templates — unimportable by users
