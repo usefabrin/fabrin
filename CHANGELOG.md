@@ -37,7 +37,7 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
-- **Duplicate-version pre-merge gate for migration files.** ([#55])
+- **Duplicate-version pre-merge gate for migration files. ([#55])
   `scripts/gates/check-migration-versions.sh` scans every `<module>/migrations/`
   directory, derives each version from its filename prefix (the MIG-033
   contract), and fails on three things: one version claimed by two files
@@ -49,6 +49,69 @@ with their milestone rather than split into sections. Cutting a version is
   fixture trees (a duplicate timestamp across two modules plus a legacy `0009_`
   file turn it red naming all three problems). Follow-up: the project scaffold
   should ship the same script.
+
+- **`Migrator`** — a module declares the migrations that bring its tables from
+  one recorded state to the next. ([#59])
+
+  ```go
+  func (m billing) Migrations() []migrate.M {
+      return append([]migrate.M{}, billingMigrations...)
+  }
+  ```
+
+  The counterpart of `Modeler`: the models say what the schema IS, the
+  migrations say how it got there. Collected from **mounted** modules only,
+  same process-slicing rule as models, checks, and commands. Nothing reads a
+  directory at runtime — `makemigrations` (#59, next slice) will generate files
+  into the owning module's directory, and the module returns them by hand from
+  here, so an unregistered migration is a compile-time absence rather than a
+  silent one.
+
+  Two cross-module wiring mistakes are construction errors rather than deploy
+  discoveries: **two modules claiming one version** (two branches each
+  generating the same timestamp are green in isolation and collide only when
+  their modules meet in one binary) and **unequal version widths across
+  modules** (the collected union runs as ONE set; mixed widths sort into an
+  order nobody wrote). Within-module mistakes stay with the engine's own
+  validation, which names the migration precisely.
+
+- **`./myapp migrate`** — apply pending migrations, or move to a version with
+  `-to`, forward or backward. ([#59])
+
+  ```console
+  $ ./myapp migrate
+  migrating forward (2 declared)
+  applied 20260801120000 create orders
+
+  $ ./myapp migrate -to 20260801120000   # after both applied: rolls back
+  rolling back to 20260801120000 (exclusive)
+  ```
+
+  The direction is decided by reading the applied-state table first and stated
+  in the output before acting — a job that does not say which way it is going
+  is a deploy incident waiting for its moment. Forward-to filters to the subset
+  at or below the target and lets the engine run it unchanged. `-to` names an
+  exclusive target in both directions, matching `migrate.Rollback`'s existing
+  semantics. An empty result prints "up to date" rather than nothing, because
+  silence after a job reads as failure.
+
+  Two refusals fire before the database is touched:
+
+  - **A sliced process refuses outright**, naming registered vs mounted. A
+    sliced process holds a SUBSET of the schema, and migrating from a subset
+    would half-migrate the shared database — while makemigrations run the same
+    way would propose dropping every table whose module was selected out.
+    FABRIN_MODULES is route selection, never schema selection.
+  - **No configured database refuses with an error naming `Options.DB`.**
+
+- **`Options.DB *sql.DB`** — the database handle migration commands operate on.
+  Fabrin still opens nothing ([ADR 0002]): main opens the database with whatever
+  driver it chose and hands the handle over, exactly as it hands stores to
+  modules. Used only by commands given work against it; never by serving.
+
+- **`migrate.Ensure(ctx, db)`** — creates the applied-state table if absent, so
+  the command can inspect state before the first Run. Idempotent by
+  construction: the same CREATE TABLE IF NOT EXISTS the engine already issues.
 
 - **Private schema-differ proof — the autodetector half of `makemigrations`.**
   ([#57])
@@ -1108,6 +1171,7 @@ Added — package `fabrin`:
 [#55]: https://github.com/usefabrin/fabrin/issues/55
 [#56]: https://github.com/usefabrin/fabrin/issues/56
 [#57]: https://github.com/usefabrin/fabrin/issues/57
+[#59]: https://github.com/usefabrin/fabrin/issues/59
 [#60]: https://github.com/usefabrin/fabrin/issues/60
 [#67]: https://github.com/usefabrin/fabrin/issues/67
 [#71]: https://github.com/usefabrin/fabrin/issues/71

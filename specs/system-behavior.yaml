@@ -569,6 +569,48 @@ behaviours:
     status: implemented
     test: migratediff/migratediff_test.go::TestDataLossIsStatedInTheEmittedSQL
 
+  - id: MIG-027
+    what: A module declares its migrations through the optional Migrator interface, collected from mounted modules only, and reported through Capabilities.
+    why: The counterpart of Modeler - the models say what the schema IS, the migrations say how it got there. Nothing scans for them at runtime; makemigrations generates files into the owning module's directory and the module returns them by hand, so an unregistered migration is a compile-time absence rather than a silent one.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestApp_ReportsMigratorCapability
+
+  - id: MIG-028
+    what: Two modules claiming one migration version fail at construction, wrapping ErrDuplicateVersion and naming both modules.
+    why: Two branches each generating the same timestamped version are both green in isolation and collide only when their modules meet in one binary. The engine would catch it at deploy time against a database - construction is cheaper, and naming both sides makes it fixable without grepping.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestNew_RejectsTwoModulesClaimingOneMigrationVersion
+
+  - id: MIG-029
+    what: Migrations of unequal version width across modules fail at construction, wrapping ErrInvalidMigration.
+    why: The collected union runs as ONE set, and lexicographic ordering on mixed widths applies migrations in an order their authors did not write. Found at wiring time rather than against a schema each half never saw.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestNew_RejectsMigrationsOfMixedWidthsAcrossModules
+
+  - id: MIG-030
+    what: The migrate command applies pending migrations in version order against Options.DB, prints each applied version and name, and on a second run says up to date instead of printing nothing.
+    why: A migrate job's whole value is knowing what state the schema ended in - silence after a job reads as failure. The database is main's choice (ADR 0002); Fabrin opens nothing and refuses with an error naming Options.DB when no handle was handed over.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestExecute_MigrateAppliesPendingMigrationsAndSaysSo
+
+  - id: MIG-031
+    what: With -to, migrate moves to that version - forward applying everything up to and including it, backward rolling back to an exclusive target - and states the direction before acting.
+    why: A deploy landing halfway between versions is normal, not exotic, and rollback must not re-run forward steps to get there. Direction is decided by reading the applied-state table first and printed before anything runs, because an undocumented direction is a deploy incident waiting for its moment.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestExecute_MigrateToRollsBackToAnExclusiveTarget
+
+  - id: MIG-032
+    what: Migration commands refuse outright when the process is sliced by FABRIN_MODULES, naming registered versus mounted.
+    why: A sliced process holds a subset of the schema, and acting from a subset would half-migrate the shared database - or, for makemigrations, propose dropping every table whose module was selected out. FABRIN_MODULES is route selection, never schema selection; refusing names the cause and the fix.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced
+
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
     why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.
