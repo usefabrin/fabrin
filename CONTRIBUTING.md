@@ -143,6 +143,15 @@ suite could not have caught: a package in the manifest with nothing recorded.
   `go.mod` is there for this package's own tests **and** for `examples/hello`,
   which is an application and therefore the place a driver belongs. The
   `!**/*_test.go` exclusion is what keeps it out of the shipped engine.
+- `migratediff` records **no deny rules yet**, because it currently exports
+  nothing: it is a private vertical proving the schema differ and DDL emitters
+  before that API freezes (#57), on the same terms as the admin proof
+  ([ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md)). It reads `orm`
+  metadata by design — which is also why it lives at the repository root rather
+  than under `internal/`, whose boundary forbids sibling imports. When #59
+  graduates a public seam, its dependency directions get real rules rather than
+  guesses from one proof. (`pgx` reaches consumers' `go.sum` through this
+  package's tests alone, measured in the CHANGELOG like its sqlite predecessor.)
 - `internal/**` must not import the root package.
 
 `fabrin/cli` is a leaf for a concrete reason: the root package imports it to

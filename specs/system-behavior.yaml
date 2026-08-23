@@ -512,6 +512,62 @@ behaviours:
     status: implemented
     test: orm/state_test.go::TestReplayState_RejectsBrokenSequences
 
+  - id: MIG-019
+    what: The differ detects each shape of schema change - new table, dropped table, added field, dropped field, changed type, changed length - as one operation each.
+    why: This is the seam makemigrations stands on. Each shape is its own operation because they render differently and fail differently; a differ that collapsed them would generate migrations nobody could review operation by operation. Lives in an unexported package on the admin-proof terms (ADR 0005) until #59 freezes the public seam deliberately.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_DetectsEachShapeOfChange
+
+  - id: MIG-020
+    what: Diffing a state against itself emits nothing - makemigrations on an unchanged project says "no changes" rather than writing a file full of nothing.
+    why: An empty diff is the normal case on a redeploy. A generator that emitted empty migrations on every run would train users to ignore its output, which is how a real change eventually ships unnoticed inside noise.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_EmitsNothingWhenStatesAgree
+
+  - id: MIG-021
+    what: The diff is deterministic and ordered - creates sorted by table first, alterations per surviving table with columns sorted and drops before retypes before additions, whole-table drops last; same inputs, same ops, every run.
+    why: The generated migration inherits whatever wiggle the differ allows. Ordering left to map iteration produces migrations that differ between runs on an unchanged project and reviews terribly; the order is chosen once, here, so data loss clusters where a reviewer reads it.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_IsDeterministicAndOrdersItsOps
+
+  - id: MIG-022
+    what: Reordering a model's declared field list produces no operations.
+    why: DDL cannot reorder columns without rebuilding the table, and the registry preserves declared order as layout intent. Inventing a drop-and-re-add for a cosmetic diff would destroy data - the one outcome no generator may cause silently.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_TreatsAReorderedFieldListAsNoChange
+
+  - id: MIG-023
+    what: Emitted DDL is executed against a real database - SQLite in-process creates tables that accept rows.
+    why: A dialect that renders plausible SQL nobody's server accepts is worse than none. Eyeballing SQL proves syntax at best; executing it proves the dialect.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestSQLite_CreatesTablesThatAcceptRows
+
+  - id: MIG-024
+    what: SQLite refuses column drops and type changes with a stated error wrapping errUnsupported, naming the dialect - before anything executes.
+    why: SQLite cannot alter or drop a column in place. The honest options are the documented table-rebuild dance or a stated refusal; this iteration refuses, from render, never halfway through a live migration. Emitting SQL that fails mid-migration is the worst place to discover a dialect limit.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors
+
+  - id: MIG-025
+    what: PostgreSQL DDL is verified against a live server when FABRIN_TEST_PG_DSN is set, and skipped WITH a notice when it is not - never silently passing either way.
+    why: Postgres is what people deploy, so its dialect must be more than plausible. Skipping quietly when unconfigured keeps the hermetic gate hermetic; the notice keeps the skip visible to anyone reading verbose output, so an always-skipped check cannot masquerade as a passing one forever.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestPostgres_RendersDDLThatALiveServerAccepts
+
+  - id: MIG-026
+    what: A dropped column's statement carries its data-loss warning as a SQL comment naming the column.
+    why: Dropping a column destroys whatever it held, and that is exactly the line a reviewer must not skim past. It rides in the emitted SQL - where the generated migration file carries it - rather than in a log nobody diffs.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDataLossIsStatedInTheEmittedSQL
+
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
     why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.

@@ -180,6 +180,7 @@ pkg github.com/usefabrin/fabrin/migrate, var ErrInvalidMigration error
 pkg github.com/usefabrin/fabrin/migrate, var ErrMissingMigration error
 pkg github.com/usefabrin/fabrin/migrate, var ErrOutOfOrder error
 
+
 pkg github.com/usefabrin/fabrin/orm, const Bool Type = "bool"
 pkg github.com/usefabrin/fabrin/orm, const Bytes Type = "bytes"
 pkg github.com/usefabrin/fabrin/orm, const Float Type = "float"

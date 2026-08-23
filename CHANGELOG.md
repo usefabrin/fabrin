@@ -37,6 +37,42 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Private schema-differ proof — the autodetector half of `makemigrations`.**
+  ([#57])
+
+  A new `migratediff` package exports no symbols yet. It diffs two recorded
+  model states into a deterministic operation list (new/dropped tables,
+  added/dropped fields, type and length changes; pure field reorders produce
+  nothing, because DDL cannot reorder columns without destroying data), and two
+  dialects render those operations as SQL: SQLite and PostgreSQL from day one,
+  so the interface cannot be accidentally shaped around a single server.
+
+  The proof follows [ADR 0005]'s terms for the admin seam: nothing exported,
+  nothing promised, and the public shape decided when `fabrin makemigrations`
+  (#59) needs it rather than by accident of being first. It lives at the
+  repository root rather than under `internal/` because `internal/`'s boundary
+  forbids sibling imports and this package exists to read `orm` metadata.
+
+  Decisions worth recording:
+
+  - **Ordering is part of the output** — creates sorted by table, alterations
+    per surviving table with columns sorted (drops before retypes before
+    additions), whole-table drops last. A generator whose output depends on map
+    iteration produces migrations that differ between runs and reviews
+    terribly.
+  - **SQLite refuses what it cannot do**, from render, before anything
+    executes: column drops and type changes name the dialect and wrap a
+    sentinel rather than emitting SQL that fails halfway through a live
+    migration. The table-rebuild dance that un-refuses them needs
+    multi-statement operations — a deliberate change, not a signature drift.
+  - **Data loss is stated in the emitted SQL** as a comment naming the column —
+    the one line a reviewer must not skim past rides in the file itself.
+  - **PostgreSQL is verified live** when `FABRIN_TEST_PG_DSN` is set and
+    skipped with a notice when not — never silently passing either way.
+  - **Nullability detection is deliberately absent**: the provisional flags are
+    withheld from recorded state until #79 decides them (#56 above), so a
+    changed-nullability operation cannot exist honestly yet.
+
 - **Recorded model state per migration — the "before" `makemigrations` diffs
   against.** ([#56])
 
@@ -90,7 +126,6 @@ with their milestone rather than split into sections. Cutting a version is
   first generated migration creates everything, and nothing about the empty case
   needs special-casing at the call site.
 
-=======
 - **Private admin CRUD seam proof.** A new `admin` package exports no symbols yet,
   but proves one concrete record through existing ORM metadata, metadata-ordered
   private form state, typed field conversion, and resource-specific create,
@@ -102,6 +137,17 @@ with their milestone rather than split into sections. Cutting a version is
   work. `apicheck` now skips empty packages when rendering the snapshot, while an
   injected exported admin type still makes the gate fail; a private package no
   longer creates a blank-line-only API diff. ([ADR 0005], [#78])
+- `github.com/jackc/pgx/v5` enters `go.mod` as a **test-only** dependency, on
+  the same terms the SQLite driver entered ([#54], [#60]). ([#57])
+
+  The measurement, so the next person deciding has numbers rather than a
+  feeling: `go list -deps .` — what a consumer links — reaches **zero**
+  `jackc/*` modules; only `-test` reach does, through migratediff's tests alone
+  (16 modules). It exists for one reason: without a registered PostgreSQL
+  driver, a configured `FABRIN_TEST_PG_DSN` would skip on "unknown driver", and
+  the live-database check could never actually run — exactly the silently-
+  never-passing outcome MIG-025 forbids.
+
 - **Selection-before-construction module factories.** The new opaque
   `fabrin.ModuleFactory`, `fabrin.LazyModule`, and
   `fabrin.NewFromFactories` API validates the full named catalogue and selection
@@ -1044,6 +1090,7 @@ Added — package `fabrin`:
 [#54]: https://github.com/usefabrin/fabrin/issues/54
 [#55]: https://github.com/usefabrin/fabrin/issues/55
 [#56]: https://github.com/usefabrin/fabrin/issues/56
+[#57]: https://github.com/usefabrin/fabrin/issues/57
 [#60]: https://github.com/usefabrin/fabrin/issues/60
 [#67]: https://github.com/usefabrin/fabrin/issues/67
 [#71]: https://github.com/usefabrin/fabrin/issues/71
