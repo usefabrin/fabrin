@@ -6,15 +6,15 @@ import (
 	"github.com/usefabrin/fabrin/orm"
 )
 
-// postgresDialect renders for PostgreSQL. It is the dialect people deploy,
-// which is why it exists alongside SQLite from the first commit: one dialect
+// Postgres renders for PostgreSQL. It is the Dialect people deploy,
+// which is why it exists alongside SQLite from the first commit: one Dialect
 // is how an interface gets shaped around a single server without anyone
 // noticing.
-type postgresDialect struct{}
+type Postgres struct{}
 
-func (postgresDialect) name() string { return "PostgreSQL" }
+func (Postgres) Name() string { return "PostgreSQL" }
 
-func (postgresDialect) createTable(m orm.Model) (string, error) {
+func (Postgres) CreateTable(m orm.Model) (string, error) {
 	body, err := columnList(postgresType, m)
 	if err != nil {
 		return "", err
@@ -22,7 +22,7 @@ func (postgresDialect) createTable(m orm.Model) (string, error) {
 	return "CREATE TABLE " + m.Table + " (\n" + body + "\n)", nil
 }
 
-func (postgresDialect) addColumn(table string, f orm.Field) (string, error) {
+func (Postgres) AddColumn(table string, f orm.Field) (string, error) {
 	typ, err := postgresType(f)
 	if err != nil {
 		return "", err
@@ -34,12 +34,12 @@ func (postgresDialect) addColumn(table string, f orm.Field) (string, error) {
 // file will carry it.
 // The data-loss warning rides in the SQL itself, where the generated migration
 // file will carry it.
-func (postgresDialect) dropColumn(table, column string) (string, error) {
+func (Postgres) DropColumn(table, column string) (string, error) {
 	return "-- fabrin: dropping " + table + "." + column +
 		" discards its data\nALTER TABLE " + table + " DROP COLUMN " + column, nil
 }
 
-func (postgresDialect) changeType(table, column string, to orm.Field) (string, error) {
+func (Postgres) ChangeType(table, column string, to orm.Field) (string, error) {
 	typ, err := postgresType(to)
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func (postgresDialect) changeType(table, column string, to orm.Field) (string, e
 	return "ALTER TABLE " + table + " ALTER COLUMN " + column + " TYPE " + typ, nil
 }
 
-func (postgresDialect) dropTable(table string) (string, error) {
+func (Postgres) DropTable(table string) (string, error) {
 	return "-- fabrin: dropping " + table + " discards its data\nDROP TABLE " + table, nil
 }
 
