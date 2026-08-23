@@ -94,11 +94,12 @@ changes require human review.
 
 The stabilization epic is complete. Lazy selection-before-construction is
 resolved by [#77](https://github.com/usefabrin/fabrin/issues/77) and accepted
-[ADR 0004](adr/0004-module-factories-select-before-construction.md). Remaining
-pre-v0 decisions are the admin CRUD/type seam
-([#78](https://github.com/usefabrin/fabrin/issues/78)), provisional ORM
-constraints ([#79](https://github.com/usefabrin/fabrin/issues/79)), and the auth
-threat model ([#80](https://github.com/usefabrin/fabrin/issues/80)).
+[ADR 0004](adr/0004-module-factories-select-before-construction.md). The private
+admin CRUD/type proof is resolved by [#78](https://github.com/usefabrin/fabrin/issues/78)
+and proposed [ADR 0005](adr/0005-admin-crud-seam-remains-private.md). Remaining
+pre-v0 decisions are provisional ORM constraints
+([#79](https://github.com/usefabrin/fabrin/issues/79)) and the auth threat model
+([#80](https://github.com/usefabrin/fabrin/issues/80)).
 
 ## F2 — Models, metadata, migrations ◐
 
@@ -246,9 +247,14 @@ this possible.
 - [ ] Per-model overrides: list columns, filters, form fields, search. (FR-ADMIN-3)
 - [ ] Every write permission-checked; the admin is not a bypass. (FR-ADMIN-4)
 - [ ] Pagination that does not `SELECT *` a whole table to count it.
-- [ ] Prove one internal vertical CRUD slice from metadata to persistence before
-      freezing any public admin seam; current metadata has no generic CRUD or Go
-      type link. ([#78](https://github.com/usefabrin/fabrin/issues/78))
+- [x] Prove one unexported vertical CRUD slice from metadata through private form
+      state to resource-specific persistence before freezing any public seam.
+      Explicit construction and field adapters provide the missing Go-type link;
+      authorization and CSRF are mandatory and fail closed before binding or
+      persistence. This is seam evidence, not a usable admin or public repository.
+      (FR-ADMIN-5, ADM-001…003,
+      [ADR 0005](adr/0005-admin-crud-seam-remains-private.md),
+      [#78](https://github.com/usefabrin/fabrin/issues/78))
 
 ## F6 — Signals and background work
 
