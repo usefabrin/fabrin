@@ -36,6 +36,8 @@ pkg github.com/usefabrin/fabrin, type HandlerFunc = github.com/gin-gonic/gin.Han
 pkg github.com/usefabrin/fabrin, type Lifecycle interface
 pkg github.com/usefabrin/fabrin, type Lifecycle interface, Start(ctx context.Context) error
 pkg github.com/usefabrin/fabrin, type Lifecycle interface, Stop(ctx context.Context) error
+pkg github.com/usefabrin/fabrin, type Migrator interface
+pkg github.com/usefabrin/fabrin, type Migrator interface, Migrations() []github.com/usefabrin/fabrin/migrate.M
 pkg github.com/usefabrin/fabrin, type Modeler interface
 pkg github.com/usefabrin/fabrin, type Modeler interface, Models() []github.com/usefabrin/fabrin/orm.Model
 pkg github.com/usefabrin/fabrin, type Module interface
@@ -104,6 +106,7 @@ pkg github.com/usefabrin/fabrin/config, type Lookup interface, All() map[string]
 pkg github.com/usefabrin/fabrin/config, type MapLookup map[string]string
 pkg github.com/usefabrin/fabrin/config, type Options struct
 pkg github.com/usefabrin/fabrin/config, type Options struct, Addr string
+pkg github.com/usefabrin/fabrin/config, type Options struct, DB *database/sql.DB
 pkg github.com/usefabrin/fabrin/config, type Options struct, Debug bool
 pkg github.com/usefabrin/fabrin/config, type Options struct, LogFormat string
 pkg github.com/usefabrin/fabrin/config, type Options struct, LogLevel string
@@ -163,6 +166,7 @@ pkg github.com/usefabrin/fabrin/logging, func RequestID() github.com/gin-gonic/g
 pkg github.com/usefabrin/fabrin/logging, func RequestIDFromContext(ctx context.Context) string
 
 pkg github.com/usefabrin/fabrin/migrate, const Table untyped string = "fabrin_migrations"
+pkg github.com/usefabrin/fabrin/migrate, func Ensure(ctx context.Context, db *database/sql.DB) error
 pkg github.com/usefabrin/fabrin/migrate, func Rollback(ctx context.Context, db *database/sql.DB, ms []M, toVersion string) ([]M, error)
 pkg github.com/usefabrin/fabrin/migrate, func Run(ctx context.Context, db *database/sql.DB, ms []M) ([]M, error)
 pkg github.com/usefabrin/fabrin/migrate, type Handle interface

@@ -47,7 +47,7 @@ still checks the module and every dependency; jump-to-definition still works.
 |---|---|---|
 | `models.Model` | `orm.Model` + Fabrin's metadata registry — a description, with no database handle anywhere near it | 🚧 F2 |
 | Models found by importing each app in `INSTALLED_APPS` | `Modeler` on a module — models are handed over, never scanned for | ✅ F2 |
-| `makemigrations` / `migrate` | `fabrin makemigrations` / `fabrin migrate` — the engine and the recorded-state mechanism exist; the commands and on-disk files do not yet | 🚧 F2 |
+| `makemigrations` / `migrate` | `./myapp migrate [-to]` over modules' declared migrations — the engine, the command, and the recorded-state mechanism exist; `makemigrations` and on-disk files do not yet | 🚧 F2 |
 | Each migration serializes the model state it produces; `makemigrations` reconstructs "before" by replaying them | `orm.Snapshot` + `ReplayState` — deterministic JSON codec, provisional flags withheld, hand-written steps carry the last known state forward | ✅ F2 (mechanism) / 📋 F2 (files) |
 | The migration autodetector (`django.db.migrations.autodetector`) | `migratediff` — schema differ plus SQLite/PostgreSQL DDL emitters; exports nothing yet, proved private under ADR 0005's terms; nullability detection waits on #79 | 🚧 F2 |
 | Database-specific SQL generation (`django.db.backends.*` SchemaEditor) | One `dialect` interface with two implementations from day one — SQLite keeps CI hermetic, PostgreSQL is what people deploy | ✅ F2 (private proof) / 📋 F2 (public seam) |

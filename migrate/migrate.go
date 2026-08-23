@@ -284,6 +284,17 @@ func prepare(ctx context.Context, db *sql.DB, ms []M) ([]M, error) {
 // TIMESTAMP. No SERIAL, no AUTOINCREMENT, no dialect-specific defaults — this one
 // statement has to work on every database Fabrin supports, and the version is the
 // natural primary key anyway.
+// Ensure creates the applied-state table if it is not already there, so a
+// caller can inspect migration state before the first Run — the migrate command
+// reads it to decide which direction -to means, and a database that has never
+// migrated has no table to read yet.
+//
+// Idempotent by construction: the statement is CREATE TABLE IF NOT EXISTS, the
+// same one [Run] and [Rollback] issue.
+func Ensure(ctx context.Context, db *sql.DB) error {
+	return ensureTable(ctx, db)
+}
+
 func ensureTable(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS `+Table+` (
 		version    TEXT PRIMARY KEY,

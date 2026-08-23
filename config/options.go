@@ -22,6 +22,7 @@
 package config
 
 import (
+	"database/sql"
 	"log/slog"
 	"time"
 )
@@ -104,6 +105,15 @@ type Options struct {
 	// default: Gin's own default trusts every proxy, so a spoofed X-Forwarded-For
 	// becomes the client IP. Env: FABRIN_TRUSTED_PROXIES (comma-separated).
 	TrustedProxies []string
+
+	// DB is the database the migration commands operate on. Nil means none was
+	// configured, and ./myapp migrate refuses with an error naming this field.
+	//
+	// Fabrin opens nothing (ADR 0002): main opens the database with whatever
+	// driver it chose and hands the handle over, exactly as it hands stores to
+	// modules. The handle is used only by commands that were given work to do
+	// against it — today that is `migrate` — never by serving.
+	DB *sql.DB
 }
 
 // WithDefaults returns a copy of o with zero fields replaced by their defaults.
