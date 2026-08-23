@@ -37,6 +37,35 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Constraint semantics wired through the whole migration stack — state format
+  v2.** ([#79])
+
+  **BREAKING — recorded-state files written before ADR 0006 are rejected**, not
+  reinterpreted. They encode all-nullable columns under the old withhold rule;
+  reading them as v2 would silently flip every column to NOT NULL and make the
+  next generated migration diff against a schema nobody declared. Zero releases
+  exist, so refusing loudly beats interpreting forever; the error names the file
+  and points at the ADR. The `"v"` marker is permanent insurance — this is the
+  last meaning-changing decode without a tripwire.
+
+  Everything downstream consumes the decision:
+
+  - `orm.Field` and the wire struct are now field-identical with an explicit
+    conversion between them — adding a key to one without the other is a compile
+    error, not a silent divergence.
+  - The differ gains `ChangeNullability`, `AddIndex`, and `DropIndex`, each its
+    own operation: PostgreSQL renders nullability moves as `SET/DROP NOT NULL`
+    separately from type changes, and indexes carry the deterministic
+    `idx_<table>_<column>` name in both directions of their Down.
+  - Inline DDL states the decision on every table: `NOT NULL` unless Nullable,
+    `UNIQUE` when asked, and a primary key never says NOT NULL twice.
+  - SQLite's refusals extend honestly: it cannot alter nullability in place,
+    and `ADD COLUMN ... NOT NULL` requires a DEFAULT clause the metadata does
+    not have — both refuse from render, before anything executes, naming the
+    fix ("give the column Nullable or hand-write").
+  - The generator inverts the new operations against the recorded "before",
+    exactly as it inverts type changes.
+
 - **Duplicate-version pre-merge gate for migration files. ([#55])
   `scripts/gates/check-migration-versions.sh` scans every `<module>/migrations/`
   directory, derives each version from its filename prefix (the MIG-033

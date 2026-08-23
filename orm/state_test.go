@@ -151,15 +151,13 @@ func TestSnapshot_KeepsFieldOrderAsDeclared(t *testing.T) {
 	t.Fatal("orders not found in snapshot")
 }
 
-func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
+func TestSnapshot_EncodesConstraintFlags(t *testing.T) {
 	t.Parallel()
 
-	// Nullable, Unique and Index have no agreed semantics yet (#79), so they
-	// must not reach the encoded form. A format that carries bits nobody gave
-	// meaning to has frozen their accidental reading into every file users'
-	// repositories hold. Two schemas that differ ONLY in those flags are the
-	// same state as far as anything consuming snapshots can tell today, so
-	// they must encode identically.
+	// The deliberate flip of the old WithholdsProvisionalFlags guard: #79
+	// decided the three flags (ADR 0006), so schemas differing ONLY in them
+	// must now encode DIFFERENTLY. If this test can be made red by withholding
+	// again, that is the signal someone is reverting the decision.
 	withFlags := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
@@ -194,8 +192,67 @@ func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
 		return string(b)
 	}
 
-	if encode(withFlags) != encode(withoutFlags) {
-		t.Error("provisional flags changed the encoded bytes; they leaked into the state format")
+	a, b := encode(withFlags), encode(withoutFlags)
+	if a == b {
+		t.Error("constraint flags did not change the encoded bytes; the decision is not recorded")
+	}
+
+	// And the flags must survive the round trip: parse back and compare field
+	// by field, because a flag lost in parsing silently changes what NOT NULL
+	// the next migration emits.
+	r := orm.NewRegistry()
+	if err := r.Register("shop", withFlags); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	snap, err := orm.NewSnapshot(r.Models())
+	if err != nil {
+		t.Fatalf("NewSnapshot: %v", err)
+	}
+	parsed, err := orm.ParseSnapshot([]byte(a), "flags.state.json")
+	if err != nil {
+		t.Fatalf("ParseSnapshot: %v", err)
+	}
+	got := parsed.Models()[0].Model.Fields
+	want := snap.Models()[0].Model.Fields
+	for i := range want {
+		if got[i].Nullable != want[i].Nullable || got[i].Unique != want[i].Unique || got[i].Index != want[i].Index {
+			t.Errorf("field %d flags = nullable/%v unique/%v index/%v, want nullable/%v unique/%v index/%v",
+				i, got[i].Nullable, got[i].Unique, got[i].Index, want[i].Nullable, want[i].Unique, want[i].Index)
+		}
+	}
+}
+
+func TestParseSnapshot_RejectsPreConstraintState(t *testing.T) {
+	t.Parallel()
+
+	// State written before #79 encodes all-nullable columns under the old
+	// withhold rule. Reading it as v2 would silently flip every column to NOT
+	// NULL and make the next makemigrations emit a nullability diff against a
+	// schema nobody declared. Zero releases exist, so the honest answer is to
+	// refuse loudly rather than interpret forever.
+	const src = "20260101000000_legacy.state.json"
+	tests := []struct {
+		name string
+		data string
+	}{
+		{"no version marker", `{"models":[{"module":"shop","table":"orders","fields":[{"name":"id","type":"int64","primary_key":true}]}]}`},
+		{"wrong version", `{"v":1,"models":[]}`},
+		{"future version", `{"v":3,"models":[]}`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := orm.ParseSnapshot([]byte(tc.data), src)
+			if !errors.Is(err, orm.ErrBadState) {
+				t.Fatalf("got %v, want it to wrap ErrBadState", err)
+			}
+			if !strings.Contains(err.Error(), src) {
+				t.Errorf("the error must name the source file, got: %v", err)
+			}
+			if !strings.Contains(err.Error(), "0006") {
+				t.Errorf("the error should point at ADR 0006 for context, got: %v", err)
+			}
+		})
 	}
 }
 
@@ -211,7 +268,7 @@ func TestParseSnapshot_ErrorsNameTheirSource(t *testing.T) {
 		name string
 		data string
 	}{
-		{"truncated", `{"models":[{"module":"shop","table":"orders"`},
+		{"truncated", `{"v":2,"models":[{"module":"shop","table":"orders"`},
 		{"not json at all", "hello, world"},
 		{"wrong top level", `[1,2,3]`},
 	}
@@ -241,8 +298,8 @@ func TestParseSnapshot_RejectsKeysItDoesNotKnow(t *testing.T) {
 	// not understand would be silently read with that information DROPPED, and
 	// the next generated migration would diff against an impoverished state.
 	// Failing loud is the fail-closed answer.
-	data := `{"models":[{"module":"shop","table":"orders","fields":[
-		{"name":"id","type":"int64","primary_key":true,"unique":true}]}]}`
+	data := `{"v":2,"models":[{"module":"shop","table":"orders","fields":[
+		{"name":"id","type":"int64","primary_key":true,"collate":"nocase"}]}]}`
 
 	_, err := orm.ParseSnapshot([]byte(data), "edited.state.json")
 	if err == nil {
@@ -269,27 +326,27 @@ func TestParseSnapshot_RevalidatesWhatItReads(t *testing.T) {
 	}{
 		{
 			name: "unknown type",
-			data: `{"models":[{"module":"shop","table":"orders","fields":[
+			data: `{"v":2,"models":[{"module":"shop","table":"orders","fields":[
 				{"name":"id","type":"money","primary_key":true}]}]}`,
 			want: orm.ErrInvalidField,
 		},
 		{
 			name: "two primary keys",
-			data: `{"models":[{"module":"shop","table":"orders","fields":[
+			data: `{"v":2,"models":[{"module":"shop","table":"orders","fields":[
 				{"name":"id","type":"int64","primary_key":true},
 				{"name":"reference","type":"string","primary_key":true}]}]}`,
 			want: orm.ErrInvalidModel,
 		},
 		{
 			name: "duplicate column",
-			data: `{"models":[{"module":"shop","table":"orders","fields":[
+			data: `{"v":2,"models":[{"module":"shop","table":"orders","fields":[
 				{"name":"id","type":"int64","primary_key":true},
 				{"name":"id","type":"string"}]}]}`,
 			want: orm.ErrInvalidField,
 		},
 		{
 			name: "no fields",
-			data: `{"models":[{"module":"shop","table":"orders","fields":[]}]}`,
+			data: `{"v":2,"models":[{"module":"shop","table":"orders","fields":[]}]}`,
 			want: orm.ErrInvalidModel,
 		},
 	}

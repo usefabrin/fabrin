@@ -304,6 +304,12 @@ func operationTable(op migratediff.Operation) string {
 		return o.Table
 	case migratediff.ChangeType:
 		return o.Table
+	case migratediff.ChangeNullability:
+		return o.Table
+	case migratediff.AddIndex:
+		return o.Table
+	case migratediff.DropIndex:
+		return o.Table
 	default:
 		return ""
 	}
@@ -350,6 +356,22 @@ func invert(op migratediff.Operation, before orm.Snapshot) (migratediff.Operatio
 			}
 		}
 		return nil, fmt.Errorf("cannot reverse changing %s.%s: no recorded field", o.Table, o.Column)
+	case migratediff.ChangeNullability:
+		for _, reg := range before.Models() {
+			if reg.Model.Table != o.Table {
+				continue
+			}
+			for _, f := range reg.Model.Fields {
+				if f.Name == o.Column {
+					return migratediff.ChangeNullability{Table: o.Table, Column: o.Column, To: f}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("cannot reverse changing %s.%s: no recorded field", o.Table, o.Column)
+	case migratediff.AddIndex:
+		return migratediff.DropIndex(o), nil
+	case migratediff.DropIndex:
+		return migratediff.AddIndex(o), nil
 	default:
 		return nil, fmt.Errorf("cannot reverse an unknown operation")
 	}
@@ -397,10 +419,11 @@ func nextVersion(manifests map[string][]manifestEntry) (string, error) {
 		}
 	}
 	candidate := time.Now().UTC().Format("20060102150405")
-	if highest > candidate {
-		// A recorded version sits in the future relative to this clock — a
-		// hand-written placeholder like 9999..., or skew between machines. Jump
-		// just past IT rather than inching toward it one second at a time.
+	if highest >= candidate {
+		// A recorded version sits at or after this clock — a same-second
+		// regeneration, a hand-written placeholder like 9999…, or skew between
+		// machines. Jump just past IT rather than inching toward it one second
+		// at a time.
 		t, err := time.Parse("20060102150405", highest)
 		if err != nil {
 			return "", fmt.Errorf("fabrin: recorded version %q is not a fixed-width YYYYMMDDHHMMSS timestamp", highest)

@@ -47,6 +47,21 @@ func (Postgres) ChangeType(table, column string, to orm.Field) (string, error) {
 	return "ALTER TABLE " + table + " ALTER COLUMN " + column + " TYPE " + typ, nil
 }
 
+func (Postgres) ChangeNullability(table, column string, to orm.Field) (string, error) {
+	if to.Nullable {
+		return "ALTER TABLE " + table + " ALTER COLUMN " + column + " DROP NOT NULL", nil
+	}
+	return "ALTER TABLE " + table + " ALTER COLUMN " + column + " SET NOT NULL", nil
+}
+
+func (Postgres) CreateIndex(table, column string) (string, error) {
+	return "CREATE INDEX idx_" + table + "_" + column + " ON " + table + " (" + column + ")", nil
+}
+
+func (Postgres) DropIndex(table, column string) (string, error) {
+	return "-- fabrin: dropping idx_" + table + "_" + column + "\nDROP INDEX idx_" + table + "_" + column, nil
+}
+
 func (Postgres) DropTable(table string) (string, error) {
 	return "-- fabrin: dropping " + table + " discards its data\nDROP TABLE " + table, nil
 }

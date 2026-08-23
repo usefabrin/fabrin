@@ -207,13 +207,17 @@ breaking afterwards, so it needs an answer rather than a discovery.
       saying the dynamic type is not part of the contract, not the interface.
       ([ADR 0003](adr/0003-migrations-take-a-handle-not-a-transaction.md), #67,
       FR-ORM-4, MIG-010)
-- [~] **Three `orm.Field` fields have no semantics.** DECIDED in
+- [x] **Three `orm.Field` fields have no semantics.** DECIDED and wired:
       [ADR 0006](adr/0006-field-constraint-semantics.md): NOT NULL default with
       explicit opt-out, UNIQUE inline (implying its index), plain auto-named
       indexes; `PrimaryKey+Nullable` and `Unique+Index` rejected at registration;
       composite keys / named indexes / multi-column UNIQUE reserved-but-unwritten
-      so `Field.PrimaryKey` stays singular. Wiring through state format, differ,
-      emitters, and generator lands in #79's second slice. (FR-ORM-1)
+      so `Field.PrimaryKey` stays singular. State format v2 carries the flags
+      behind a version marker that rejects pre-decision files; the differ gains
+      `ChangeNullability`/`AddIndex`/`DropIndex`; Postgres renders inline
+      `NOT NULL`/`UNIQUE` plus `SET/DROP NOT NULL`, SQLite refuses what it
+      cannot do in place. (FR-ORM-1, MIG-013/039–041,
+      [#79](https://github.com/usefabrin/fabrin/issues/79))
 - [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
       uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
       `orm.Time` sits one letter from `time.Time` in code that imports both.

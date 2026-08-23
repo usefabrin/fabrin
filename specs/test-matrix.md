@@ -285,7 +285,10 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
 | MIG-011 | Recorded state round-trips — tables, modules, declared field order intact | `orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse` |
 | MIG-012 | Encoding one schema twice produces identical bytes | `orm/state_test.go::TestSnapshot_EncodeIsDeterministic` |
-| MIG-013 | The provisional `Nullable`/`Unique`/`Index` flags never reach the encoded form | `orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags` |
+| MIG-013 | Constraint flags recorded in state and preserved by the round trip | `orm/state_test.go::TestSnapshot_EncodesConstraintFlags` |
+| MIG-039 | Pre-constraint state files rejected via the version marker | `orm/state_test.go::TestParseSnapshot_RejectsPreConstraintState` |
+| MIG-040 | Nullability flips and index add/drop detected as first-class ops | `migratediff/migratediff_test.go::TestDiff_DetectsNullabilityAndIndexChanges` |
+| MIG-041 | SQLite refuses nullability alteration and NOT NULL adds sans DEFAULT | `migratediff/migratediff_test.go::TestSQLite_RefusesToAddANotNullColumnWithoutADefault` |
 | MIG-014 | Unreadable state is an error naming its source | `orm/state_test.go::TestParseSnapshot_ErrorsNameTheirSource` |
 | MIG-015 | Unknown keys in recorded state are rejected, not dropped | `orm/state_test.go::TestParseSnapshot_RejectsKeysItDoesNotKnow` |
 | MIG-016 | Parsed state is revalidated through registration's rules | `orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads` |
@@ -363,12 +366,15 @@ this type. Nothing reads a directory yet, so the on-disk layout — file names,
 where the state travels relative to the Go file — stays #59's decision; what
 ships today is the codec and the replay rule.
 
-MIG-013 is the row doing double duty as the #79 guard: `Nullable`, `Unique` and
-`Index` have no agreed semantics, so they are withheld field-by-field at snapshot
-construction *and* absent from the wire struct — two layers, either of which
-alone would hold the line, which is why the mutation check had to leak through
-both before the test went red. A format change here (adding them) is deliberate,
-not something struct growth grants for free.
+MIG-013 used to be the #79 guard — the flags withheld at snapshot construction
+*and* absent from the wire struct, two layers either of which alone held the
+line. [ADR 0006](../docs/adr/0006-field-constraint-semantics.md) decided them,
+so the guard **flipped deliberately**: the same two layers now carry the flags,
+the old withhold test was rewritten as the polarity canary that names itself,
+and the format gained its version marker (MIG-039) so this is the LAST meaning-
+changing decode without a tripwire. `Field` and `wireField` are field-identical
+on purpose with a conversion between them — adding a key to one without the
+other is a compile error, not a silent format divergence.
 
 MIG-015 turns `encoding/json`'s default inside out. Ignoring unknown fields is
 the polite choice for an RPC payload and exactly wrong for state a future diff

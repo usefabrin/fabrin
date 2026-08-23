@@ -100,18 +100,14 @@ func (s Snapshot) Models() []Registered {
 // newline — a form a reviewer reads as easily as a diff, because seeing what
 // the schema became is the point of recording it.
 func EncodeSnapshot(s Snapshot) ([]byte, error) {
-	wire := wireState{Models: make([]wireModel, 0, len(s.models))}
+	wire := wireState{V: stateFormatVersion, Models: make([]wireModel, 0, len(s.models))}
 	for _, reg := range s.models {
 		wm := wireModel{Module: reg.Module, Table: reg.Model.Table, Fields: make([]wireField, 0, len(reg.Model.Fields))}
 		for _, f := range reg.Model.Fields {
-			wf := wireField{Name: f.Name, Type: f.Type, MaxLen: f.MaxLen}
-			if f.PrimaryKey {
-				// Primary key has agreed semantics today (validate enforces
-				// exactly one per table), which is why it travels while the
-				// provisional flags do not.
-				wf.PrimaryKey = true
-			}
-			wm.Fields = append(wm.Fields, wf)
+			// Field and wireField are field-identical on purpose — the format
+			// IS the metadata with decided semantics. A new Field key must be
+			// added to BOTH or the compiler catches the drift here.
+			wm.Fields = append(wm.Fields, wireField(f))
 		}
 		wire.Models = append(wire.Models, wm)
 	}
@@ -142,17 +138,16 @@ func ParseSnapshot(data []byte, src string) (Snapshot, error) {
 	if err := dec.Decode(&wire); err != nil {
 		return Snapshot{}, fmt.Errorf("%w: %s: %w", ErrBadState, src, err)
 	}
+	if wire.V != stateFormatVersion {
+		return Snapshot{}, fmt.Errorf("%w: %s: state format v%d, want v%d — files written before the constraint semantics were decided (ADR 0006) are rejected rather than reinterpreted", ErrBadState, src, wire.V, stateFormatVersion)
+	}
 
 	out := make([]Registered, 0, len(wire.Models))
 	for _, wm := range wire.Models {
 		m := Model{Table: wm.Table}
 		m.Fields = make([]Field, 0, len(wm.Fields))
 		for _, wf := range wm.Fields {
-			f := Field{Name: wf.Name, Type: wf.Type, MaxLen: wf.MaxLen}
-			if wf.PrimaryKey {
-				f.PrimaryKey = true
-			}
-			m.Fields = append(m.Fields, f)
+			m.Fields = append(m.Fields, Field(wf))
 		}
 		reg := Registered{Module: wm.Module, Model: m}
 		if err := validate(reg.Model); err != nil {
@@ -226,14 +221,23 @@ func ReplayState(steps []StateStep) (Snapshot, error) {
 	return Snapshot{models: cur}, nil
 }
 
-// withholdProvisional copies reg, dropping the three flags whose semantics are
-// undecided (#79). Building the copy field-by-field makes the withholding
-// explicit; copying everything and zeroing afterwards would let a future field
-// slip into the format by accident.
+// snapshotFields copies reg field-by-field, carrying exactly the metadata with
+// decided semantics: name, type, length, primary key — and, since ADR 0006
+// (#79), nullability and the unique/index flags. Building the copy explicitly
+// means a future Field addition cannot slip into the format by accident; it
+// arrives when someone decides it, here, on purpose.
 func withholdProvisional(reg Registered) Registered {
 	fields := make([]Field, len(reg.Model.Fields))
 	for i, f := range reg.Model.Fields {
-		fields[i] = Field{Name: f.Name, Type: f.Type, MaxLen: f.MaxLen, PrimaryKey: f.PrimaryKey}
+		fields[i] = Field{
+			Name:       f.Name,
+			Type:       f.Type,
+			MaxLen:     f.MaxLen,
+			Nullable:   f.Nullable,
+			PrimaryKey: f.PrimaryKey,
+			Unique:     f.Unique,
+			Index:      f.Index,
+		}
 	}
 	return Registered{Module: reg.Module, Model: Model{Table: reg.Model.Table, Fields: fields}}
 }
@@ -254,9 +258,19 @@ func findByTable(models []Registered, table string) (Registered, bool) {
 // The wire representation. Its field list is the format: only metadata with
 // agreed semantics travels, and adding a key here is a deliberate format
 // change, not something struct growth grants for free.
+//
+// V is that change's tripwire. Files written before #79 decided the constraint
+// flags encode all-nullable columns; reading them as v2 would silently flip
+// every column to NOT NULL. Unmarked or mismatched files are rejected (see
+// ParseSnapshot) rather than interpreted forever.
 type wireState struct {
+	V      int         `json:"v"`
 	Models []wireModel `json:"models"`
 }
+
+// stateFormatVersion bumps ONLY when decoding changes meaning, never merely
+// because a key was added in a backward-compatible way.
+const stateFormatVersion = 2
 
 type wireModel struct {
 	Module string      `json:"module"`
@@ -268,5 +282,8 @@ type wireField struct {
 	Name       string `json:"name"`
 	Type       Type   `json:"type"`
 	MaxLen     int    `json:"max_len,omitempty"`
+	Nullable   bool   `json:"nullable,omitempty"`
 	PrimaryKey bool   `json:"primary_key,omitempty"`
+	Unique     bool   `json:"unique,omitempty"`
+	Index      bool   `json:"index,omitempty"`
 }

@@ -69,6 +69,15 @@ type Dialect interface {
 	DropColumn(table, column string) (string, error)
 	ChangeType(table, column string, to orm.Field) (string, error)
 	DropTable(table string) (string, error)
+
+	// ChangeNullability moves a column between NOT NULL and nullable. Both
+	// halves of the move are one statement on PostgreSQL; SQLite refuses.
+	ChangeNullability(table, column string, to orm.Field) (string, error)
+
+	// CreateIndex and DropIndex manage the plain single-column index ADR 0006
+	// gives Index: true. Both databases Fabrin renders for support them.
+	CreateIndex(table, column string) (string, error)
+	DropIndex(table, column string) (string, error)
 }
 
 // Operation is one change between two states, rendered into SQL by a Dialect.
@@ -115,6 +124,34 @@ type ChangeType struct {
 	To     orm.Field
 }
 
+// ChangeNullability moves a column between NOT NULL and nullable. It is its
+// own operation because PostgreSQL renders it separately from a type change —
+// SET/DROP NOT NULL rather than ALTER COLUMN TYPE — and because SQLite refuses
+// it entirely, exactly as it refuses type changes.
+type ChangeNullability struct {
+	Table  string
+	Column string
+	To     orm.Field
+}
+
+// AddIndex creates the plain index ADR 0006 gives Index: true. The name is
+// deterministic — idx_<table>_<column> — so the same schema produces the same
+// name on every machine that generates one.
+type AddIndex struct {
+	Table  string
+	Column string
+}
+
+// DropIndex removes that index.
+type DropIndex struct {
+	Table  string
+	Column string
+}
+
+// indexName is the deterministic auto-name for an index on one column, shared
+// by every dialect and the generator so they cannot drift apart.
+func indexName(table, column string) string { return "idx_" + table + "_" + column }
+
 // diff compares two recorded states and returns the operations that turn
 // before into after, in the order they should run.
 //
@@ -137,8 +174,9 @@ func Diff(before, after orm.Snapshot) []Operation {
 	}
 
 	// Alterations to surviving tables: table-sorted, column-sorted within a
-	// table, drops before retypes before additions so data loss clusters
-	// early in review.
+	// table, then by rank — drops (columns 0, indexes 1), retypes 2,
+	// nullability flips 3, added columns 4, added indexes 5 — so data loss
+	// clusters early in review and additions land last.
 	for _, reg := range afterModels {
 		was, exists := beforeByTable[reg.Model.Table]
 		if !exists {
@@ -160,7 +198,13 @@ func Diff(before, after orm.Snapshot) []Operation {
 			case !exists:
 				add(f.Name, 2, AddColumn{Table: reg.Model.Table, Field: f})
 			case prev.Type != f.Type || prev.MaxLen != f.MaxLen:
-				add(f.Name, 1, ChangeType{Table: reg.Model.Table, Column: f.Name, To: f})
+				add(f.Name, 2, ChangeType{Table: reg.Model.Table, Column: f.Name, To: f})
+			case prev.Nullable != f.Nullable:
+				add(f.Name, 3, ChangeNullability{Table: reg.Model.Table, Column: f.Name, To: f})
+			case prev.Index && !f.Index:
+				add(f.Name, 1, DropIndex{Table: reg.Model.Table, Column: f.Name})
+			case !prev.Index && f.Index:
+				add(f.Name, 5, AddIndex{Table: reg.Model.Table, Column: f.Name})
 			}
 		}
 		afterFields := indexFields(reg.Model.Fields)
@@ -228,6 +272,18 @@ func (o ChangeType) Render(d Dialect) (string, error) {
 	return d.ChangeType(o.Table, o.Column, o.To)
 }
 
+func (o ChangeNullability) Render(d Dialect) (string, error) {
+	return d.ChangeNullability(o.Table, o.Column, o.To)
+}
+
+func (o AddIndex) Render(d Dialect) (string, error) {
+	return d.CreateIndex(o.Table, o.Column)
+}
+
+func (o DropIndex) Render(d Dialect) (string, error) {
+	return d.DropIndex(o.Table, o.Column)
+}
+
 // Describe implementations. One line each: what changed, named precisely
 // enough that an error or a generated-file header carries its own context.
 func (o CreateTable) Describe() string { return "create table " + o.Model.Table }
@@ -244,6 +300,18 @@ func (o DropColumn) Describe() string {
 
 func (o ChangeType) Describe() string {
 	return fmt.Sprintf("change type of %s.%s", o.Table, o.Column)
+}
+
+func (o ChangeNullability) Describe() string {
+	return fmt.Sprintf("change nullability of %s.%s", o.Table, o.Column)
+}
+
+func (o AddIndex) Describe() string {
+	return fmt.Sprintf("add index %s on %s.%s", indexName(o.Table, o.Column), o.Table, o.Column)
+}
+
+func (o DropIndex) Describe() string {
+	return fmt.Sprintf("drop index %s", indexName(o.Table, o.Column))
 }
 
 func index(models []orm.Registered) map[string]orm.Registered {
@@ -274,8 +342,16 @@ func columnList(typeOf func(orm.Field) (string, error), m orm.Model) (string, er
 			return "", fmt.Errorf("table %s, field %s: %w", m.Table, f.Name, err)
 		}
 		line := "  " + f.Name + " " + typ
+		if !f.Nullable && !f.PrimaryKey {
+			// ADR 0006: columns are NOT NULL unless Nullable opts out. A
+			// primary key is non-null by definition and says so itself.
+			line += " NOT NULL"
+		}
 		if f.PrimaryKey {
 			line += " PRIMARY KEY"
+		}
+		if f.Unique {
+			line += " UNIQUE"
 		}
 		lines = append(lines, line)
 	}

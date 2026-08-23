@@ -34,8 +34,9 @@ func ordersModel() orm.Model {
 		Table: "orders",
 		Fields: []orm.Field{
 			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			// NOT NULL now that ADR 0006 decided it — and asserted below.
 			{Name: "reference", Type: orm.String, MaxLen: 32},
-			{Name: "shipped_at", Type: orm.Time},
+			{Name: "shipped_at", Type: orm.Time, Nullable: true},
 		},
 	}
 }
@@ -56,6 +57,12 @@ func opKinds(ops []Operation) []string {
 			out = append(out, "dropcol "+o.Table+"."+o.Column)
 		case ChangeType:
 			out = append(out, "retype "+o.Table+"."+o.Column)
+		case ChangeNullability:
+			out = append(out, "renull "+o.Table+"."+o.Column)
+		case AddIndex:
+			out = append(out, "addidx "+o.Table+"."+o.Column)
+		case DropIndex:
+			out = append(out, "dropidx "+o.Table+"."+o.Column)
 		default:
 			out = append(out, "?")
 		}
@@ -164,6 +171,62 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 	}
 }
 
+func TestDiff_DetectsNullabilityAndIndexChanges(t *testing.T) {
+	t.Parallel()
+
+	// ADR 0006 gave the flags semantics, so changes in them became schema
+	// changes. Nullability flips are their own operation - PostgreSQL renders
+	// them separately from type changes - and an index flag toggles a named,
+	// deterministic index rather than riding along with anything.
+	base := func(f orm.Field) orm.Model {
+		return orm.Model{
+			Table:  "orders",
+			Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}, f},
+		}
+	}
+
+	tests := []struct {
+		name   string
+		before orm.Field
+		after  orm.Field
+		want   []string
+	}{
+		{
+			name:   "column becomes nullable",
+			before: orm.Field{Name: "reference", Type: orm.String},
+			after:  orm.Field{Name: "reference", Type: orm.String, Nullable: true},
+			want:   []string{"renull orders.reference"},
+		},
+		{
+			name:   "column becomes NOT NULL",
+			before: orm.Field{Name: "reference", Type: orm.String, Nullable: true},
+			after:  orm.Field{Name: "reference", Type: orm.String},
+			want:   []string{"renull orders.reference"},
+		},
+		{
+			name:   "index added",
+			before: orm.Field{Name: "reference", Type: orm.String},
+			after:  orm.Field{Name: "reference", Type: orm.String, Index: true},
+			want:   []string{"addidx orders.reference"},
+		},
+		{
+			name:   "index dropped",
+			before: orm.Field{Name: "reference", Type: orm.String, Index: true},
+			after:  orm.Field{Name: "reference", Type: orm.String},
+			want:   []string{"dropidx orders.reference"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := Diff(mustSnap(t, base(tc.before)), mustSnap(t, base(tc.after)))
+			if strings.Join(opKinds(got), ",") != strings.Join(tc.want, ",") {
+				t.Errorf("diff = %v, want %v", opKinds(got), tc.want)
+			}
+		})
+	}
+}
+
 func TestDiff_EmitsNothingWhenStatesAgree(t *testing.T) {
 	t.Parallel()
 
@@ -235,7 +298,7 @@ func TestDiff_TreatsAReorderedFieldListAsNoChange(t *testing.T) {
 	a := mustSnap(t, ordersModel())
 	reordered := ordersModel()
 	reordered.Fields = []orm.Field{
-		{Name: "shipped_at", Type: orm.Time},
+		{Name: "shipped_at", Type: orm.Time, Nullable: true},
 		{Name: "id", Type: orm.Int64, PrimaryKey: true},
 		{Name: "reference", Type: orm.String, MaxLen: 32},
 	}
@@ -301,6 +364,99 @@ func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), "QLite") {
 			t.Errorf("the refusal should name the Dialect, got: %v", err)
 		}
+	}
+}
+
+func TestSQLite_RefusesToAddANotNullColumnWithoutADefault(t *testing.T) {
+	t.Parallel()
+
+	// ALTER TABLE ADD COLUMN ... NOT NULL requires a DEFAULT clause in SQLite,
+	// and the metadata has no default concept yet - so the stated refusal
+	// covers this case too, before anything executes.
+	err := func() error {
+		_, err := AddColumn{
+			Table: "orders",
+			Field: orm.Field{Name: "total", Type: orm.Float},
+		}.Render(SQLite{})
+		return err
+	}()
+	if !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("got %v, want ErrUnsupported", err)
+	}
+	if !strings.Contains(err.Error(), "DEFAULT") {
+		t.Errorf("the refusal should say why (DEFAULT required), got: %v", err)
+	}
+}
+
+func TestPostgres_RendersNullabilityAndIndexes(t *testing.T) {
+	t.Parallel()
+
+	// String-level assertions on PostgreSQL rendering: nullability moves are
+	// their own statement, separate from type changes, and indexes carry the
+	// deterministic ADR 0006 name.
+	setNotNull, err := ChangeNullability{
+		Table:  "orders",
+		Column: "reference",
+		To:     orm.Field{Name: "reference", Type: orm.String},
+	}.Render(Postgres{})
+	if err != nil {
+		t.Fatalf("SET NOT NULL: %v", err)
+	}
+	if !strings.Contains(setNotNull, "SET NOT NULL") {
+		t.Errorf("want SET NOT NULL, got %q", setNotNull)
+	}
+	dropNotNull, err := ChangeNullability{
+		Table:  "orders",
+		Column: "reference",
+		To:     orm.Field{Name: "reference", Type: orm.String, Nullable: true},
+	}.Render(Postgres{})
+	if err != nil {
+		t.Fatalf("DROP NOT NULL: %v", err)
+	}
+	if !strings.Contains(dropNotNull, "DROP NOT NULL") {
+		t.Errorf("want DROP NOT NULL, got %q", dropNotNull)
+	}
+	createIdx, err := AddIndex{Table: "orders", Column: "reference"}.Render(Postgres{})
+	if err != nil {
+		t.Fatalf("CreateIndex: %v", err)
+	}
+	for _, want := range []string{"CREATE INDEX idx_orders_reference", "ON orders (reference)"} {
+		if !strings.Contains(createIdx, want) {
+			t.Errorf("index DDL must contain %q, got %q", want, createIdx)
+		}
+	}
+
+	// Inline constraints ride CREATE TABLE: NOT NULL unless Nullable opts out,
+	// UNIQUE when asked, and a primary key never says NOT NULL twice.
+	r := orm.NewRegistry()
+	must := func(err error) {
+		if err != nil {
+			t.Fatalf("Register: %v", err)
+		}
+	}
+	must(r.Register("shop", orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
+			{Name: "shipped_at", Type: orm.Time, Nullable: true},
+		},
+	}))
+	snap, err := orm.NewSnapshot(r.Models())
+	if err != nil {
+		t.Fatalf("NewSnapshot: %v", err)
+	}
+	ddl, err := CreateTable{Model: snap.Models()[0].Model}.Render(Postgres{})
+	if err != nil {
+		t.Fatalf("CreateTable render: %v", err)
+	}
+	for _, want := range []string{"reference VARCHAR(32) NOT NULL UNIQUE", "shipped_at TIMESTAMP", "id BIGINT PRIMARY KEY"} {
+		if !strings.Contains(ddl, want) {
+			t.Errorf("table DDL must contain %q, got:\n%s", want, ddl)
+		}
+	}
+	if strings.Count(ddl, "NOT NULL") != 1 {
+		t.Errorf("primary key must not say NOT NULL twice, got:\n%s", ddl)
 	}
 }
 

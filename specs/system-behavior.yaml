@@ -486,11 +486,32 @@ behaviours:
     test: orm/state_test.go::TestSnapshot_EncodeIsDeterministic
 
   - id: MIG-013
-    what: The provisional Field flags - Nullable, Unique, Index - never reach the encoded form.
-    why: They have no agreed semantics yet (#79), and a format that carries bits nobody gave meaning to freezes their accidental reading into every file users' repositories hold. When #79 decides them they arrive as a deliberate change; until then two schemas differing only in those flags are the same state. Mutation-checked at both layers that could leak them.
+    what: The constraint flags - Nullable, Unique, Index - are recorded in encoded state and survive the round trip, because ADR 0006 decided their semantics.
+    why: This entry is the deliberate flip of its former self. Until #79 decided the flags they were withheld from the format so no accidental reading could freeze; now two schemas differing only in them MUST encode differently, or the decision is not recorded. The old guard test remains meaningful as a canary - if withholding again turns it red, someone is reverting the decision rather than landing it.
     requirement: FR-ORM-4
     status: implemented
-    test: orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags
+    test: orm/state_test.go::TestSnapshot_EncodesConstraintFlags
+
+  - id: MIG-039
+    what: Recorded state without the format-version marker, or with a mismatched one, is rejected naming its source and pointing at ADR 0006.
+    why: Pre-#79 files encode all-nullable columns; reading them as v2 would silently flip every column to NOT NULL and make the next makemigrations emit a nullability diff against a schema nobody declared. Zero releases exist, so refusing loudly beats interpreting forever - the marker is permanent insurance for future meaning-changing formats too.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_RejectsPreConstraintState
+
+  - id: MIG-040
+    what: The differ detects nullability flips and index additions/drops as their own operations, with deterministic auto-named indexes.
+    why: ADR 0006 gave the flags semantics, so changes in them became schema changes. Nullability gets its own operation because PostgreSQL renders it separately from type changes (SET/DROP NOT NULL), and SQLite refuses it entirely - exactly as it refuses type changes.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_DetectsNullabilityAndIndexChanges
+
+  - id: MIG-041
+    what: SQLite refuses to render a nullability alteration and refuses ADD COLUMN of a NOT NULL column without a DEFAULT - before anything executes.
+    why: ALTER TABLE ADD COLUMN ... NOT NULL requires a DEFAULT clause in SQLite, and the metadata has no default concept yet; emitting SQL that fails halfway through a live migration is the worst place to learn a dialect limit. PostgreSQL renders SET/DROP NOT NULL and inline UNIQUE/NOT NULL normally.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestSQLite_RefusesToAddANotNullColumnWithoutADefault
 
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.

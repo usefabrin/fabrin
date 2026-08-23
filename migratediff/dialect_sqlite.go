@@ -24,7 +24,13 @@ func (SQLite) CreateTable(m orm.Model) (string, error) {
 // Adding is the one alteration SQLite supports in place, and only for nullable
 // columns — which, until the provisional flags are decided (#79), is every
 // column this package emits.
+// Adding a NOT NULL column requires a DEFAULT clause in SQLite, and the
+// metadata has no default concept yet — so the stated refusal covers this case
+// too rather than emitting SQL that fails halfway through a live migration.
 func (SQLite) AddColumn(table string, f orm.Field) (string, error) {
+	if !f.Nullable && !f.PrimaryKey {
+		return "", fmt.Errorf("%w: %s cannot ADD COLUMN without a DEFAULT when the column is NOT NULL — give the column Nullable or hand-write the migration with its DEFAULT", ErrUnsupported, SQLite{}.Name())
+	}
 	typ, err := sqliteType(f)
 	if err != nil {
 		return "", err
@@ -48,6 +54,19 @@ func (SQLite) DropColumn(_, _ string) (string, error) {
 func (SQLite) ChangeType(_, _ string, to orm.Field) (string, error) {
 	return "", fmt.Errorf("%w: %s cannot alter a column's type in place; the table-rebuild dance is not implemented yet",
 		ErrUnsupported, SQLite{}.Name())
+}
+
+func (SQLite) ChangeNullability(_, _ string, _ orm.Field) (string, error) {
+	return "", fmt.Errorf("%w: %s cannot alter a column's nullability in place; the table-rebuild dance is not implemented yet",
+		ErrUnsupported, SQLite{}.Name())
+}
+
+func (SQLite) CreateIndex(table, column string) (string, error) {
+	return "CREATE INDEX idx_" + table + "_" + column + " ON " + table + " (" + column + ")", nil
+}
+
+func (SQLite) DropIndex(table, column string) (string, error) {
+	return "-- fabrin: dropping idx_" + table + "_" + column + "\nDROP INDEX idx_" + table + "_" + column, nil
 }
 
 func (SQLite) DropTable(table string) (string, error) {

@@ -146,6 +146,12 @@ func TestExecute_MakemigrationsGeneratesFilesForANewTable(t *testing.T) {
 		t.Errorf("generated %s does not parse: %v\n%s", genFile, err, src)
 	}
 
+	// ADR 0006 landed: reference has no Nullable flag, so its generated column
+	// must carry NOT NULL rather than silently regressing to all-nullable.
+	if !strings.Contains(string(src), "NOT NULL") {
+		t.Errorf("generated migration lacks NOT NULL on non-nullable columns:\n%s", src)
+	}
+
 	// Filename carries the version, at a fixed width — the same discipline the
 	// engine applies to versions themselves, and what the duplicate-version gate
 	// will read off disk without compiling anything.
@@ -294,10 +300,12 @@ func TestExecute_MakemigrationsCarriesHandWrittenStepsForward(t *testing.T) {
 		t.Fatalf("write hand-written stub: %v", err)
 	}
 
-	// Now the model gains a column. The diff must be ONE added column against
-	// the carried-forward state — not a create-everything against an empty one.
+	// Now the model gains a column. It must be Nullable for SQLite to generate
+	// it — a NOT NULL addition needs a DEFAULT clause the metadata does not
+	// have yet, and the refusal says so. The diff must be ONE added column
+	// against the carried-forward state, not a create-everything.
 	grown := ordersModelFull()
-	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.Float})
+	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.Float, Nullable: true})
 	app2, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", grown))
 	if err != nil {
 		t.Fatalf("New again: %v", err)
@@ -370,6 +378,67 @@ func TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "FABRIN_MODULES") {
 		t.Errorf("the refusal must name FABRIN_MODULES, got: %v", err)
+	}
+}
+
+func TestExecute_MakemigrationsGeneratesIndexAdditionsAndTheirInverse(t *testing.T) {
+	projectChdir(t)
+
+	db := memoryDB(t)
+	app, err := fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("shop", ordersModelFull()),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx := context.Background()
+	if err := app.Execute(ctx, io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("first makemigrations: %v", err)
+	}
+
+	// Indexing an existing column is a pure addition SQLite can generate and
+	// roll back - unlike nullability flips, which it refuses outright.
+	indexed := ordersModelFull()
+	for i := range indexed.Fields {
+		if indexed.Fields[i].Name == "reference" {
+			indexed.Fields[i].Index = true
+		}
+	}
+	app2, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", indexed))
+	if err != nil {
+		t.Fatalf("New again: %v", err)
+	}
+	var out strings.Builder
+	if err := app2.Execute(ctx, &out, []string{"makemigrations"}); err != nil {
+		t.Fatalf("second makemigrations: %v", err)
+	}
+	if !strings.Contains(out.String(), "add index idx_orders_reference") {
+		t.Errorf("expected the index addition, got: %q", out.String())
+	}
+
+	entries, err := os.ReadDir(filepath.Join("shop", "migrations"))
+	if err != nil {
+		t.Fatalf("read migrations dir: %v", err)
+	}
+	var genFile string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") && e.Name() != "all.go" &&
+			strings.HasPrefix(e.Name(), "2") && !strings.Contains(e.Name(), "create") {
+			genFile = e.Name()
+		}
+	}
+	if genFile == "" {
+		t.Fatalf("no second migration file found among %v", entries)
+	}
+	src, err := os.ReadFile(filepath.Join("shop", "migrations", genFile))
+	if err != nil {
+		t.Fatalf("read %s: %v", genFile, err)
+	}
+	for _, want := range []string{"CREATE INDEX idx_orders_reference", "DROP INDEX idx_orders_reference"} {
+		if !strings.Contains(string(src), want) {
+			t.Errorf("%s must contain both directions of the index (%q):\n%s", genFile, want, src)
+		}
 	}
 }
 
