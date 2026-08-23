@@ -105,6 +105,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-ADMIN-2 | Rendered server-side with `html/template` + htmx and `go:embed`ded. Fabrin's users must not need a Node or Bun toolchain to get an admin. | planned |
 | FR-ADMIN-3 | Per-model overrides for list columns, filters, and form fields. | planned |
 | FR-ADMIN-4 | Every admin write is permission-checked; the admin is not a bypass. | planned |
+| FR-ADMIN-5 | Before any public admin seam is frozen, one unexported vertical links a concrete Go type to existing metadata with explicit construction and field adapters, derives private form state, crosses only resource-specific persistence callbacks, and requires fail-closed authorization and CSRF gates. It exports no repository, reflection contract, or third-party type. | done |
 
 ---
 
