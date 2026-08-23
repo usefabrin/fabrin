@@ -438,9 +438,10 @@ behaviours:
 
   - id: MIG-008
     what: A repo-level gate, hanging off an existing just recipe, rejects two migration files claiming one version and names both files and the version.
-    why: MIG-007 catches the collision at deploy time, against a database, which is the most expensive moment to find it. Two branches each generating an 0004 are both green in isolation, so the only cheap moment is before merge. BLOCKED on the on-disk migration file format - the engine takes migrations as values and nothing reads a directory yet (docs/TODO.md F2), so there are no files for a gate to read and no scheme to validate a filename against. The gate must read the files rather than a registry built by running Go code, or a colliding migration on a branch that does not compile goes uncaught.
+    why: MIG-007 catches the collision at deploy time, against a database, which is the most expensive moment to find it. Two branches each generating an 0004 are both green in isolation, so the only cheap moment is before merge. The gate reads FILES rather than a registry built by running Go code, so a colliding migration on a branch that does not compile is still caught - it needs no compiler, only the filename-equals-version contract MIG-033 established. It also rejects mixed widths across the whole set and malformed prefixes, because lexicographic ordering on either applies migrations in an order nobody wrote.
     requirement: FR-ORM-5
-    status: planned
+    status: implemented
+    test: scripts/gates/check-migration-versions.sh
 
   - id: MIG-009
     what: A migration set whose versions do not sort as written - mixed-width versions such as 9 and 10 - is rejected before anything is applied, and the error names both.

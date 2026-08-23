@@ -18,6 +18,7 @@ cd "$(dirname "$0")"
 # Ordered deliberately, not alphabetically.
 gates=(
   check-depguard-coverage.sh
+  check-migration-versions.sh
   check-examples.sh
   check-agent-docs.sh
   check-docs-freshness-policy.sh

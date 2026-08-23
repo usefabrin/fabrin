@@ -160,16 +160,15 @@ pre-v0 decisions are provisional ORM constraints
       the on-disk format. (FR-ORM-4, [#59](https://github.com/usefabrin/fabrin/issues/59))
 - [ ] `fabrin makemigrations`, migrations as files on disk. The engine takes them
       as values; nothing reads a directory yet. (FR-ORM-4)
-- [~] Duplicate-version gate — two branches claiming one version is a matter of
-      when, not if, and it otherwise surfaces at deploy time. (FR-ORM-5)
-
-      The **engine** half is done: two migrations at one version are rejected
-      (MIG-007), as is a set whose versions do not sort as written (MIG-009).
-      The **pre-merge gate** is blocked, and on something outside the engine —
-      its acceptance criterion is that it reads migration *files*, so a
-      colliding migration in a branch that does not compile is still caught, and
-      there is no on-disk format to read yet. Writing one now would invent the
-      format `fabrin makemigrations` must then live with. (MIG-008)
+- [x] Duplicate-version gate (#55). The **engine** half rejects two migrations
+      at one version (MIG-007) and versions that do not sort as written
+      (MIG-009); construction-time collection adds cross-module duplicate and
+      mixed-width rejection (MIG-028, MIG-029); and the **pre-merge gate**
+      reads every `<module>/migrations/*.go` filename — duplicates anywhere,
+      mixed widths, or malformed prefixes fail naming both files, with no
+      compiler involved, so a non-compiling branch is still caught (MIG-008).
+      Follow-up: ship the script in the project scaffold so generated apps get
+      it out of the box. (FR-ORM-5)
 - [ ] Transactions, connection pooling, one place to configure pool limits.
 
 ### Open before v0.1 — decisions that get expensive at the tag
