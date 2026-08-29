@@ -71,7 +71,7 @@ func TestSnapshot_RoundTripsThroughEncodeAndParse(t *testing.T) {
 		}
 		for j, f := range want[i].Model.Fields {
 			g := got[i].Model.Fields[j]
-			if g.Name != f.Name || g.Type != f.Type || g.MaxLen != f.MaxLen || g.PrimaryKey != f.PrimaryKey {
+			if g != f {
 				t.Errorf("table %s field %d = %+v, want %+v", want[i].Model.Table, j, g, f)
 			}
 		}
@@ -151,13 +151,12 @@ func TestSnapshot_KeepsFieldOrderAsDeclared(t *testing.T) {
 	t.Fatal("orders not found in snapshot")
 }
 
-func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
+func TestSnapshot_EncodesConstraintFlagsInVersionedState(t *testing.T) {
 	t.Parallel()
 
-	// ADR 0006 has decided Nullable, Unique and Index, but the versioned codec is
-	// a separate slice. Until that complete encode/decode change lands, they must
-	// remain withheld at both snapshot construction and encoding rather than leak
-	// into a half-updated format.
+	// ADR 0006 decided Nullable, Unique and Index. Schemas differing only in
+	// those flags must now encode differently, and the flags must survive a
+	// round trip so the next diff sees the schema the migration actually made.
 	withFlags := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
@@ -175,7 +174,7 @@ func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
 		},
 	}
 
-	encode := func(m orm.Model) string {
+	encode := func(m orm.Model) (string, orm.Snapshot) {
 		t.Helper()
 		r := orm.NewRegistry()
 		if err := r.Register("shop", m); err != nil {
@@ -189,11 +188,69 @@ func TestSnapshot_WithholdsProvisionalFlags(t *testing.T) {
 		if err != nil {
 			t.Fatalf("EncodeSnapshot: %v", err)
 		}
-		return string(b)
+		return string(b), snap
 	}
 
-	if encode(withFlags) != encode(withoutFlags) {
-		t.Error("provisional flags changed the encoded bytes; they leaked into the state format")
+	withEncoded, withSnapshot := encode(withFlags)
+	withoutEncoded, _ := encode(withoutFlags)
+	if withEncoded == withoutEncoded {
+		t.Error("constraint flags did not change the encoded bytes")
+	}
+	if !strings.Contains(withEncoded, `"v": 1`) {
+		t.Errorf("encoded state has no version marker:\n%s", withEncoded)
+	}
+
+	parsed, err := orm.ParseSnapshot([]byte(withEncoded), "flags.state.json")
+	if err != nil {
+		t.Fatalf("ParseSnapshot: %v", err)
+	}
+	got := parsed.Models()[0].Model.Fields
+	want := withSnapshot.Models()[0].Model.Fields
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("field %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestParseSnapshot_DecodesLegacyConstraintSemantics(t *testing.T) {
+	t.Parallel()
+
+	// Unversioned state was written while the generator emitted every non-PK
+	// column nullable and withheld all three flags. Decode that actual schema so
+	// the first post-ADR diff can propose the intended NOT NULL transition.
+	const legacy = `{"models":[{"module":"shop","table":"orders","fields":[
+		{"name":"id","type":"int64","primary_key":true},
+		{"name":"reference","type":"string","max_len":32}]}]}`
+
+	snap, err := orm.ParseSnapshot([]byte(legacy), "legacy.state.json")
+	if err != nil {
+		t.Fatalf("ParseSnapshot: %v", err)
+	}
+	fields := snap.Models()[0].Model.Fields
+	if fields[0].Nullable {
+		t.Error("legacy primary key decoded nullable")
+	}
+	if !fields[1].Nullable {
+		t.Error("legacy non-primary column decoded NOT NULL; old migrations emitted it nullable")
+	}
+	if fields[1].Unique || fields[1].Index {
+		t.Errorf("legacy withheld flags decoded as set: %+v", fields[1])
+	}
+}
+
+func TestParseSnapshot_RejectsUnknownStateVersion(t *testing.T) {
+	t.Parallel()
+
+	const src = "future.state.json"
+	_, err := orm.ParseSnapshot([]byte(`{"v":2,"models":[]}`), src)
+	if !errors.Is(err, orm.ErrBadState) {
+		t.Fatalf("got %v, want ErrBadState", err)
+	}
+	for _, want := range []string{src, "version", "2"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error must name %q, got: %v", want, err)
+		}
 	}
 }
 
@@ -239,8 +296,8 @@ func TestParseSnapshot_RejectsKeysItDoesNotKnow(t *testing.T) {
 	// not understand would be silently read with that information DROPPED, and
 	// the next generated migration would diff against an impoverished state.
 	// Failing loud is the fail-closed answer.
-	data := `{"models":[{"module":"shop","table":"orders","fields":[
-		{"name":"id","type":"int64","primary_key":true,"unique":true}]}]}`
+	data := `{"v":1,"models":[{"module":"shop","table":"orders","fields":[
+		{"name":"id","type":"int64","primary_key":true,"collate":"nocase"}]}]}`
 
 	_, err := orm.ParseSnapshot([]byte(data), "edited.state.json")
 	if err == nil {

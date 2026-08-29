@@ -19,11 +19,10 @@ import (
 //
 // # What a Snapshot deliberately does not hold
 //
-// [Field]'s Nullable, Unique, and Index flags do not reach a snapshot in this
-// decision slice. ADR 0006 now gives them semantics; the following state-format
-// slice adds them with an explicit version marker and a legacy decode. Keeping
-// the old withholding until that complete codec change lands prevents a
-// half-updated format from escaping.
+// [Field]'s Nullable, Unique, and Index flags have the semantics ADR 0006 gives
+// them and travel in versioned state. Unversioned state remains readable using
+// the all-nullable, flags-withheld semantics that produced it; unknown marked
+// versions fail closed.
 //
 // # Determinism is the contract
 //
@@ -70,7 +69,7 @@ func NewSnapshot(models []Registered) (Snapshot, error) {
 			return Snapshot{}, fmt.Errorf("%w: the state claims table %q twice (module %q and %q)",
 				ErrDuplicateTable, reg.Model.Table, prev.Module, reg.Module)
 		}
-		out = append(out, withholdProvisional(reg))
+		out = append(out, snapshotRegistered(reg))
 	}
 	slices.SortFunc(out, func(a, b Registered) int {
 		switch {
@@ -100,18 +99,14 @@ func (s Snapshot) Models() []Registered {
 // newline — a form a reviewer reads as easily as a diff, because seeing what
 // the schema became is the point of recording it.
 func EncodeSnapshot(s Snapshot) ([]byte, error) {
-	wire := wireState{Models: make([]wireModel, 0, len(s.models))}
+	wire := wireState{V: stateFormatVersion, Models: make([]wireModel, 0, len(s.models))}
 	for _, reg := range s.models {
 		wm := wireModel{Module: reg.Module, Table: reg.Model.Table, Fields: make([]wireField, 0, len(reg.Model.Fields))}
 		for _, f := range reg.Model.Fields {
-			wf := wireField{Name: f.Name, Type: f.Type, MaxLen: f.MaxLen}
-			if f.PrimaryKey {
-				// Primary key has long-standing semantics (validate enforces
-				// exactly one per table), which is why it travels while the
-				// newly decided flags await the versioned codec slice.
-				wf.PrimaryKey = true
-			}
-			wm.Fields = append(wm.Fields, wf)
+			// Field and wireField are field-identical deliberately: if Field
+			// grows, this conversion stops compiling until the state format is
+			// considered in the same change.
+			wm.Fields = append(wm.Fields, wireField(f))
 		}
 		wire.Models = append(wire.Models, wm)
 	}
@@ -142,15 +137,23 @@ func ParseSnapshot(data []byte, src string) (Snapshot, error) {
 	if err := dec.Decode(&wire); err != nil {
 		return Snapshot{}, fmt.Errorf("%w: %s: %w", ErrBadState, src, err)
 	}
+	legacy := wire.V == 0
+	if !legacy && wire.V != stateFormatVersion {
+		return Snapshot{}, fmt.Errorf("%w: %s: state format version %d is not supported (want %d)", ErrBadState, src, wire.V, stateFormatVersion)
+	}
 
 	out := make([]Registered, 0, len(wire.Models))
 	for _, wm := range wire.Models {
 		m := Model{Table: wm.Table}
 		m.Fields = make([]Field, 0, len(wm.Fields))
 		for _, wf := range wm.Fields {
-			f := Field{Name: wf.Name, Type: wf.Type, MaxLen: wf.MaxLen}
-			if wf.PrimaryKey {
-				f.PrimaryKey = true
+			f := Field(wf)
+			if legacy && !f.PrimaryKey {
+				// Before ADR 0006, generated DDL made every non-primary column
+				// nullable and the state codec withheld all three flags. Decode
+				// the schema that actually existed rather than applying today's
+				// zero-value meaning retroactively.
+				f.Nullable = true
 			}
 			m.Fields = append(m.Fields, f)
 		}
@@ -226,14 +229,21 @@ func ReplayState(steps []StateStep) (Snapshot, error) {
 	return Snapshot{models: cur}, nil
 }
 
-// withholdProvisional copies reg, dropping the three flags whose semantics are
-// undecided (#79). Building the copy field-by-field makes the withholding
-// explicit; copying everything and zeroing afterwards would let a future field
-// slip into the format by accident.
-func withholdProvisional(reg Registered) Registered {
+// snapshotRegistered copies exactly the metadata the state format records.
+// Building it field-by-field prevents a future Field addition from silently
+// entering migration history merely because the public struct grew.
+func snapshotRegistered(reg Registered) Registered {
 	fields := make([]Field, len(reg.Model.Fields))
 	for i, f := range reg.Model.Fields {
-		fields[i] = Field{Name: f.Name, Type: f.Type, MaxLen: f.MaxLen, PrimaryKey: f.PrimaryKey}
+		fields[i] = Field{
+			Name:       f.Name,
+			Type:       f.Type,
+			MaxLen:     f.MaxLen,
+			Nullable:   f.Nullable,
+			PrimaryKey: f.PrimaryKey,
+			Unique:     f.Unique,
+			Index:      f.Index,
+		}
 	}
 	return Registered{Module: reg.Module, Model: Model{Table: reg.Model.Table, Fields: fields}}
 }
@@ -255,8 +265,11 @@ func findByTable(models []Registered, table string) (Registered, bool) {
 // agreed semantics travels, and adding a key here is a deliberate format
 // change, not something struct growth grants for free.
 type wireState struct {
+	V      int         `json:"v,omitempty"`
 	Models []wireModel `json:"models"`
 }
+
+const stateFormatVersion = 1
 
 type wireModel struct {
 	Module string      `json:"module"`
@@ -268,5 +281,8 @@ type wireField struct {
 	Name       string `json:"name"`
 	Type       Type   `json:"type"`
 	MaxLen     int    `json:"max_len,omitempty"`
+	Nullable   bool   `json:"nullable,omitempty"`
 	PrimaryKey bool   `json:"primary_key,omitempty"`
+	Unique     bool   `json:"unique,omitempty"`
+	Index      bool   `json:"index,omitempty"`
 }

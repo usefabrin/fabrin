@@ -37,6 +37,12 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Versioned constraint state.** Recorded model state now carries a format
+  marker and round-trips `Nullable`, `Unique`, and `Index`. Existing unversioned
+  files remain readable as the schemas the old generator actually emitted:
+  every non-primary column nullable, with the previously withheld flags false.
+  Unknown marked versions fail closed naming their source and version instead
+  of being guessed as legacy. (Part of [#79](https://github.com/usefabrin/fabrin/issues/79).)
 - **Field constraint semantics (decision slice).** `orm.Field.Nullable` opts out
   of a NOT NULL default; `Unique` declares one named unique constraint; `Index`
   declares one named plain index. Registration now rejects contradictory or

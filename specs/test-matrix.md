@@ -288,7 +288,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
 | MIG-011 | Recorded state round-trips — tables, modules, declared field order intact | `orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse` |
 | MIG-012 | Encoding one schema twice produces identical bytes | `orm/state_test.go::TestSnapshot_EncodeIsDeterministic` |
-| MIG-013 | Until the versioned codec lands, ADR 0006's flags remain withheld | `orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags` |
+| MIG-013 | Versioned state preserves ADR 0006's constraint flags | `orm/state_test.go::TestSnapshot_EncodesConstraintFlagsInVersionedState` |
 | MIG-014 | Unreadable state is an error naming its source | `orm/state_test.go::TestParseSnapshot_ErrorsNameTheirSource` |
 | MIG-015 | Unknown keys in recorded state are rejected, not dropped | `orm/state_test.go::TestParseSnapshot_RejectsKeysItDoesNotKnow` |
 | MIG-016 | Parsed state is revalidated through registration's rules | `orm/state_test.go::TestParseSnapshot_RevalidatesWhatItReads` |
@@ -314,6 +314,8 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-036 | Hand-written steps carry the last known state forward | `makemigrations_test.go::TestExecute_MakemigrationsCarriesHandWrittenStepsForward` |
 | MIG-037 | Two changed modules → two files, two distinct versions | `makemigrations_test.go::TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration` |
 | MIG-038 | `makemigrations` refuses on a sliced process | `makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced` |
+| MIG-039 | Legacy unversioned state decodes using its actual all-nullable semantics | `orm/state_test.go::TestParseSnapshot_DecodesLegacyConstraintSemantics` |
+| MIG-040 | Unknown marked state versions fail closed, naming source and version | `orm/state_test.go::TestParseSnapshot_RejectsUnknownStateVersion` |
 | MIG-042 | `Apply` preflights every operation before the first schema mutation | `migratediff/migratediff_test.go::TestApply_PreflightsEveryOperationBeforeMutating` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
@@ -377,11 +379,12 @@ this type. Nothing reads a directory yet, so the on-disk layout — file names,
 where the state travels relative to the Go file — stays #59's decision; what
 ships today is the codec and the replay rule.
 
-MIG-013 is the transition guard for #79: ADR 0006 has now decided `Nullable`,
-`Unique`, and `Index`, but the versioned codec lands separately. Until that
-complete encode/decode change arrives, the flags remain withheld field-by-field
-at snapshot construction *and* absent from the wire struct. A half-updated
-format is worse than either coherent version.
+MIG-013, MIG-039, and MIG-040 are ADR 0006's state transition. New records carry
+an explicit version and preserve every decided flag. Unversioned records decode
+with the schema semantics that generated them — non-primary columns nullable,
+with the withheld flags false — while unknown marked versions fail closed. This
+makes the first new diff accurate without treating an unknown future format as
+legacy.
 
 MIG-015 turns `encoding/json`'s default inside out. Ignoring unknown fields is
 the polite choice for an RPC payload and exactly wrong for state a future diff

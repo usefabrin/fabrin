@@ -486,11 +486,25 @@ behaviours:
     test: orm/state_test.go::TestSnapshot_EncodeIsDeterministic
 
   - id: MIG-013
-    what: Until ADR 0006's versioned codec slice lands, the newly decided Field flags - Nullable, Unique, Index - do not reach the encoded form.
-    why: The decision and codec land separately for review. A half-updated format would record flags without being able to decode their legacy meaning accurately, so the old withholding remains pinned until the complete encode/decode change replaces this behavior. Mutation-checked at both layers that could leak them.
+    what: Recorded state has an explicit version and preserves Nullable, Unique, and Index through snapshot construction, encoding, and parsing.
+    why: ADR 0006 made the flags schema semantics. Losing one from migration state makes the next diff compare against a schema the previous migration did not create; the version marker prevents future meaning changes from being guessed silently.
     requirement: FR-ORM-4
     status: implemented
-    test: orm/state_test.go::TestSnapshot_WithholdsProvisionalFlags
+    test: orm/state_test.go::TestSnapshot_EncodesConstraintFlagsInVersionedState
+
+  - id: MIG-039
+    what: Unversioned pre-ADR-0006 state decodes every non-primary column as nullable and all withheld constraint flags as false.
+    why: That is the DDL the old generator actually emitted. Applying today's NOT NULL zero value retroactively would hide the required transition; rejecting every existing file would throw away accurate information the legacy format already implies.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_DecodesLegacyConstraintSemantics
+
+  - id: MIG-040
+    what: A marked state-format version this build does not understand fails closed, wrapping ErrBadState and naming the source and version.
+    why: Reading a future meaning with today's field set would silently discard schema information and poison every later diff. Legacy absence is the one explicit compatibility case, not permission to guess unknown versions.
+    requirement: FR-ORM-4
+    status: implemented
+    test: orm/state_test.go::TestParseSnapshot_RejectsUnknownStateVersion
 
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
