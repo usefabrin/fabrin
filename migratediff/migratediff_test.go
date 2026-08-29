@@ -272,6 +272,55 @@ func TestSQLite_CreatesTablesThatAcceptRows(t *testing.T) {
 	}
 }
 
+func TestApply_PreflightsEveryOperationBeforeMutating(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("no sqlite driver available: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(1)
+
+	err = Apply(context.Background(), db, SQLite{}, []Operation{
+		CreateTable{Model: ordersModel()},
+		DropColumn{Table: "orders", Column: "reference"},
+	})
+	if !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("Apply error = %v, want ErrUnsupported", err)
+	}
+
+	var tables int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'orders'`).Scan(&tables); err != nil {
+		t.Fatalf("inspect schema: %v", err)
+	}
+	if tables != 0 {
+		t.Errorf("orders table exists after failed preflight; want database untouched")
+	}
+}
+
+func TestApply_ExecutesPreflightedOperationsInOrder(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("no sqlite driver available: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(1)
+
+	err = Apply(context.Background(), db, SQLite{}, []Operation{
+		CreateTable{Model: ordersModel()},
+		AddColumn{Table: "orders", Field: orm.Field{Name: "total", Type: orm.Float}},
+	})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO orders (id, reference, total) VALUES (1, 'A-1', 12.5)`); err != nil {
+		t.Errorf("preflighted operations did not execute in order: %v", err)
+	}
+}
+
 func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 	t.Parallel()
 

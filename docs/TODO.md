@@ -143,14 +143,15 @@ pre-v0 decisions are provisional ORM constraints
       are withheld until #79 decides them. Nothing reads a directory yet, so the
       on-disk layout stays with the commands below. (FR-ORM-4, MIG-011…018,
       [#56](https://github.com/usefabrin/fabrin/issues/56))
-- [~] Schema differ and DDL emitters (#57) — proved **private** in package
-      `migratediff` on the admin-proof terms of ADR 0005: detects new/dropped
-      tables and fields plus type/length changes with a deterministic op order;
-      SQLite executes against an in-process database but refuses drop/retype
-      until the table-rebuild dance exists; PostgreSQL verifies live when
-      `FABRIN_TEST_PG_DSN` is set. Nullability detection waits on #79. No
-      exported symbols — the public seam is #59's decision.
-      (FR-ORM-4, MIG-019…026)
+- [~] Schema differ and DDL emitters (#57) — the private proof graduated to the
+      public `migratediff` package with #59. It detects new/dropped tables and
+      fields plus type/length changes with a deterministic op order; SQLite
+      executes against an in-process database but refuses drop/retype until the
+      table-rebuild dance exists; PostgreSQL verifies live when
+      `FABRIN_TEST_PG_DSN` is set. `Apply` preflights the complete operation list
+      before its first mutation, so a known dialect refusal cannot leave a
+      partial schema. Nullability detection waits on #79.
+      (FR-ORM-4, MIG-019…026, MIG-042)
 - [~] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
       interface collects declared migrations from mounted modules, cross-module
       duplicate versions and mixed widths fail at construction, the command
