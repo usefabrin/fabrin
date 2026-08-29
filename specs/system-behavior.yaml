@@ -520,6 +520,62 @@ behaviours:
     status: implemented
     test: migratediff/migratediff_test.go::TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL
 
+  - id: MIG-044
+    what: Type, length, nullability, and constraint changes on one field are diffed independently, so one change cannot mask another.
+    why: A switch over field differences emitted only the first matching change. A migration that changed a type and added UNIQUE, for example, recorded the final state while creating only half of it and poisoned every later diff.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_EmitsEveryIndependentChangeOnAField
+
+  - id: MIG-045
+    what: Primary-key and plain-index additions and removals are explicit operations ordered with dependent drops before additions.
+    why: A primary-key swap must remove the old key before adding the new one, and an index-to-constraint transition must remove the redundant object first. Stable dependency order makes the emitted migration executable and reviewable.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDiff_DetectsIndexAndPrimaryKeyChanges
+
+  - id: MIG-046
+    what: Generated primary-key, UNIQUE, and index names are deterministic, at most 63 bytes, and distinguish ambiguous or truncated table/column joins.
+    why: PostgreSQL silently truncates longer identifiers, while raw underscore joins collide. A readable prefix plus a digest over length-delimited originals makes a later drop name the object the earlier migration created.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestGeneratedObjectNamesAreBoundedAndCollisionResistant
+
+  - id: MIG-047
+    what: PostgreSQL renders NOT NULL, named primary-key and UNIQUE constraints, and plain indexes when creating a table or adding a column.
+    why: Constraint metadata that survives state but not initial DDL is false schema state. Multi-statement rendering is what lets one added column create its separately named constraint or index without collapsing intent into raw SQL.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestPostgres_RendersCompleteConstraintsForNewTablesAndColumns
+
+  - id: MIG-048
+    what: PostgreSQL renders later nullability, primary-key, UNIQUE, and index transitions with stable names; primary-key drops identify legacy or generated keys through the catalog.
+    why: Pre-ADR inline primary keys received server-assigned names that cannot be reconstructed from the new naming rule. Looking up the actual single-column key preserves reversibility without guessing or dropping an unrelated constraint.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestPostgres_RendersConstraintTransitionsWithStableNames
+
+  - id: MIG-049
+    what: SQLite creates initial named constraints and indexes, supports nullable indexed column additions, and refuses non-null or constraint additions that need an unimplemented table rebuild.
+    why: SQLite can express the initial schema but not every alteration. A stated preflight refusal is safer than a generated migration that fails after earlier statements have already mutated the schema.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions
+
+  - id: MIG-050
+    what: makemigrations recognizes pgx by its driver package, emits every PostgreSQL statement group, and reverses operation groups for Down without reversing statements inside one operation.
+    why: pgx's concrete type is named stdlib.Driver, so matching only the displayed type rejected a supported driver. Flat reversal also breaks multi-statement operations and primary-key swaps during rollback.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups
+
+  - id: MIG-051
+    what: A generated migration advances one second past a recorded version from the current clock second instead of failing with a collision.
+    why: Two real schema changes can be generated within one second. Equality is the ordinary fast-run case, not an unrecoverable clock error; the same jump rule already handles future-dated recorded versions.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond
+
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
     why: A state record nobody can parse must never become a silently empty "before" - which would make the next makemigrations emit a create-everything migration against a live schema. "Unparseable" without a file name sends the reader grepping a directory.

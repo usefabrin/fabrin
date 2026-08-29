@@ -148,22 +148,22 @@ pre-v0 decisions are provisional ORM constraints
       [#56](https://github.com/usefabrin/fabrin/issues/56))
 - [~] Schema differ and DDL emitters (#57) — the private proof graduated to the
       public `migratediff` package with #59. It detects new/dropped tables and
-      fields plus type/length changes with a deterministic op order; SQLite
-      executes against an in-process database but refuses drop/retype until the
-      table-rebuild dance exists; PostgreSQL verifies live when
-      `FABRIN_TEST_PG_DSN` is set. `Dialect` is now the stable `Name` +
-      `Render(Operation) []string` seam, and both implementations quote metadata
-      as identifiers. `Apply` preflights the complete operation list before its
-      first mutation and executes every statement an operation renders.
-      Constraint operations and complete simultaneous-change detection are the
-      next #79 slice. (FR-ORM-4, MIG-019…026, MIG-041…043)
-- [~] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
+      fields plus independent type/length/nullability/primary-key/UNIQUE/index
+      changes with dependency-aware deterministic ordering. Named objects are
+      bounded and collision-resistant. PostgreSQL renders the complete
+      vocabulary and resolves legacy primary keys by catalog identity; SQLite
+      executes its supported subset against an in-process database and refuses
+      rebuild-only changes before mutation. `Dialect` is the stable `Name` +
+      `Render(Operation) []string` seam, both implementations quote metadata as
+      identifiers, and `Apply` preflights the complete operation list. Still
+      open: SQLite's table-rebuild implementation. (FR-ORM-4, MIG-019…026,
+      MIG-041…051)
+- [x] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
       interface collects declared migrations from mounted modules, cross-module
       duplicate versions and mixed widths fail at construction, the command
       applies forward or rolls back to an exclusive target stating its direction
       first, sliced processes refuse, and a missing database names `Options.DB`.
-      Still open: `makemigrations` generating files into module directories plus
-      the on-disk format. (FR-ORM-4, [#59](https://github.com/usefabrin/fabrin/issues/59))
+      (FR-ORM-4, [#59](https://github.com/usefabrin/fabrin/issues/59))
 - [x] `fabrin makemigrations` as `./myapp makemigrations`, and migrations as
       files on disk: `<module>/migrations/<version>_<name>.go` plus `.state.json`
       sidecars in the #56 codec, an ordered manifest (hand-written entries carry
@@ -214,15 +214,16 @@ breaking afterwards, so it needs an answer rather than a discovery.
       saying the dynamic type is not part of the contract, not the interface.
       ([ADR 0003](adr/0003-migrations-take-a-handle-not-a-transaction.md), #67,
       FR-ORM-4, MIG-010)
-- [~] **Three `orm.Field` fields have no semantics.** DECIDED in
+- [~] **Three `orm.Field` fields had no semantics.** DECIDED in
       [ADR 0006](adr/0006-field-constraint-semantics.md): NOT NULL default with
       explicit opt-out, named UNIQUE constraints (implying their index), and
       plain auto-named indexes. Redundant or contradictory primary/unique/index
       combinations are rejected at registration. Generated names use a readable
       prefix plus a bounded digest so underscore ambiguity and PostgreSQL
-      truncation cannot silently collide. Composite keys / user-named indexes /
-      multi-column UNIQUE remain unwritten. Wiring through state format, differ,
-      emitters, and generator lands in #79's later slices. (FR-ORM-1)
+      truncation cannot silently collide. State, differ, emitters, and generator
+      wiring are complete; the item remains provisional until the proposed ADR
+      and new public operation types receive human review. Composite keys /
+      user-named indexes / multi-column UNIQUE remain unwritten. (FR-ORM-1)
 - [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
       uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
       `orm.Time` sits one letter from `time.Time` in code that imports both.

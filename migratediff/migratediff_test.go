@@ -51,7 +51,7 @@ func ordersModel() orm.Model {
 		Fields: []orm.Field{
 			{Name: "id", Type: orm.Int64, PrimaryKey: true},
 			{Name: "reference", Type: orm.String, MaxLen: 32},
-			{Name: "shipped_at", Type: orm.Time},
+			{Name: "shipped_at", Type: orm.Time, Nullable: true},
 		},
 	}
 }
@@ -72,11 +72,101 @@ func opKinds(ops []Operation) []string {
 			out = append(out, "dropcol "+o.Table+"."+o.Column)
 		case ChangeType:
 			out = append(out, "retype "+o.Table+"."+o.Column)
+		case ChangeNullability:
+			out = append(out, "renull "+o.Table+"."+o.Column)
+		case AddUnique:
+			out = append(out, "addunique "+o.Table+"."+o.Column)
+		case DropUnique:
+			out = append(out, "dropunique "+o.Table+"."+o.Column)
+		case AddIndex:
+			out = append(out, "addindex "+o.Table+"."+o.Column)
+		case DropIndex:
+			out = append(out, "dropindex "+o.Table+"."+o.Column)
+		case AddPrimaryKey:
+			out = append(out, "addpk "+o.Table+"."+o.Column)
+		case DropPrimaryKey:
+			out = append(out, "droppk "+o.Table+"."+o.Column)
 		default:
 			out = append(out, "?")
 		}
 	}
 	return out
+}
+
+func TestDiff_EmitsEveryIndependentChangeOnAField(t *testing.T) {
+	t.Parallel()
+
+	before := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, MaxLen: 32, Nullable: true},
+		},
+	}
+	after := before
+	after.Fields = append([]orm.Field(nil), before.Fields...)
+	after.Fields[1] = orm.Field{
+		Name: "reference", Type: orm.Bytes, Nullable: false, Unique: true,
+	}
+
+	got := opKinds(Diff(mustSnap(t, before), mustSnap(t, after)))
+	want := []string{
+		"retype orders.reference",
+		"renull orders.reference",
+		"addunique orders.reference",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("simultaneous diff = %v, want %v", got, want)
+	}
+}
+
+func TestDiff_DetectsIndexAndPrimaryKeyChanges(t *testing.T) {
+	t.Parallel()
+
+	before := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, Index: true},
+		},
+	}
+	after := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64},
+			{Name: "reference", Type: orm.String, PrimaryKey: true},
+		},
+	}
+
+	got := opKinds(Diff(mustSnap(t, before), mustSnap(t, after)))
+	want := []string{
+		"dropindex orders.reference",
+		"droppk orders.id",
+		"addpk orders.reference",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("constraint diff = %v, want %v", got, want)
+	}
+}
+
+func TestGeneratedObjectNamesAreBoundedAndCollisionResistant(t *testing.T) {
+	t.Parallel()
+
+	a := databaseObjectName("idx", "a_b", "c")
+	b := databaseObjectName("idx", "a", "b_c")
+	if a == b {
+		t.Fatalf("ambiguous identifiers produced one name: %q", a)
+	}
+	if again := databaseObjectName("idx", "a_b", "c"); again != a {
+		t.Errorf("name changed between calls: %q then %q", a, again)
+	}
+	long := databaseObjectName("uq", strings.Repeat("table", 30), strings.Repeat("column", 30))
+	if len(long) > 63 {
+		t.Errorf("name is %d bytes, exceeds PostgreSQL's 63-byte limit: %q", len(long), long)
+	}
+	if !strings.HasPrefix(long, "uq_") {
+		t.Errorf("name lost its object kind: %q", long)
+	}
 }
 
 func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
@@ -251,7 +341,7 @@ func TestDiff_TreatsAReorderedFieldListAsNoChange(t *testing.T) {
 	a := mustSnap(t, ordersModel())
 	reordered := ordersModel()
 	reordered.Fields = []orm.Field{
-		{Name: "shipped_at", Type: orm.Time},
+		{Name: "shipped_at", Type: orm.Time, Nullable: true},
 		{Name: "id", Type: orm.Int64, PrimaryKey: true},
 		{Name: "reference", Type: orm.String, MaxLen: 32},
 	}
@@ -327,7 +417,7 @@ func TestApply_ExecutesPreflightedOperationsInOrder(t *testing.T) {
 
 	err = Apply(context.Background(), db, SQLite{}, []Operation{
 		CreateTable{Model: ordersModel()},
-		AddColumn{Table: "orders", Field: orm.Field{Name: "total", Type: orm.Float}},
+		AddColumn{Table: "orders", Field: orm.Field{Name: "total", Type: orm.Float, Nullable: true}},
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -406,6 +496,155 @@ func TestBuiltInDialects_RejectUnknownOperations(t *testing.T) {
 	_, err := Postgres{}.Render(unknownOperation{})
 	if !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("got %v, want ErrUnsupported", err)
+	}
+}
+
+func TestPostgres_RendersCompleteConstraintsForNewTablesAndColumns(t *testing.T) {
+	t.Parallel()
+
+	model := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
+			{Name: "account_id", Type: orm.Int64, Index: true},
+			{Name: "note", Type: orm.String, Nullable: true},
+		},
+	}
+	stmts, err := Postgres{}.Render(CreateTable{Model: model})
+	if err != nil {
+		t.Fatalf("CreateTable: %v", err)
+	}
+	joined := strings.Join(stmts, "\n")
+	for _, want := range []string{
+		`"id" BIGINT NOT NULL`,
+		`CONSTRAINT "` + databaseObjectName("pk", "orders", "id") + `" PRIMARY KEY ("id")`,
+		`"reference" VARCHAR(32) NOT NULL`,
+		`CONSTRAINT "` + databaseObjectName("uq", "orders", "reference") + `" UNIQUE ("reference")`,
+		`CREATE INDEX "` + databaseObjectName("idx", "orders", "account_id") + `"`,
+		`"note" TEXT`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("rendered table lacks %q:\n%s", want, joined)
+		}
+	}
+
+	added := orm.Field{Name: "external_id", Type: orm.String, Unique: true}
+	stmts, err = Postgres{}.Render(AddColumn{Table: "orders", Field: added})
+	if err != nil {
+		t.Fatalf("AddColumn: %v", err)
+	}
+	joined = strings.Join(stmts, "\n")
+	for _, want := range []string{
+		`ADD COLUMN "external_id" TEXT NOT NULL`,
+		`ADD CONSTRAINT "` + databaseObjectName("uq", "orders", "external_id") + `" UNIQUE ("external_id")`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("rendered column lacks %q:\n%s", want, joined)
+		}
+	}
+}
+
+func TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions(t *testing.T) {
+	t.Parallel()
+
+	model := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, Unique: true},
+			{Name: "note", Type: orm.String, Nullable: true, Index: true},
+		},
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("no sqlite driver available: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(1)
+	if err := Apply(context.Background(), db, SQLite{}, []Operation{CreateTable{Model: model}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO "orders" ("id", "reference") VALUES (1, 'A-1')`); err != nil {
+		t.Fatalf("insert initial row: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO "orders" ("id", "reference") VALUES (2, 'A-1')`); err == nil {
+		t.Error("named UNIQUE constraint was not enforced")
+	}
+	indexName := databaseObjectName("idx", "orders", "note")
+	var indexes int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_schema WHERE type = 'index' AND name = ?`, indexName).Scan(&indexes); err != nil {
+		t.Fatalf("inspect initial index: %v", err)
+	}
+	if indexes != 1 {
+		t.Errorf("initial plain index count = %d, want 1", indexes)
+	}
+
+	added := AddColumn{
+		Table: "orders",
+		Field: orm.Field{Name: "external_id", Type: orm.String, Nullable: true, Index: true},
+	}
+	if err := Apply(context.Background(), db, SQLite{}, []Operation{added}); err != nil {
+		t.Fatalf("add nullable indexed column: %v", err)
+	}
+	indexName = databaseObjectName("idx", "orders", "external_id")
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_schema WHERE type = 'index' AND name = ?`, indexName).Scan(&indexes); err != nil {
+		t.Fatalf("inspect added index: %v", err)
+	}
+	if indexes != 1 {
+		t.Errorf("added-column index count = %d, want 1", indexes)
+	}
+
+	tests := []AddColumn{
+		{Table: "orders", Field: orm.Field{Name: "required", Type: orm.String}},
+		{Table: "orders", Field: orm.Field{Name: "code", Type: orm.String, Nullable: true, Unique: true}},
+	}
+	for _, op := range tests {
+		_, err := SQLite{}.Render(op)
+		if !errors.Is(err, ErrUnsupported) {
+			t.Errorf("AddColumn(%+v) error = %v, want ErrUnsupported", op.Field, err)
+		}
+	}
+}
+
+func TestPostgres_RendersConstraintTransitionsWithStableNames(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		op   Operation
+		want string
+	}{
+		{ChangeNullability{Table: "orders", Column: "reference", Nullable: false}, `SET NOT NULL`},
+		{ChangeNullability{Table: "orders", Column: "reference", Nullable: true}, `DROP NOT NULL`},
+		{AddUnique{Table: "orders", Column: "reference"}, `ADD CONSTRAINT "` + databaseObjectName("uq", "orders", "reference") + `"`},
+		{DropUnique{Table: "orders", Column: "reference"}, `DROP CONSTRAINT "` + databaseObjectName("uq", "orders", "reference") + `"`},
+		{AddIndex{Table: "orders", Column: "reference"}, `CREATE INDEX "` + databaseObjectName("idx", "orders", "reference") + `"`},
+		{DropIndex{Table: "orders", Column: "reference"}, `DROP INDEX "` + databaseObjectName("idx", "orders", "reference") + `"`},
+		{AddPrimaryKey{Table: "orders", Column: "reference"}, `ADD CONSTRAINT "` + databaseObjectName("pk", "orders", "reference") + `"`},
+		{DropPrimaryKey{Table: "orders", Column: "id"}, `FROM pg_constraint`},
+	}
+	for _, tc := range tests {
+		stmts, err := Postgres{}.Render(tc.op)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.op.Describe(), err)
+		}
+		if !strings.Contains(strings.Join(stmts, "\n"), tc.want) {
+			t.Errorf("%s lacks %q: %q", tc.op.Describe(), tc.want, stmts)
+		}
+	}
+
+	stmts, err := Postgres{}.Render(DropPrimaryKey{Table: `order's$fabrin$`, Column: `owner's id`})
+	if err != nil {
+		t.Fatalf("drop primary key by catalog identity: %v", err)
+	}
+	joined := strings.Join(stmts, "\n")
+	for _, want := range []string{`c.contype = 'p'`, `'order''s$fabrin$'`, `'owner''s id'`, `DROP CONSTRAINT %I`} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("catalog-based primary-key drop lacks %q: %s", want, joined)
+		}
+	}
+	if strings.HasPrefix(joined, "DO $fabrin$\n") {
+		t.Errorf("DO block delimiter must not occur in metadata embedded in its body: %s", joined)
 	}
 }
 

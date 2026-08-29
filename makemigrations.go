@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -49,8 +50,9 @@ func makemigrationsCommand(a *App) cli.Command {
 //
 // It touches no database SCHEMA — generating a migration works against a live
 // server without altering it. The handle is still required, for one reason: the
-// driver's name chooses the SQL dialect the files are rendered for. A migration
-// written for PostgreSQL that later runs against SQLite is worse than none.
+// driver's identity chooses the SQL dialect the files are rendered for. A
+// migration written for PostgreSQL that later runs against SQLite is worse than
+// none.
 func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 	if a.registry.sliced {
 		return fmt.Errorf("fabrin: this process is sliced by FABRIN_MODULES (registered: %v, mounted: %v) — "+
@@ -105,7 +107,7 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 	for _, module := range order {
 		moduleOps := byModule[module]
 		upStmts := make([]string, 0, len(moduleOps))
-		downStmts := make([]string, 0, len(moduleOps))
+		downGroups := make([][]string, 0, len(moduleOps))
 		describe := make([]string, 0, len(moduleOps))
 		for _, op := range moduleOps {
 			stmts, err := dialect.Render(op)
@@ -132,8 +134,12 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 				return fmt.Errorf("fabrin: module %q's changes cannot be reversed for this dialect (%v) — hand-write this migration", module, err)
 			}
 			upStmts = append(upStmts, stmts...)
-			downStmts = append(downStmts, down...)
+			downGroups = append(downGroups, down)
 			describe = append(describe, op.Describe())
+		}
+		downStmts := make([]string, 0, len(moduleOps))
+		for i := len(downGroups) - 1; i >= 0; i-- {
+			downStmts = append(downStmts, downGroups[i]...)
 		}
 
 		name := migrationSlug(strings.Join(describe, " "))
@@ -308,6 +314,20 @@ func operationTable(op migratediff.Operation) string {
 		return o.Table
 	case migratediff.ChangeType:
 		return o.Table
+	case migratediff.ChangeNullability:
+		return o.Table
+	case migratediff.AddUnique:
+		return o.Table
+	case migratediff.DropUnique:
+		return o.Table
+	case migratediff.AddIndex:
+		return o.Table
+	case migratediff.DropIndex:
+		return o.Table
+	case migratediff.AddPrimaryKey:
+		return o.Table
+	case migratediff.DropPrimaryKey:
+		return o.Table
 	default:
 		return ""
 	}
@@ -354,6 +374,30 @@ func invert(op migratediff.Operation, before orm.Snapshot) (migratediff.Operatio
 			}
 		}
 		return nil, fmt.Errorf("cannot reverse changing %s.%s: no recorded field", o.Table, o.Column)
+	case migratediff.ChangeNullability:
+		for _, reg := range before.Models() {
+			if reg.Model.Table != o.Table {
+				continue
+			}
+			for _, f := range reg.Model.Fields {
+				if f.Name == o.Column {
+					return migratediff.ChangeNullability{Table: o.Table, Column: o.Column, Nullable: f.Nullable}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("cannot reverse changing %s.%s: no recorded field", o.Table, o.Column)
+	case migratediff.AddUnique:
+		return migratediff.DropUnique(o), nil
+	case migratediff.DropUnique:
+		return migratediff.AddUnique(o), nil
+	case migratediff.AddIndex:
+		return migratediff.DropIndex(o), nil
+	case migratediff.DropIndex:
+		return migratediff.AddIndex(o), nil
+	case migratediff.AddPrimaryKey:
+		return migratediff.DropPrimaryKey(o), nil
+	case migratediff.DropPrimaryKey:
+		return migratediff.AddPrimaryKey(o), nil
 	default:
 		return nil, fmt.Errorf("cannot reverse an unknown operation")
 	}
@@ -365,22 +409,32 @@ func invert(op migratediff.Operation, before orm.Snapshot) (migratediff.Operatio
 func rawInverse(op migratediff.Operation) (string, bool) {
 	switch o := op.(type) {
 	case migratediff.AddColumn:
-		return "ALTER TABLE " + o.Table + " DROP COLUMN " + o.Field.Name + ";", true
+		return "ALTER TABLE " + quoteSQLIdentifier(o.Table) + " DROP COLUMN " + quoteSQLIdentifier(o.Field.Name) + ";", true
 	default:
 		return "", false
 	}
 }
 
+func quoteSQLIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
 // dialectFor maps the configured driver to its Dialect.
 //
 // database/sql deliberately exposes no driver NAME — driver.Driver is one Open
-// method — so this reads the dynamic type of the registered driver. That is a
-// heuristic and said to be one: it matches the drivers Fabrin knows (the pure-Go
-// SQLite driver and pgx's stdlib adapter), and anything else is an error naming
-// the detected type rather than a guess rendered into files users commit. A
-// driver that wants generated migrations can add itself here deliberately.
+// method — so this reads the dynamic type's package path and displayed name.
+// That is a heuristic and said to be one: it matches the drivers Fabrin knows
+// (the pure-Go SQLite driver and pgx's generically named stdlib adapter), and
+// anything else is an error naming the detected identity rather than a guess
+// rendered into files users commit. A driver that wants generated migrations
+// can add itself here deliberately.
 func dialectFor(db *sql.DB) (migratediff.Dialect, error) {
-	detected := fmt.Sprintf("%T", db.Driver())
+	driverType := reflect.TypeOf(db.Driver())
+	detected := driverType.String()
+	for driverType.Kind() == reflect.Pointer {
+		driverType = driverType.Elem()
+	}
+	detected = driverType.PkgPath() + "." + detected
 	switch {
 	case strings.Contains(detected, "sqlite"):
 		return migratediff.SQLite{}, nil
@@ -401,10 +455,11 @@ func nextVersion(manifests map[string][]manifestEntry) (string, error) {
 		}
 	}
 	candidate := time.Now().UTC().Format("20060102150405")
-	if highest > candidate {
-		// A recorded version sits in the future relative to this clock — a
-		// hand-written placeholder like 9999..., or skew between machines. Jump
-		// just past IT rather than inching toward it one second at a time.
+	if highest >= candidate {
+		// A recorded version is in this clock second or later — either another
+		// generated migration in the same run, a hand-written placeholder like
+		// 9999..., or skew between machines. Jump just past it rather than
+		// colliding or inching toward it one second at a time.
 		t, err := time.Parse("20060102150405", highest)
 		if err != nil {
 			return "", fmt.Errorf("fabrin: recorded version %q is not a fixed-width YYYYMMDDHHMMSS timestamp", highest)

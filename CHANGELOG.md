@@ -37,6 +37,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Complete migration constraint vocabulary.** `migratediff` now exposes
+  `ChangeNullability`, `AddUnique`/`DropUnique`, `AddIndex`/`DropIndex`, and
+  `AddPrimaryKey`/`DropPrimaryKey`. The differ emits simultaneous field changes
+  independently and dependency-orders constraint transitions. PostgreSQL emits
+  named NOT NULL/primary-key/UNIQUE/index DDL for creation and alteration;
+  SQLite creates the supported initial schema and nullable indexes while
+  refusing rebuild-only changes before mutation. Generated object names stay
+  within PostgreSQL's 63-byte limit and use a digest over length-delimited names
+  to prevent truncation and underscore-join collisions. (Part of [#79].)
 - **Versioned constraint state.** Recorded model state now carries a format
   marker and round-trips `Nullable`, `Unique`, and `Index`. Existing unversioned
   files remain readable as the schemas the old generator actually emitted:
@@ -49,8 +58,8 @@ with their milestone rather than split into sections. Cutting a version is
   redundant combinations: a nullable primary key, `Unique+Index`, and either
   `Unique` or `Index` on a primary key. Generated object names use a readable
   prefix plus a bounded digest rather than ambiguous raw concatenation. This
-  slice records and validates [ADR 0006]; state, differ, dialect, and generator
-  wiring follow separately. ([#79](https://github.com/usefabrin/fabrin/issues/79))
+  slice records and validates [ADR 0006]; its state, differ, dialect, and
+  generator wiring is described by the adjacent entries. ([#79])
 - **Duplicate-version pre-merge gate for migration files. ([#55])
   `scripts/gates/check-migration-versions.sh` scans every `<module>/migrations/`
   directory, derives each version from its filename prefix (the MIG-033
@@ -105,16 +114,16 @@ with their milestone rather than split into sections. Cutting a version is
   - **Corrupt recorded state fails loudly naming the file** — never a silently
     empty "before".
 
-- **Public surface of `fabrin/migratediff`** — `Diff`, the five `Operation`
-  types (`CreateTable`, `DropTable`, `AddColumn`, `DropColumn`, `ChangeType`),
+- **Public surface of `fabrin/migratediff`** — `Diff`, the twelve `Operation`
+  types (the five table/column/type operations plus seven constraint operations),
   the `Dialect` interface with `SQLite` and `Postgres`, and `ErrUnsupported`.
   ([#59])
 
   The #57 proof exported nothing on purpose; this is the planned graduation,
   happening because the generator itself consumes the seam and hiding it from
   users would mean shipping two differ APIs. What survived contact with the
-  first consumer: operation-per-statement held, the deterministic ordering
-  held, and nullability detection stayed absent pending #79.
+  first consumer: deterministic ordering held, while the one-operation/one-
+  statement assumption was replaced before #79 added the constraint vocabulary.
 
 - **`Migrator`** — a module declares the migrations that bring its tables from
   one recorded state to the next. ([#59])
@@ -810,6 +819,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- `makemigrations` now recognizes pgx from its driver package path (the concrete
+  type is only `stdlib.Driver`), advances past a migration generated in the same
+  clock second, preserves every statement inside an operation, and reverses
+  operation groups rather than flattening and corrupting multi-statement
+  rollbacks. PostgreSQL primary-key removal resolves the actual key through the
+  catalog so pre-ADR inline keys with server-assigned names remain reversible.
+  (Part of [#79].)
 - `migratediff.Apply` now renders the complete operation list before executing
   its first statement. A supported operation followed by an unsupported SQLite
   drop or retype therefore returns `ErrUnsupported` without partially mutating
@@ -864,6 +880,10 @@ First exported surface. It is now also recorded line-by-line in
 Changed in package `fabrin/migratediff` as part of
 [#79](https://github.com/usefabrin/fabrin/issues/79) — **breaking**:
 
+- Seven operations join the public vocabulary: `ChangeNullability`,
+  `AddUnique`/`DropUnique`, `AddIndex`/`DropIndex`, and
+  `AddPrimaryKey`/`DropPrimaryKey`. Each carries only table/column intent; the
+  dialect continues to own database representation.
 - `Dialect` now has exactly `Name()` and `Render(Operation) ([]string, error)`.
   The five operation-specific methods were removed, as were the operations'
   forwarding `Render` methods. Call `dialect.Render(op)` instead.
@@ -1276,6 +1296,7 @@ Added — package `fabrin`:
 [#76]: https://github.com/usefabrin/fabrin/issues/76
 [#77]: https://github.com/usefabrin/fabrin/issues/77
 [#78]: https://github.com/usefabrin/fabrin/issues/78
+[#79]: https://github.com/usefabrin/fabrin/issues/79
 [ADR 0004]: docs/adr/0004-module-factories-select-before-construction.md
 [ADR 0005]: docs/adr/0005-admin-crud-seam-remains-private.md
 [#41]: https://github.com/usefabrin/fabrin/issues/41

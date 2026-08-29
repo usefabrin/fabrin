@@ -319,6 +319,14 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-041 | Stable two-method `Dialect`; one operation may render ordered statements | `migratediff/migratediff_test.go::TestDialect_HasOneStableRenderMethodForAllOperations` |
 | MIG-042 | `Apply` preflights every operation before the first schema mutation | `migratediff/migratediff_test.go::TestApply_PreflightsEveryOperationBeforeMutating` |
 | MIG-043 | Dialects quote metadata as identifiers, including embedded quotes | `migratediff/migratediff_test.go::TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL` |
+| MIG-044 | Simultaneous type/nullability/constraint changes are all emitted | `migratediff/migratediff_test.go::TestDiff_EmitsEveryIndependentChangeOnAField` |
+| MIG-045 | Primary-key and index transitions are explicit and dependency-ordered | `migratediff/migratediff_test.go::TestDiff_DetectsIndexAndPrimaryKeyChanges` |
+| MIG-046 | Generated object names are bounded and collision-resistant | `migratediff/migratediff_test.go::TestGeneratedObjectNamesAreBoundedAndCollisionResistant` |
+| MIG-047 | PostgreSQL creates complete constraints for new tables and columns | `migratediff/migratediff_test.go::TestPostgres_RendersCompleteConstraintsForNewTablesAndColumns` |
+| MIG-048 | PostgreSQL renders constraint transitions and catalog-resolved legacy PK drops | `migratediff/migratediff_test.go::TestPostgres_RendersConstraintTransitionsWithStableNames` |
+| MIG-049 | SQLite creates supported constraints/indexes and refuses rebuild-only additions | `migratediff/migratediff_test.go::TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions` |
+| MIG-050 | pgx generation preserves multi-statement Up groups and reverses Down groups | `makemigrations_test.go::TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups` |
+| MIG-051 | Same-second migration generation advances beyond the recorded version | `makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
@@ -370,6 +378,21 @@ MIG-043 treats model names as identifiers rather than trusted SQL. Both shipped
 dialects use ANSI double-quote escaping, verified by executing a table and
 column whose names contain spaces and an embedded quote against real SQLite and
 by checking PostgreSQL's rendered statement.
+
+MIG-044…051 complete ADR 0006's migration wiring. Field properties are diffed
+independently, then dependency-ranked so indexes and constraints come off before
+the columns they guard change and return afterwards. The named-object digest is
+part of the migration format; PostgreSQL primary-key drops additionally resolve
+catalog identity so a key created by the legacy inline renderer remains
+reversible even though PostgreSQL chose its old name. SQLite emits everything it
+can execute honestly and refuses table-rebuild-only changes during preflight.
+
+The generator preserves each operation's statement order while reversing the
+operation groups for `Down`; flattening first would reverse the internals of a
+multi-statement operation. Its pgx detection uses the driver's package path,
+because the displayed concrete name is only `stdlib.Driver`, and its version
+clock advances past equality so two genuine changes in one second do not
+collide.
 
 Two graduation notes. The `migratediff` seam went public here (#59 consuming it
 is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact

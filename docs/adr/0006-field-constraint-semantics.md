@@ -98,3 +98,8 @@ nothing consumes.
   operation exactly as it covers type changes, consistent with MIG-024. The same
   rule applies to constraint changes SQLite cannot express without rebuilding a
   table: refuse during render, before a migration file is written.
+- PostgreSQL primary-key removal resolves the actual single-column key through
+  `pg_constraint` and `pg_attribute`. New keys still receive the deterministic
+  name above, but catalog identity keeps unversioned migrations reversible:
+  their inline primary keys received server-assigned names before this naming
+  contract existed.

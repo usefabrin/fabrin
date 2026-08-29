@@ -17,28 +17,30 @@
 // boundary rules forbid internal/ from importing sibling Fabrin packages, and
 // this package's whole job is reading orm metadata.
 //
-// # What the differ can and cannot see
+// # Constraint vocabulary
 //
-// Nullability is temporarily invisible because the newly decided Field flags
-// remain withheld from recorded state until ADR 0006's versioned codec and
-// operation wiring land together. A changed nullability therefore produces no
-// Operation in this decision slice.
+// ADR 0006's nullability, primary-key, unique, and plain-index semantics are
+// first-class operations. They are compared independently from type and length,
+// so changing several properties of one field cannot mask another change.
 //
 // # Ordering is part of the output
 //
-// Creates first (tables sorted), then alterations per surviving table
-// (columns sorted, drops before retypes before additions), whole-table drops
-// last. Fixed once, here, because the generated migration inherits whatever
-// wiggle this allows: a generator whose output depends on map iteration
-// produces migrations that differ between runs and reviews terribly.
+// Creates first (tables sorted), then alterations per surviving table with
+// dependent objects dropped before columns or types change and constraints
+// restored afterwards, then whole-table drops last. Fixed once, here, because
+// the generated migration inherits whatever wiggle this allows: a generator
+// whose output depends on map iteration produces migrations that differ between
+// runs and reviews terribly.
 package migratediff
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/usefabrin/fabrin/orm"
@@ -105,6 +107,49 @@ type ChangeType struct {
 	To     orm.Field
 }
 
+// ChangeNullability moves one column between NOT NULL and nullable.
+type ChangeNullability struct {
+	Table    string
+	Column   string
+	Nullable bool
+}
+
+// AddUnique adds the named single-column UNIQUE constraint ADR 0006 defines.
+type AddUnique struct {
+	Table  string
+	Column string
+}
+
+// DropUnique removes that UNIQUE constraint.
+type DropUnique struct {
+	Table  string
+	Column string
+}
+
+// AddIndex creates the named plain single-column index ADR 0006 defines.
+type AddIndex struct {
+	Table  string
+	Column string
+}
+
+// DropIndex removes that plain index.
+type DropIndex struct {
+	Table  string
+	Column string
+}
+
+// AddPrimaryKey adds a named single-column primary-key constraint.
+type AddPrimaryKey struct {
+	Table  string
+	Column string
+}
+
+// DropPrimaryKey removes that primary-key constraint.
+type DropPrimaryKey struct {
+	Table  string
+	Column string
+}
+
 // diff compares two recorded states and returns the operations that turn
 // before into after, in the order they should run.
 //
@@ -126,9 +171,9 @@ func Diff(before, after orm.Snapshot) []Operation {
 		}
 	}
 
-	// Alterations to surviving tables: table-sorted, column-sorted within a
-	// table, drops before retypes before additions so data loss clusters
-	// early in review.
+	// Alterations to surviving tables: table-sorted, then dependency rank, then
+	// column. Constraints and indexes drop before the columns they depend on;
+	// type/nullability changes happen in the middle; additions land last.
 	for _, reg := range afterModels {
 		was, exists := beforeByTable[reg.Model.Table]
 		if !exists {
@@ -146,27 +191,49 @@ func Diff(before, after orm.Snapshot) []Operation {
 		beforeFields := indexFields(was.Model.Fields)
 		for _, f := range reg.Model.Fields {
 			prev, exists := beforeFields[f.Name]
-			switch {
-			case !exists:
-				add(f.Name, 2, AddColumn{Table: reg.Model.Table, Field: f})
-			case prev.Type != f.Type || prev.MaxLen != f.MaxLen:
-				add(f.Name, 1, ChangeType{Table: reg.Model.Table, Column: f.Name, To: f})
+			if !exists {
+				add(f.Name, 6, AddColumn{Table: reg.Model.Table, Field: f})
+				continue
+			}
+			if prev.Index && !f.Index {
+				add(f.Name, 0, DropIndex{Table: reg.Model.Table, Column: f.Name})
+			}
+			if prev.Unique && !f.Unique {
+				add(f.Name, 1, DropUnique{Table: reg.Model.Table, Column: f.Name})
+			}
+			if prev.PrimaryKey && !f.PrimaryKey {
+				add(f.Name, 2, DropPrimaryKey{Table: reg.Model.Table, Column: f.Name})
+			}
+			if prev.Type != f.Type || prev.MaxLen != f.MaxLen {
+				add(f.Name, 4, ChangeType{Table: reg.Model.Table, Column: f.Name, To: f})
+			}
+			if prev.Nullable != f.Nullable {
+				add(f.Name, 5, ChangeNullability{Table: reg.Model.Table, Column: f.Name, Nullable: f.Nullable})
+			}
+			if !prev.PrimaryKey && f.PrimaryKey {
+				add(f.Name, 7, AddPrimaryKey{Table: reg.Model.Table, Column: f.Name})
+			}
+			if !prev.Unique && f.Unique {
+				add(f.Name, 8, AddUnique{Table: reg.Model.Table, Column: f.Name})
+			}
+			if !prev.Index && f.Index {
+				add(f.Name, 9, AddIndex{Table: reg.Model.Table, Column: f.Name})
 			}
 		}
 		afterFields := indexFields(reg.Model.Fields)
 		for _, f := range was.Model.Fields {
 			if _, exists := afterFields[f.Name]; !exists {
-				add(f.Name, 0, DropColumn{Table: reg.Model.Table, Column: f.Name})
+				add(f.Name, 3, DropColumn{Table: reg.Model.Table, Column: f.Name})
 			}
 		}
 		slices.SortFunc(alters, func(a, b ranked) int {
 			switch {
-			case a.column != b.column:
-				return strings.Compare(a.column, b.column)
 			case a.rank < b.rank:
 				return -1
 			case a.rank > b.rank:
 				return 1
+			case a.column != b.column:
+				return strings.Compare(a.column, b.column)
 			}
 			return 0
 		})
@@ -240,6 +307,30 @@ func (o ChangeType) Describe() string {
 	return fmt.Sprintf("change type of %s.%s", o.Table, o.Column)
 }
 
+func (o ChangeNullability) Describe() string {
+	return fmt.Sprintf("change nullability of %s.%s", o.Table, o.Column)
+}
+
+func (o AddUnique) Describe() string { return fmt.Sprintf("add unique %s.%s", o.Table, o.Column) }
+
+func (o DropUnique) Describe() string {
+	return fmt.Sprintf("drop unique %s.%s", o.Table, o.Column)
+}
+
+func (o AddIndex) Describe() string { return fmt.Sprintf("add index %s.%s", o.Table, o.Column) }
+
+func (o DropIndex) Describe() string {
+	return fmt.Sprintf("drop index %s.%s", o.Table, o.Column)
+}
+
+func (o AddPrimaryKey) Describe() string {
+	return fmt.Sprintf("add primary key %s.%s", o.Table, o.Column)
+}
+
+func (o DropPrimaryKey) Describe() string {
+	return fmt.Sprintf("drop primary key %s.%s", o.Table, o.Column)
+}
+
 func index(models []orm.Registered) map[string]orm.Registered {
 	out := make(map[string]orm.Registered, len(models))
 	for _, reg := range models {
@@ -257,23 +348,40 @@ func indexFields(fields []orm.Field) map[string]orm.Field {
 }
 
 // columnList renders a CREATE TABLE body — two-space indented columns in the
-// model's declared order, primary key inline. Shared by both dialects because
-// layout is not a Dialect decision: identical structure across databases is
-// what keeps generated files diffable when a project changes driver.
+// model's declared order followed by named primary-key and UNIQUE constraints.
+// Shared by both dialects because layout is not a Dialect decision: identical
+// structure across databases is what keeps generated files diffable when a
+// project changes driver.
 func columnList(typeOf func(orm.Field) (string, error), m orm.Model) (string, error) {
-	lines := make([]string, 0, len(m.Fields))
+	lines := make([]string, 0, len(m.Fields)*2)
 	for _, f := range m.Fields {
-		typ, err := typeOf(f)
+		line, err := columnDefinition(typeOf, f)
 		if err != nil {
 			return "", fmt.Errorf("table %s, field %s: %w", m.Table, f.Name, err)
 		}
-		line := "  " + quoteIdentifier(f.Name) + " " + typ
-		if f.PrimaryKey {
-			line += " PRIMARY KEY"
+		lines = append(lines, "  "+line)
+	}
+	for _, f := range m.Fields {
+		switch {
+		case f.PrimaryKey:
+			lines = append(lines, "  CONSTRAINT "+quoteIdentifier(databaseObjectName("pk", m.Table, f.Name))+" PRIMARY KEY ("+quoteIdentifier(f.Name)+")")
+		case f.Unique:
+			lines = append(lines, "  CONSTRAINT "+quoteIdentifier(databaseObjectName("uq", m.Table, f.Name))+" UNIQUE ("+quoteIdentifier(f.Name)+")")
 		}
-		lines = append(lines, line)
 	}
 	return strings.Join(lines, ",\n"), nil
+}
+
+func columnDefinition(typeOf func(orm.Field) (string, error), f orm.Field) (string, error) {
+	typ, err := typeOf(f)
+	if err != nil {
+		return "", err
+	}
+	line := quoteIdentifier(f.Name) + " " + typ
+	if !f.Nullable {
+		line += " NOT NULL"
+	}
+	return line, nil
 }
 
 // quoteIdentifier quotes one SQL identifier using the ANSI form accepted by
@@ -289,4 +397,42 @@ func oneStatement(stmt string, err error) ([]string, error) {
 		return nil, err
 	}
 	return []string{stmt}, nil
+}
+
+const maxDatabaseObjectNameBytes = 63
+
+// databaseObjectName produces the stable object names ADR 0006 specifies. The
+// digest disambiguates underscore joins and long readable prefixes; the result
+// stays below PostgreSQL's silent 63-byte truncation boundary.
+func databaseObjectName(kind, table, column string) string {
+	payload := strconv.Itoa(len(kind)) + ":" + kind +
+		strconv.Itoa(len(table)) + ":" + table +
+		strconv.Itoa(len(column)) + ":" + column
+	sum := sha256.Sum256([]byte(payload))
+	digest := fmt.Sprintf("%x", sum[:8])
+	readable := readableIdentifier(table + "_" + column)
+	reserved := len(kind) + len(digest) + 2
+	if max := maxDatabaseObjectNameBytes - reserved; len(readable) > max {
+		readable = strings.Trim(readable[:max], "_")
+	}
+	if readable == "" {
+		readable = "object"
+	}
+	return kind + "_" + readable + "_" + digest
+}
+
+func readableIdentifier(s string) string {
+	var b strings.Builder
+	underscore := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			underscore = false
+		case !underscore:
+			b.WriteByte('_')
+			underscore = true
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }

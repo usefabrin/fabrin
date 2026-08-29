@@ -2,6 +2,7 @@ package fabrin_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 
 	"github.com/usefabrin/fabrin"
@@ -314,7 +316,7 @@ func TestExecute_MakemigrationsCarriesHandWrittenStepsForward(t *testing.T) {
 	// Now the model gains a column. The diff must be ONE added column against
 	// the carried-forward state — not a create-everything against an empty one.
 	grown := ordersModelFull()
-	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.Float})
+	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.Float, Nullable: true})
 	app2, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", grown))
 	if err != nil {
 		t.Fatalf("New again: %v", err)
@@ -390,6 +392,87 @@ func TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced(t *testing.T) {
 	}
 }
 
+func TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups(t *testing.T) {
+	projectChdir(t)
+
+	db, err := sql.Open("pgx/v5", "postgres://unused")
+	if err != nil {
+		t.Fatalf("open pgx handle: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	before := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "reference", Type: orm.String, Nullable: true},
+			{Name: "code", Type: orm.String, Index: true},
+		},
+	}
+	app, err := fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("shop", before),
+	)
+	if err != nil {
+		t.Fatalf("New before: %v", err)
+	}
+	if err := app.Execute(t.Context(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("first makemigrations: %v", err)
+	}
+	firstVersion := versionOf(t, filepath.Join("shop", "migrations"))
+
+	after := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64},
+			{Name: "reference", Type: orm.String, PrimaryKey: true},
+			{Name: "code", Type: orm.Bytes, Unique: true},
+		},
+	}
+	app, err = fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("shop", after),
+	)
+	if err != nil {
+		t.Fatalf("New after: %v", err)
+	}
+	if err := app.Execute(t.Context(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("second makemigrations: %v", err)
+	}
+
+	versions := generatedVersions(t, filepath.Join("shop", "migrations"))
+	if len(versions) != 2 {
+		t.Fatalf("got generated versions %v, want two", versions)
+	}
+	secondVersion := versions[1]
+	if secondVersion <= firstVersion {
+		t.Fatalf("second version %q must follow first %q", secondVersion, firstVersion)
+	}
+	src := generatedSource(t, filepath.Join("shop", "migrations"), secondVersion)
+	up, down, ok := strings.Cut(src, "Down: func")
+	if !ok {
+		t.Fatalf("generated migration has no Down function:\n%s", src)
+	}
+	for _, want := range []string{
+		"DROP INDEX",
+		"DROP CONSTRAINT",
+		`ALTER COLUMN \"code\" TYPE BYTEA`,
+		`ALTER COLUMN \"reference\" SET NOT NULL`,
+		"PRIMARY KEY",
+		"UNIQUE",
+	} {
+		if !strings.Contains(up, want) {
+			t.Errorf("generated Up must contain %q:\n%s", want, up)
+		}
+	}
+	if firstDrop, firstAdd := strings.Index(down, "DROP CONSTRAINT"), strings.Index(down, "ADD CONSTRAINT"); firstDrop < 0 || firstAdd < 0 || firstDrop > firstAdd {
+		t.Errorf("generated Down must drop new constraints before restoring old ones:\n%s", down)
+	}
+	if firstDrop, addIndex := strings.Index(down, "DROP CONSTRAINT"), strings.Index(down, "CREATE INDEX"); firstDrop < 0 || addIndex < 0 || firstDrop > addIndex {
+		t.Errorf("generated Down must remove new constraints before restoring the old index:\n%s", down)
+	}
+}
+
 func versionOf(t *testing.T, dir string) string {
 	t.Helper()
 	entries, err := os.ReadDir(dir)
@@ -403,5 +486,40 @@ func versionOf(t *testing.T, dir string) string {
 		}
 	}
 	t.Fatalf("no generated migration file in %s", dir)
+	return ""
+}
+
+func generatedVersions(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	var versions []string
+	for _, e := range entries {
+		if name := e.Name(); strings.HasSuffix(name, ".go") && name != "all.go" {
+			versions = append(versions, strings.SplitN(name, "_", 2)[0])
+		}
+	}
+	return versions
+}
+
+func generatedSource(t *testing.T, dir, version string) string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, version+"_") && strings.HasSuffix(name, ".go") {
+			raw, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatalf("read generated migration %s: %v", name, err)
+			}
+			return string(raw)
+		}
+	}
+	t.Fatalf("no generated migration for version %s in %s", version, dir)
 	return ""
 }
