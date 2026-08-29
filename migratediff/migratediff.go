@@ -5,22 +5,17 @@
 // deterministic list of operations, and a Dialect turns operations into the
 // statements a real server accepts.
 //
-// # Why nothing here is exported
+// # Public seam
 //
-// This package exports no symbols, on purpose and for now. Every exported
-// symbol is a permanent promise, and the right public shape for a differ —
-// method granularity, whether the Dialect interface is user-facing at all — is
-// exactly what a private vertical exists to discover before it freezes. The
-// admin CRUD proof set the precedent
-// (docs/adr/0005-admin-crud-seam-remains-private.md); this follows it. When
-// fabrin makemigrations lands (#59), whatever survived here graduates behind a
-// deliberate API decision rather than by accident of being first.
+// The differ began as a private proof and graduated when makemigrations became
+// its first real consumer. Operations describe schema intent; Dialect owns the
+// SQL representation; Apply preflights all rendering before it executes the
+// first statement. The exported shapes are intentionally small because each one
+// is part of Fabrin's compatibility promise.
 //
 // It lives at the repository root rather than under internal/ because the
 // boundary rules forbid internal/ from importing sibling Fabrin packages, and
-// this package's whole job is reading orm metadata. An unexported root package
-// contributes nothing to api/fabrin.txt while staying importable by the
-// command that will eventually wrap it.
+// this package's whole job is reading orm metadata.
 //
 // # What the differ can and cannot see
 //
@@ -200,13 +195,23 @@ func Diff(before, after orm.Snapshot) []Operation {
 // eventually runs generated migrations; anything transactional around it is
 // the caller's business, exactly as it is for migrate.Run.
 func Apply(ctx context.Context, db *sql.DB, d Dialect, ops []Operation) error {
+	type renderedOperation struct {
+		op   Operation
+		stmt string
+	}
+
+	rendered := make([]renderedOperation, 0, len(ops))
 	for _, op := range ops {
 		stmt, err := op.Render(d)
 		if err != nil {
 			return fmt.Errorf("%s: %w", op.Describe(), err)
 		}
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("%s: %w", op.Describe(), err)
+		rendered = append(rendered, renderedOperation{op: op, stmt: stmt})
+	}
+
+	for _, item := range rendered {
+		if _, err := db.ExecContext(ctx, item.stmt); err != nil {
+			return fmt.Errorf("%s: %w", item.op.Describe(), err)
 		}
 	}
 	return nil

@@ -303,6 +303,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-036 | Hand-written steps carry the last known state forward | `makemigrations_test.go::TestExecute_MakemigrationsCarriesHandWrittenStepsForward` |
 | MIG-037 | Two changed modules → two files, two distinct versions | `makemigrations_test.go::TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration` |
 | MIG-038 | `makemigrations` refuses on a sliced process | `makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced` |
+| MIG-042 | `Apply` preflights every operation before the first schema mutation | `migratediff/migratediff_test.go::TestApply_PreflightsEveryOperationBeforeMutating` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
@@ -337,6 +338,11 @@ The Go half is held to the stronger, complementary property: the test compiles
 the generated package in a temporary module. Parsing alone accepted a migration
 that referenced `migrate.M` without importing `migrate`, leaving `just check`
 green and the user's next build red (#93).
+
+MIG-042 pins the boundary between preflight and execution: every operation must
+render successfully before the first statement executes. This prevents a known
+dialect limitation from partially changing a schema; it does not claim that a
+later database execution error makes the whole operation list transactional.
 
 Two graduation notes. The `migratediff` seam went public here (#59 consuming it
 is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact

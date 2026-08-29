@@ -652,6 +652,13 @@ behaviours:
     status: implemented
     test: makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced
 
+  - id: MIG-042
+    what: Apply renders and validates every schema operation before executing the first statement, so a later unsupported operation leaves the database untouched.
+    why: Rendering and executing in one loop made the documented fail-before-mutation contract false - a valid early operation committed before SQLite rejected a later drop or retype. Preflight cannot make arbitrary execution failures atomic, but it must discover dialect limits before touching the schema.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestApply_PreflightsEveryOperationBeforeMutating
+
   - id: MIG-006
     what: The migration engine takes a *sql.DB and imports no driver, no Gin, and no net/http, so migrations run from a process that mounts no routes.
     why: A migrate-only process is a deployment shape Fabrin promises, and an engine that dragged in a transport would make the smallest useful migration container carry an HTTP stack it never binds. The driver belongs to the application; Fabrin's own test driver is barred from the shipped code by the same rule that permits it in the tests.

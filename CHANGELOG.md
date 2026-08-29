@@ -796,6 +796,12 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- `migratediff.Apply` now renders the complete operation list before executing
+  its first statement. A supported operation followed by an unsupported SQLite
+  drop or retype therefore returns `ErrUnsupported` without partially mutating
+  the schema. This preflight does not broaden `Apply` into a transaction; SQL
+  execution failures remain outside this helper's atomicity guarantee.
+  ([#96](https://github.com/usefabrin/fabrin/issues/96))
 - `makemigrations` now imports `fabrin/migrate` in generated migration files and
   formats the result before writing it. MIG-033 now compiles the generated
   package in a temporary module: the former parser-only assertion accepted
