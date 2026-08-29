@@ -796,6 +796,11 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- `makemigrations` now imports `fabrin/migrate` in generated migration files and
+  formats the result before writing it. MIG-033 now compiles the generated
+  package in a temporary module: the former parser-only assertion accepted
+  unresolved `migrate.M` and `migrate.Handle` references, so `just check` was
+  green while the user's generated package could not build. ([#93])
 - `-h`, `-help`, and `--help` anywhere in the initial configuration-flag prefix
   now print usage instead of panicking during config load or starting the server.
   Generated and example mains use `config.Load` so invalid leading flags return

@@ -611,8 +611,8 @@ behaviours:
     status: implemented
     test: migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced
   - id: MIG-033
-    what: makemigrations writes one migration per changed module into that module's migrations directory - a Go file whose filename prefix is its version (fixed-width timestamp), a state sidecar in the #56 codec recording the full schema the version yields, a manifest ordering them, and a generated all.go aggregating what the module's Migrator returns.
-    why: The on-disk format everything downstream waits for. Filename-equals-version makes the duplicate-version gate readable without compiling; the sidecar being DATA means a non-compiling branch still diffs; regenerating all.go from the manifest rather than scanning source cannot silently lose a hand-written migration.
+    what: makemigrations writes one migration per changed module into that module's migrations directory - a compiling, gofmt-clean Go file whose filename prefix is its version (fixed-width timestamp), a state sidecar in the #56 codec recording the full schema the version yields, a manifest ordering them, and a generated all.go aggregating what the module's Migrator returns.
+    why: The on-disk format everything downstream waits for. Filename-equals-version makes the duplicate-version gate readable without compiling; the sidecar being DATA means a non-compiling branch still diffs; regenerating all.go from the manifest rather than scanning source cannot silently lose a hand-written migration. The generated Go is type-checked in a temporary module because parser acceptance alone misses unresolved imports and other code that is valid syntax but cannot build.
     requirement: FR-ORM-4
     status: implemented
     test: makemigrations_test.go::TestExecute_MakemigrationsGeneratesFilesForANewTable

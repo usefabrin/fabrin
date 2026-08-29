@@ -3,10 +3,10 @@ package fabrin_test
 import (
 	"context"
 	"errors"
-	"go/parser"
-	"go/token"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -88,6 +88,10 @@ func countSuffix(names []string, suffix string, exclude string) int {
 }
 
 func TestExecute_MakemigrationsGeneratesFilesForANewTable(t *testing.T) {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("working directory: %v", err)
+	}
 	projectChdir(t)
 
 	db := memoryDB(t)
@@ -129,9 +133,9 @@ func TestExecute_MakemigrationsGeneratesFilesForANewTable(t *testing.T) {
 		t.Errorf("got %d state files, want 1 (%v)", got, names)
 	}
 
-	// The generated Go file must parse: it is code someone commits, and a
-	// generator emitting unparseable code fails at the worst possible moment —
-	// the next build on someone else's machine.
+	// The generated Go package must compile, not merely parse. An omitted import
+	// is valid syntax and still leaves the user with code that fails at their next
+	// build — exactly the defect this test exists to catch.
 	var genFile string
 	for _, n := range names {
 		if strings.HasSuffix(n, ".go") && n != "all.go" {
@@ -142,8 +146,21 @@ func TestExecute_MakemigrationsGeneratesFilesForANewTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", genFile, err)
 	}
-	if _, err := parser.ParseFile(token.NewFileSet(), genFile, src, 0); err != nil {
-		t.Errorf("generated %s does not parse: %v\n%s", genFile, err, src)
+	goMod := fmt.Sprintf(`module example.com/generated
+
+go 1.25
+
+require github.com/usefabrin/fabrin v0.0.0
+
+replace github.com/usefabrin/fabrin => %s
+`, filepath.ToSlash(repoRoot))
+	if err := os.WriteFile("go.mod", []byte(goMod), 0o644); err != nil {
+		t.Fatalf("write generated-project go.mod: %v", err)
+	}
+	cmd := exec.CommandContext(t.Context(), "go", "test", "./shop/migrations")
+	cmd.Env = append(os.Environ(), "GOFLAGS=-mod=mod", "GOWORK=off")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated migration package does not compile: %v\n%s\n%s", err, output, src)
 	}
 
 	// Filename carries the version, at a fixed width — the same discipline the
