@@ -162,7 +162,8 @@ pre-v0 decisions are provisional ORM constraints
       files on disk: `<module>/migrations/<version>_<name>.go` plus `.state.json`
       sidecars in the #56 codec, an ordered manifest (hand-written entries carry
       no state and are carried forward), and a generated `all.go` the module's
-      `Migrator` returns. One migration per changed module with distinct
+      `Migrator` returns. Generated Go is formatted and compiled in the test
+      harness, not merely parsed. One migration per changed module with distinct
       versions; unchanged projects say "no changes" and rewrite nothing;
       corrupted records fail naming their file. The `migratediff` seam graduated
       to public here — #59 consuming it was ADR 0005's anticipated moment.

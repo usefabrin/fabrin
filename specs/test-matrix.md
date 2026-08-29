@@ -297,7 +297,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-030 | `migrate` applies pending, prints what ran, says "up to date" on nothing | `migrator_test.go::TestExecute_MigrateAppliesPendingMigrationsAndSaysSo` |
 | MIG-031 | `-to` moves forward or rolls back to an exclusive target, direction stated first | `migrator_test.go::TestExecute_MigrateToRollsBackToAnExclusiveTarget` |
 | MIG-032 | Migration commands refuse on a sliced process, naming registered vs mounted | `migrator_test.go::TestExecute_MigrateRefusesWhenTheProcessIsSliced` |
-| MIG-033 | `makemigrations` writes per-module Go + state + manifest + generated `all.go` | `makemigrations_test.go::TestExecute_MakemigrationsGeneratesFilesForANewTable` |
+| MIG-033 | `makemigrations` writes compiling, gofmt-clean per-module Go + state + manifest + generated `all.go` | `makemigrations_test.go::TestExecute_MakemigrationsGeneratesFilesForANewTable` |
 | MIG-034 | Unchanged project: "no changes", no files rewritten | `makemigrations_test.go::TestExecute_MakemigrationsTwiceSaysNoChanges` |
 | MIG-035 | Corrupt recorded state fails naming the file, wrapping `ErrBadState` | `makemigrations_test.go::TestExecute_MakemigrationsRefusesUnparsableRecordedState` |
 | MIG-036 | Hand-written steps carry the last known state forward | `makemigrations_test.go::TestExecute_MakemigrationsCarriesHandWrittenStepsForward` |
@@ -332,6 +332,11 @@ check), and the state sidecar is data in the #56 codec. `all.go` is regenerated
 from the manifest rather than scanned from source, so regeneration cannot
 silently drop a hand-written migration; MIG-036 pins the carry-forward rule that
 makes hand-written and generated migrations able to mix at all.
+
+The Go half is held to the stronger, complementary property: the test compiles
+the generated package in a temporary module. Parsing alone accepted a migration
+that referenced `migrate.M` without importing `migrate`, leaving `just check`
+green and the user's next build red (#93).
 
 Two graduation notes. The `migratediff` seam went public here (#59 consuming it
 is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact

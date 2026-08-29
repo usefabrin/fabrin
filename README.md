@@ -163,7 +163,7 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 | `LOGGING` | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
 | `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | ✅ F1 |
 | Management commands | `Module.Commands()` | ✅ F1 |
-| Models + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, `fabrin/migrate` engine — the commands and on-disk migration files are still to come | 🚧 F2 |
+| Models + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, generated migration files, and the `fabrin/migrate` engine; rename handling remains | 🚧 F2 |
 | Templates, forms, static files | `fabrin/render`, `fabrin/forms` | F3 |
 | `django.contrib.auth` | `fabrin/auth` | F4 |
 | **`django.contrib.admin`** | `fabrin/admin` (html/template + htmx, embedded) | F5 |
