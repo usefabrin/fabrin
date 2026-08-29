@@ -316,7 +316,9 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-038 | `makemigrations` refuses on a sliced process | `makemigrations_test.go::TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced` |
 | MIG-039 | Legacy unversioned state decodes using its actual all-nullable semantics | `orm/state_test.go::TestParseSnapshot_DecodesLegacyConstraintSemantics` |
 | MIG-040 | Unknown marked state versions fail closed, naming source and version | `orm/state_test.go::TestParseSnapshot_RejectsUnknownStateVersion` |
+| MIG-041 | Stable two-method `Dialect`; one operation may render ordered statements | `migratediff/migratediff_test.go::TestDialect_HasOneStableRenderMethodForAllOperations` |
 | MIG-042 | `Apply` preflights every operation before the first schema mutation | `migratediff/migratediff_test.go::TestApply_PreflightsEveryOperationBeforeMutating` |
+| MIG-043 | Dialects quote metadata as identifiers, including embedded quotes | `migratediff/migratediff_test.go::TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
@@ -356,6 +358,18 @@ MIG-042 pins the boundary between preflight and execution: every operation must
 render successfully before the first statement executes. This prevents a known
 dialect limitation from partially changing a schema; it does not claim that a
 later database execution error makes the whole operation list transactional.
+
+MIG-041 stabilizes the extension seam before the constraint vocabulary grows:
+`Dialect` has `Name` plus one `Render(Operation) []string` entry point, so a new
+operation does not add another required method to every custom dialect. The
+statement list also removes the false one-operation/one-statement assumption;
+`TestApply_ExecutesEveryStatementReturnedForOneOperation` is its execution
+negative control. Built-in dialects return `ErrUnsupported` for unknown intent.
+
+MIG-043 treats model names as identifiers rather than trusted SQL. Both shipped
+dialects use ANSI double-quote escaping, verified by executing a table and
+column whose names contain spaces and an embedded quote against real SQLite and
+by checking PostgreSQL's rendered statement.
 
 Two graduation notes. The `migratediff` seam went public here (#59 consuming it
 is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact

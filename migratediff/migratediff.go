@@ -55,23 +55,19 @@ var ErrUnsupported = errors.New("migratediff: unsupported Operation")
 // and PostgreSQL, which is what people deploy. Having two from the beginning
 // is what stops the interface being accidentally shaped around one.
 type Dialect interface {
-	// name identifies the Dialect in errors and generated-file headers.
+	// Name identifies the Dialect in errors and generated-file headers.
 	Name() string
 
-	CreateTable(m orm.Model) (string, error)
-	AddColumn(table string, f orm.Field) (string, error)
-	DropColumn(table, column string) (string, error)
-	ChangeType(table, column string, to orm.Field) (string, error)
-	DropTable(table string) (string, error)
+	// Render translates one schema intent into the ordered SQL statements it
+	// requires. One method is deliberate: adding an Operation must not break
+	// every third-party Dialect implementation at compile time.
+	Render(Operation) ([]string, error)
 }
 
-// Operation is one change between two states, rendered into SQL by a Dialect.
-// Each Operation is exactly one statement; when a future Operation needs many
-// (a table rebuild), that changes deliberately, not by accident of signature.
+// Operation is one change between two states. A Dialect owns its SQL rendering;
+// one operation may require several ordered statements.
 type Operation interface {
-	Render(d Dialect) (string, error)
-
-	// describe names the change in one line, for errors and for the header of
+	// Describe names the change in one line, for errors and for the header of
 	// the migration file that carries it.
 	Describe() string
 }
@@ -195,41 +191,35 @@ func Diff(before, after orm.Snapshot) []Operation {
 // the caller's business, exactly as it is for migrate.Run.
 func Apply(ctx context.Context, db *sql.DB, d Dialect, ops []Operation) error {
 	type renderedOperation struct {
-		op   Operation
-		stmt string
+		op    Operation
+		stmts []string
 	}
 
 	rendered := make([]renderedOperation, 0, len(ops))
 	for _, op := range ops {
-		stmt, err := op.Render(d)
+		stmts, err := d.Render(op)
 		if err != nil {
 			return fmt.Errorf("%s: %w", op.Describe(), err)
 		}
-		rendered = append(rendered, renderedOperation{op: op, stmt: stmt})
+		if len(stmts) == 0 {
+			return fmt.Errorf("%s: %w: %s rendered no statements", op.Describe(), ErrUnsupported, d.Name())
+		}
+		for _, stmt := range stmts {
+			if strings.TrimSpace(stmt) == "" {
+				return fmt.Errorf("%s: %w: %s rendered an empty statement", op.Describe(), ErrUnsupported, d.Name())
+			}
+		}
+		rendered = append(rendered, renderedOperation{op: op, stmts: stmts})
 	}
 
 	for _, item := range rendered {
-		if _, err := db.ExecContext(ctx, item.stmt); err != nil {
-			return fmt.Errorf("%s: %w", item.op.Describe(), err)
+		for _, stmt := range item.stmts {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return fmt.Errorf("%s: %w", item.op.Describe(), err)
+			}
 		}
 	}
 	return nil
-}
-
-// render implementations. Each Operation knows how to hand itself to a
-// Dialect; the Dialect owns the SQL, the Operation owns the intent. Adding a
-// Dialect means implementing the Dialect interface once — not touching every
-// Operation.
-func (o CreateTable) Render(d Dialect) (string, error) { return d.CreateTable(o.Model) }
-
-func (o DropTable) Render(d Dialect) (string, error) { return d.DropTable(o.Table) }
-
-func (o AddColumn) Render(d Dialect) (string, error) { return d.AddColumn(o.Table, o.Field) }
-
-func (o DropColumn) Render(d Dialect) (string, error) { return d.DropColumn(o.Table, o.Column) }
-
-func (o ChangeType) Render(d Dialect) (string, error) {
-	return d.ChangeType(o.Table, o.Column, o.To)
 }
 
 // Describe implementations. One line each: what changed, named precisely
@@ -277,11 +267,26 @@ func columnList(typeOf func(orm.Field) (string, error), m orm.Model) (string, er
 		if err != nil {
 			return "", fmt.Errorf("table %s, field %s: %w", m.Table, f.Name, err)
 		}
-		line := "  " + f.Name + " " + typ
+		line := "  " + quoteIdentifier(f.Name) + " " + typ
 		if f.PrimaryKey {
 			line += " PRIMARY KEY"
 		}
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, ",\n"), nil
+}
+
+// quoteIdentifier quotes one SQL identifier using the ANSI form accepted by
+// both PostgreSQL and SQLite. Metadata names are identifiers, never fragments;
+// doubling an embedded quote preserves the literal name without granting it SQL
+// syntax.
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+func oneStatement(stmt string, err error) ([]string, error) {
+	if err != nil {
+		return nil, err
+	}
+	return []string{stmt}, nil
 }

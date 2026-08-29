@@ -187,27 +187,14 @@ pkg github.com/usefabrin/fabrin/migrate, var ErrOutOfOrder error
 pkg github.com/usefabrin/fabrin/migratediff, func Apply(ctx context.Context, db *database/sql.DB, d Dialect, ops []Operation) error
 pkg github.com/usefabrin/fabrin/migratediff, func Diff(before github.com/usefabrin/fabrin/orm.Snapshot, after github.com/usefabrin/fabrin/orm.Snapshot) []Operation
 pkg github.com/usefabrin/fabrin/migratediff, method (AddColumn) Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, method (AddColumn) Render(d Dialect) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (ChangeType) Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, method (ChangeType) Render(d Dialect) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (CreateTable) Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, method (CreateTable) Render(d Dialect) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (DropColumn) Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, method (DropColumn) Render(d Dialect) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (DropTable) Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, method (DropTable) Render(d Dialect) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) AddColumn(table string, f github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) ChangeType(table string, column string, to github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) CreateTable(m github.com/usefabrin/fabrin/orm.Model) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) DropColumn(table string, column string) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) DropTable(table string) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) Name() string
-pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) AddColumn(table string, f github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) ChangeType(_ string, _ string, to github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) CreateTable(m github.com/usefabrin/fabrin/orm.Model) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) DropColumn(_ string, _ string) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) DropTable(table string) (string, error)
+pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) Render(op Operation) ([]string, error)
 pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) Name() string
+pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) Render(op Operation) ([]string, error)
 pkg github.com/usefabrin/fabrin/migratediff, type AddColumn struct
 pkg github.com/usefabrin/fabrin/migratediff, type AddColumn struct, Field github.com/usefabrin/fabrin/orm.Field
 pkg github.com/usefabrin/fabrin/migratediff, type AddColumn struct, Table string
@@ -218,12 +205,8 @@ pkg github.com/usefabrin/fabrin/migratediff, type ChangeType struct, To github.c
 pkg github.com/usefabrin/fabrin/migratediff, type CreateTable struct
 pkg github.com/usefabrin/fabrin/migratediff, type CreateTable struct, Model github.com/usefabrin/fabrin/orm.Model
 pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface
-pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, AddColumn(table string, f github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, ChangeType(table string, column string, to github.com/usefabrin/fabrin/orm.Field) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, CreateTable(m github.com/usefabrin/fabrin/orm.Model) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, DropColumn(table string, column string) (string, error)
-pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, DropTable(table string) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, Name() string
+pkg github.com/usefabrin/fabrin/migratediff, type Dialect interface, Render(Operation) ([]string, error)
 pkg github.com/usefabrin/fabrin/migratediff, type DropColumn struct
 pkg github.com/usefabrin/fabrin/migratediff, type DropColumn struct, Column string
 pkg github.com/usefabrin/fabrin/migratediff, type DropColumn struct, Table string
@@ -231,7 +214,6 @@ pkg github.com/usefabrin/fabrin/migratediff, type DropTable struct
 pkg github.com/usefabrin/fabrin/migratediff, type DropTable struct, Table string
 pkg github.com/usefabrin/fabrin/migratediff, type Operation interface
 pkg github.com/usefabrin/fabrin/migratediff, type Operation interface, Describe() string
-pkg github.com/usefabrin/fabrin/migratediff, type Operation interface, Render(d Dialect) (string, error)
 pkg github.com/usefabrin/fabrin/migratediff, type Postgres struct
 pkg github.com/usefabrin/fabrin/migratediff, type SQLite struct
 pkg github.com/usefabrin/fabrin/migratediff, var ErrUnsupported error

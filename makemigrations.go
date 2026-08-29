@@ -108,7 +108,7 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 		downStmts := make([]string, 0, len(moduleOps))
 		describe := make([]string, 0, len(moduleOps))
 		for _, op := range moduleOps {
-			stmt, err := op.Render(dialect)
+			stmts, err := dialect.Render(op)
 			if err != nil {
 				return fmt.Errorf("fabrin: module %q's changes cannot be generated for this dialect (%v) — hand-write this migration", module, err)
 			}
@@ -116,7 +116,7 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 			if err != nil {
 				return fmt.Errorf("fabrin: module %q: %w", module, err)
 			}
-			downStmt, err := inverse.Render(dialect)
+			down, err := dialect.Render(inverse)
 			if errors.Is(err, migratediff.ErrUnsupported) {
 				// The dialect states its refusal for live rendering, but a
 				// GENERATED rollback cannot just give up: without it, even
@@ -127,12 +127,12 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 				if !ok {
 					return fmt.Errorf("fabrin: module %q's changes cannot be reversed for this dialect (%v) — hand-write this migration", module, err)
 				}
-				downStmt = "-- fabrin: emitted directly; the dialect refuses this operation when\n-- rendered live (older SQLite needs the table-rebuild dance).\n" + raw
+				down = []string{"-- fabrin: emitted directly; the dialect refuses this operation when\n-- rendered live (older SQLite needs the table-rebuild dance).\n" + raw}
 			} else if err != nil {
 				return fmt.Errorf("fabrin: module %q's changes cannot be reversed for this dialect (%v) — hand-write this migration", module, err)
 			}
-			upStmts = append(upStmts, stmt)
-			downStmts = append(downStmts, downStmt)
+			upStmts = append(upStmts, stmts...)
+			downStmts = append(downStmts, down...)
 			describe = append(describe, op.Describe())
 		}
 

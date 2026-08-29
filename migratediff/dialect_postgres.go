@@ -2,6 +2,7 @@ package migratediff
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/usefabrin/fabrin/orm"
 )
@@ -14,41 +15,77 @@ type Postgres struct{}
 
 func (Postgres) Name() string { return "PostgreSQL" }
 
-func (Postgres) CreateTable(m orm.Model) (string, error) {
+func (d Postgres) Render(op Operation) ([]string, error) {
+	switch o := op.(type) {
+	case CreateTable:
+		return oneStatement(d.createTable(o.Model))
+	case *CreateTable:
+		if o != nil {
+			return oneStatement(d.createTable(o.Model))
+		}
+	case DropTable:
+		return oneStatement(d.dropTable(o.Table))
+	case *DropTable:
+		if o != nil {
+			return oneStatement(d.dropTable(o.Table))
+		}
+	case AddColumn:
+		return oneStatement(d.addColumn(o.Table, o.Field))
+	case *AddColumn:
+		if o != nil {
+			return oneStatement(d.addColumn(o.Table, o.Field))
+		}
+	case DropColumn:
+		return oneStatement(d.dropColumn(o.Table, o.Column))
+	case *DropColumn:
+		if o != nil {
+			return oneStatement(d.dropColumn(o.Table, o.Column))
+		}
+	case ChangeType:
+		return oneStatement(d.changeType(o.Table, o.Column, o.To))
+	case *ChangeType:
+		if o != nil {
+			return oneStatement(d.changeType(o.Table, o.Column, o.To))
+		}
+	}
+	return nil, fmt.Errorf("%w: %s cannot render %T", ErrUnsupported, d.Name(), op)
+}
+
+func (Postgres) createTable(m orm.Model) (string, error) {
 	body, err := columnList(postgresType, m)
 	if err != nil {
 		return "", err
 	}
-	return "CREATE TABLE " + m.Table + " (\n" + body + "\n)", nil
+	return "CREATE TABLE " + quoteIdentifier(m.Table) + " (\n" + body + "\n)", nil
 }
 
-func (Postgres) AddColumn(table string, f orm.Field) (string, error) {
+func (Postgres) addColumn(table string, f orm.Field) (string, error) {
 	typ, err := postgresType(f)
 	if err != nil {
 		return "", err
 	}
-	return "ALTER TABLE " + table + " ADD COLUMN " + f.Name + " " + typ, nil
+	return "ALTER TABLE " + quoteIdentifier(table) + " ADD COLUMN " + quoteIdentifier(f.Name) + " " + typ, nil
 }
 
 // The data-loss warning rides in the SQL itself, where the generated migration
 // file will carry it.
 // The data-loss warning rides in the SQL itself, where the generated migration
 // file will carry it.
-func (Postgres) DropColumn(table, column string) (string, error) {
-	return "-- fabrin: dropping " + table + "." + column +
-		" discards its data\nALTER TABLE " + table + " DROP COLUMN " + column, nil
+func (Postgres) dropColumn(table, column string) (string, error) {
+	return "-- fabrin: dropping " + strconv.Quote(table+"."+column) +
+		" discards its data\nALTER TABLE " + quoteIdentifier(table) + " DROP COLUMN " + quoteIdentifier(column), nil
 }
 
-func (Postgres) ChangeType(table, column string, to orm.Field) (string, error) {
+func (Postgres) changeType(table, column string, to orm.Field) (string, error) {
 	typ, err := postgresType(to)
 	if err != nil {
 		return "", err
 	}
-	return "ALTER TABLE " + table + " ALTER COLUMN " + column + " TYPE " + typ, nil
+	return "ALTER TABLE " + quoteIdentifier(table) + " ALTER COLUMN " + quoteIdentifier(column) + " TYPE " + typ, nil
 }
 
-func (Postgres) DropTable(table string) (string, error) {
-	return "-- fabrin: dropping " + table + " discards its data\nDROP TABLE " + table, nil
+func (Postgres) dropTable(table string) (string, error) {
+	return "-- fabrin: dropping " + strconv.Quote(table) + " discards its data\nDROP TABLE " + quoteIdentifier(table), nil
 }
 
 // postgresType maps Fabrin's type vocabulary to PostgreSQL's.

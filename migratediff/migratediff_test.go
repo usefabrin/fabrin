@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -13,6 +14,21 @@ import (
 
 	"github.com/usefabrin/fabrin/orm"
 )
+
+type multiStatementDialect struct{}
+
+func (multiStatementDialect) Name() string { return "test" }
+
+func (multiStatementDialect) Render(Operation) ([]string, error) {
+	return []string{
+		`CREATE TABLE "orders" ("id" INTEGER PRIMARY KEY)`,
+		`ALTER TABLE "orders" ADD COLUMN "reference" TEXT`,
+	}, nil
+}
+
+type unknownOperation struct{}
+
+func (unknownOperation) Describe() string { return "unknown test operation" }
 
 func mustSnap(t *testing.T, models ...orm.Model) orm.Snapshot {
 	t.Helper()
@@ -321,6 +337,78 @@ func TestApply_ExecutesPreflightedOperationsInOrder(t *testing.T) {
 	}
 }
 
+func TestDialect_HasOneStableRenderMethodForAllOperations(t *testing.T) {
+	t.Parallel()
+
+	typ := reflect.TypeOf((*Dialect)(nil)).Elem()
+	want := []string{"Name", "Render"}
+	if typ.NumMethod() != len(want) {
+		t.Fatalf("Dialect has %d methods, want %d stable methods", typ.NumMethod(), len(want))
+	}
+	for i, name := range want {
+		if got := typ.Method(i).Name; got != name {
+			t.Errorf("Dialect method %d = %s, want %s", i, got, name)
+		}
+	}
+}
+
+func TestApply_ExecutesEveryStatementReturnedForOneOperation(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("no sqlite driver available: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(1)
+
+	if err := Apply(context.Background(), db, multiStatementDialect{}, []Operation{CreateTable{Model: ordersModel()}}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO "orders" ("id", "reference") VALUES (1, 'A-1')`); err != nil {
+		t.Errorf("second statement was not executed: %v", err)
+	}
+}
+
+func TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL(t *testing.T) {
+	t.Parallel()
+
+	model := orm.Model{
+		Table: "order items",
+		Fields: []orm.Field{
+			{Name: `select"value`, Type: orm.Int64, PrimaryKey: true},
+		},
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Skipf("no sqlite driver available: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	if err := Apply(context.Background(), db, SQLite{}, []Operation{CreateTable{Model: model}}); err != nil {
+		t.Fatalf("Apply quoted model: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO "order items" ("select""value") VALUES (1)`); err != nil {
+		t.Errorf("quoted identifiers were not created literally: %v", err)
+	}
+
+	stmts, err := Postgres{}.Render(DropColumn{Table: model.Table, Column: model.Fields[0].Name})
+	if err != nil {
+		t.Fatalf("Postgres Render: %v", err)
+	}
+	if len(stmts) != 1 || !strings.Contains(stmts[0], `ALTER TABLE "order items" DROP COLUMN "select""value"`) {
+		t.Errorf("PostgreSQL identifiers are not quoted safely: %q", stmts)
+	}
+}
+
+func TestBuiltInDialects_RejectUnknownOperations(t *testing.T) {
+	t.Parallel()
+
+	_, err := Postgres{}.Render(unknownOperation{})
+	if !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("got %v, want ErrUnsupported", err)
+	}
+}
+
 func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 	t.Parallel()
 
@@ -329,18 +417,18 @@ func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 	// what it will not do — emitting SQL that fails halfway through a live
 	// migration is the worst place to discover a Dialect limit.
 	dropErr := func() error {
-		_, err := DropColumn{Table: "orders", Column: "reference"}.Render(SQLite{})
+		_, err := SQLite{}.Render(DropColumn{Table: "orders", Column: "reference"})
 		return err
 	}()
 	if !errors.Is(dropErr, ErrUnsupported) {
 		t.Errorf("DropColumn: got %v, want ErrUnsupported", dropErr)
 	}
 	retypeErr := func() error {
-		_, err := ChangeType{
+		_, err := SQLite{}.Render(ChangeType{
 			Table:  "orders",
 			Column: "reference",
 			To:     orm.Field{Name: "reference", Type: orm.Int},
-		}.Render(SQLite{})
+		})
 		return err
 	}()
 	if !errors.Is(retypeErr, ErrUnsupported) {
@@ -404,11 +492,11 @@ func TestDataLossIsStatedInTheEmittedSQL(t *testing.T) {
 	// Dropping a column destroys whatever it held, and that is exactly the one
 	// line a reviewer must not skim past. It rides in the emitted SQL itself,
 	// where the migration file carries it, rather than in a log nobody diffs.
-	stmt, err := DropColumn{Table: "orders", Column: "reference"}.Render(Postgres{})
+	stmts, err := Postgres{}.Render(DropColumn{Table: "orders", Column: "reference"})
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(stmt, "--") || !strings.Contains(stmt, "data") || !strings.Contains(stmt, "reference") {
-		t.Errorf("the drop statement must carry its data-loss warning naming the column, got: %q", stmt)
+	if len(stmts) != 1 || !strings.Contains(stmts[0], "--") || !strings.Contains(stmts[0], "data") || !strings.Contains(stmts[0], "reference") {
+		t.Errorf("the drop statement must carry its data-loss warning naming the column, got: %q", stmts)
 	}
 }

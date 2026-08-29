@@ -861,6 +861,23 @@ First exported surface. It is now also recorded line-by-line in
 [`api/fabrin.txt`](api/fabrin.txt) ([#10]); this section stays the place the
 *reasoning* lives, because a snapshot diff shows what moved and never why.
 
+Changed in package `fabrin/migratediff` as part of
+[#79](https://github.com/usefabrin/fabrin/issues/79) — **breaking**:
+
+- `Dialect` now has exactly `Name()` and `Render(Operation) ([]string, error)`.
+  The five operation-specific methods were removed, as were the operations'
+  forwarding `Render` methods. Call `dialect.Render(op)` instead.
+- Returning a statement slice admits multi-statement schema intent without
+  expanding the interface again. `Apply` preflights the entire operation list,
+  then executes every returned statement in order; an empty result is an
+  unsupported operation rather than a silent no-op.
+- PostgreSQL and SQLite now quote every table and column identifier. Names with
+  spaces, reserved words, or embedded quotes remain literal metadata instead of
+  being parsed as SQL syntax.
+
+This breaks now to stop every future operation from breaking every custom
+dialect implementation. No third-party type enters the surface.
+
 Changed in package `fabrin/migrate` ([#67]) — **breaking**:
 
 - `Handle` — a new exported interface of exactly four methods, and `M.Up`/`M.Down`

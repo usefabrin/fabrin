@@ -506,6 +506,20 @@ behaviours:
     status: implemented
     test: orm/state_test.go::TestParseSnapshot_RejectsUnknownStateVersion
 
+  - id: MIG-041
+    what: Dialect has exactly Name and one stable Render(Operation) method; Render returns an ordered statement list, and Apply executes every statement after preflighting every operation.
+    why: A method per operation makes every new built-in operation a compile-time break for every custom dialect. One intent-to-statements method lets the operation vocabulary grow without interface churn and permits operations that honestly require more than one statement.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDialect_HasOneStableRenderMethodForAllOperations
+
+  - id: MIG-043
+    what: PostgreSQL and SQLite quote table and column metadata as identifiers, including embedded quotes, instead of interpolating names as SQL fragments.
+    why: Raw identifier interpolation makes valid names fail and turns developer-controlled metadata into executable SQL syntax. Identifier quoting preserves the literal name and keeps generated DDL structurally separate from metadata.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL
+
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
     why: A state record nobody can parse must never become a silently empty "before" - which would make the next makemigrations emit a create-everything migration against a live schema. "Unparseable" without a file name sends the reader grepping a directory.

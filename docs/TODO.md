@@ -151,10 +151,12 @@ pre-v0 decisions are provisional ORM constraints
       fields plus type/length changes with a deterministic op order; SQLite
       executes against an in-process database but refuses drop/retype until the
       table-rebuild dance exists; PostgreSQL verifies live when
-      `FABRIN_TEST_PG_DSN` is set. `Apply` preflights the complete operation list
-      before its first mutation, so a known dialect refusal cannot leave a
-      partial schema. Nullability detection waits on #79.
-      (FR-ORM-4, MIG-019…026, MIG-042)
+      `FABRIN_TEST_PG_DSN` is set. `Dialect` is now the stable `Name` +
+      `Render(Operation) []string` seam, and both implementations quote metadata
+      as identifiers. `Apply` preflights the complete operation list before its
+      first mutation and executes every statement an operation renders.
+      Constraint operations and complete simultaneous-change detection are the
+      next #79 slice. (FR-ORM-4, MIG-019…026, MIG-041…043)
 - [~] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
       interface collects declared migrations from mounted modules, cross-module
       duplicate versions and mixed widths fail at construction, the command
