@@ -135,16 +135,17 @@ pre-v0 decisions are provisional ORM constraints
       unapplied migration sorting before an applied one is an error. Takes a
       `*sql.DB`, imports no driver, no Gin, no `net/http`, so it runs from a
       process that mounts no routes. (FR-ORM-4, MIG-001…006)
-- [~] Recorded model state per migration — the "before" `makemigrations` diffs
+- [x] Recorded model state per migration — the "before" `makemigrations` diffs
       against. The **mechanism** is done: `orm.Snapshot`, a deterministic JSON
       codec, and `ReplayState` over an ordered step chain; hand-written
       migrations carry the last known state forward, unreadable state fails loud
       naming its source, and the ADR 0006 flags round-trip in explicitly
       versioned state. Unversioned records decode with their actual legacy
-      all-nullable semantics; unknown marked versions fail closed. Generator
-      sidecars still need to record each version's cumulative state rather than
-      every changed module claiming the run's final state.
-      (FR-ORM-4, MIG-011…018, MIG-039…040,
+      all-nullable semantics; unknown marked versions fail closed. In a
+      multi-module generation run, each sidecar advances only its migration's
+      changed tables, so every ordered version records the cumulative schema it
+      actually produces and replay reaches the declared final state.
+      (FR-ORM-4, MIG-011…018, MIG-039…040, MIG-052,
       [#56](https://github.com/usefabrin/fabrin/issues/56))
 - [~] Schema differ and DDL emitters (#57) — the private proof graduated to the
       public `migratediff` package with #59. It detects new/dropped tables and

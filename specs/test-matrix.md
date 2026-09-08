@@ -327,6 +327,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-049 | SQLite creates supported constraints/indexes and refuses rebuild-only additions | `migratediff/migratediff_test.go::TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions` |
 | MIG-050 | pgx generation preserves multi-statement Up groups and reverses Down groups | `makemigrations_test.go::TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups` |
 | MIG-051 | Same-second migration generation advances beyond the recorded version | `makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond` |
+| MIG-052 | Every generated sidecar records that version's cumulative application schema | `makemigrations_test.go::TestExecute_MakemigrationsRecordsCumulativeStateAtEachGeneratedVersion` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
@@ -393,6 +394,13 @@ multi-statement operation. Its pgx detection uses the driver's package path,
 because the displayed concrete name is only `stdlib.Driver`, and its version
 clock advances past equality so two genuine changes in one second do not
 collide.
+
+MIG-052 pins the time dimension of recorded state. A multi-module run still
+emits one migration per owner, so its sidecars cannot all claim the run's final
+snapshot. The generator starts from replayed state and advances only the tables
+changed by each ordered operation group; untouched and not-yet-migrated tables
+carry forward. Replaying those cumulative records therefore describes schemas
+that really existed after each version and reaches the declared final state.
 
 Two graduation notes. The `migratediff` seam went public here (#59 consuming it
 is exactly the deliberate moment ADR 0005 anticipated), with a `$`-exact

@@ -819,6 +819,12 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- Generated state sidecars now record the cumulative full-application schema at
+  their exact migration version. In a multi-module run, the first migration no
+  longer claims changes that only a later module's migration creates; unchanged
+  tables carry forward, changed tables advance with their owning operation
+  group, and replay reaches the declared final snapshot through schemas that
+  actually existed. ([#101])
 - `makemigrations` now recognizes pgx from its driver package path (the concrete
   type is only `stdlib.Driver`), advances past a migration generated in the same
   clock second, preserves every statement inside an operation, and reverses
@@ -1297,6 +1303,7 @@ Added — package `fabrin`:
 [#77]: https://github.com/usefabrin/fabrin/issues/77
 [#78]: https://github.com/usefabrin/fabrin/issues/78
 [#79]: https://github.com/usefabrin/fabrin/issues/79
+[#101]: https://github.com/usefabrin/fabrin/issues/101
 [ADR 0004]: docs/adr/0004-module-factories-select-before-construction.md
 [ADR 0005]: docs/adr/0005-admin-crud-seam-remains-private.md
 [#41]: https://github.com/usefabrin/fabrin/issues/41

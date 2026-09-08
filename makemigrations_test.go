@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -370,6 +371,97 @@ func TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration(t *testing.T
 	}
 }
 
+func TestExecute_MakemigrationsRecordsCumulativeStateAtEachGeneratedVersion(t *testing.T) {
+	projectChdir(t)
+
+	db := memoryDB(t)
+	billingBefore := orm.Model{
+		Table:  "invoices",
+		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+	}
+	shopBefore := ordersModelFull()
+	app, err := fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("billing", billingBefore),
+		ownerWith("shop", shopBefore),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := app.Execute(t.Context(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("makemigrations: %v", err)
+	}
+
+	billingAfter := billingBefore
+	billingAfter.Fields = append(billingAfter.Fields, orm.Field{Name: "total", Type: orm.Float, Nullable: true})
+	shopAfter := shopBefore
+	shopAfter.Fields = append(shopAfter.Fields, orm.Field{Name: "note", Type: orm.String, Nullable: true})
+	app, err = fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("billing", billingAfter),
+		ownerWith("shop", shopAfter),
+	)
+	if err != nil {
+		t.Fatalf("New changed app: %v", err)
+	}
+	if err := app.Execute(t.Context(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("second makemigrations: %v", err)
+	}
+
+	billingVersions := generatedVersions(t, filepath.Join("billing", "migrations"))
+	shopVersions := generatedVersions(t, filepath.Join("shop", "migrations"))
+	if len(billingVersions) != 2 || len(shopVersions) != 2 {
+		t.Fatalf("billing versions %v and shop versions %v, want two each", billingVersions, shopVersions)
+	}
+	versions := []string{billingVersions[0], shopVersions[0], billingVersions[1], shopVersions[1]}
+	if !slices.IsSorted(versions) {
+		t.Fatalf("generated versions must follow migration order, got %v", versions)
+	}
+	states := []orm.Snapshot{
+		recordedSnapshot(t, "billing", billingVersions[0]),
+		recordedSnapshot(t, "shop", shopVersions[0]),
+		recordedSnapshot(t, "billing", billingVersions[1]),
+		recordedSnapshot(t, "shop", shopVersions[1]),
+	}
+
+	firstModels := states[0].Models()
+	if len(firstModels) != 1 || firstModels[0].Model.Table != "invoices" {
+		t.Errorf("first sidecar records %+v, want only the schema its billing migration produced", firstModels)
+	}
+	thirdModels := states[2].Models()
+	if len(thirdModels) != 2 || len(thirdModels[0].Model.Fields) != 2 || len(thirdModels[1].Model.Fields) != 2 {
+		t.Errorf("first changed sidecar records %+v, want changed invoices plus the prior orders schema", thirdModels)
+	}
+	fourthModels := states[3].Models()
+	if len(fourthModels) != 2 || len(fourthModels[0].Model.Fields) != 2 || len(fourthModels[1].Model.Fields) != 3 {
+		t.Errorf("last sidecar records %+v, want both modules' cumulative changes", fourthModels)
+	}
+
+	steps := make([]orm.StateStep, 0, len(versions))
+	for i := range versions {
+		steps = append(steps, orm.StateStep{Version: versions[i], State: &states[i]})
+	}
+	replayed, err := orm.ReplayState(steps)
+	if err != nil {
+		t.Fatalf("ReplayState: %v", err)
+	}
+	want, err := orm.NewSnapshot(app.Models())
+	if err != nil {
+		t.Fatalf("NewSnapshot(final): %v", err)
+	}
+	gotBytes, err := orm.EncodeSnapshot(replayed)
+	if err != nil {
+		t.Fatalf("EncodeSnapshot(replayed): %v", err)
+	}
+	wantBytes, err := orm.EncodeSnapshot(want)
+	if err != nil {
+		t.Fatalf("EncodeSnapshot(final): %v", err)
+	}
+	if string(gotBytes) != string(wantBytes) {
+		t.Errorf("replayed generated state:\n%s\nwant final state:\n%s", gotBytes, wantBytes)
+	}
+}
+
 func TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced(t *testing.T) {
 	projectChdir(t)
 
@@ -522,4 +614,29 @@ func generatedSource(t *testing.T, dir, version string) string {
 	}
 	t.Fatalf("no generated migration for version %s in %s", version, dir)
 	return ""
+}
+
+func recordedSnapshot(t *testing.T, module, version string) orm.Snapshot {
+	t.Helper()
+	dir := filepath.Join(module, "migrations")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, version+"_") && strings.HasSuffix(name, ".state.json") {
+			raw, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatalf("read %s: %v", name, err)
+			}
+			snapshot, err := orm.ParseSnapshot(raw, filepath.Join(dir, name))
+			if err != nil {
+				t.Fatalf("parse %s: %v", name, err)
+			}
+			return snapshot
+		}
+	}
+	t.Fatalf("no state sidecar for version %s in %s", version, dir)
+	return orm.Snapshot{}
 }

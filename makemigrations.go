@@ -103,6 +103,7 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	cumulative := before
 
 	for _, module := range order {
 		moduleOps := byModule[module]
@@ -147,7 +148,11 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 		dir := filepath.Join(module, "migrations")
 		varName := "M" + version + "_" + slugIdent(name)
 
-		stateBytes, err := encodeSnapshotBytes(after)
+		cumulative, err = snapshotAfterOperations(cumulative, after, moduleOps)
+		if err != nil {
+			return fmt.Errorf("fabrin: record cumulative state after module %q: %w", module, err)
+		}
+		stateBytes, err := encodeSnapshotBytes(cumulative)
 		if err != nil {
 			return err
 		}
@@ -204,6 +209,32 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 		version = bumpVersion(version)
 	}
 	return nil
+}
+
+// snapshotAfterOperations advances only the tables one generated migration
+// changes. A run may emit several module-owned migrations; recording the final
+// application snapshot beside the first one would claim later schema changes
+// happened at an earlier version. Tables absent from final are removed, tables
+// present there are replaced with their final declaration, and untouched tables
+// carry forward from the prior cumulative snapshot.
+func snapshotAfterOperations(current, final orm.Snapshot, ops []migratediff.Operation) (orm.Snapshot, error) {
+	changed := make(map[string]struct{}, len(ops))
+	for _, op := range ops {
+		changed[operationTable(op)] = struct{}{}
+	}
+
+	next := make([]orm.Registered, 0, len(current.Models())+len(changed))
+	for _, reg := range current.Models() {
+		if _, replace := changed[reg.Model.Table]; !replace {
+			next = append(next, reg)
+		}
+	}
+	for _, reg := range final.Models() {
+		if _, replace := changed[reg.Model.Table]; replace {
+			next = append(next, reg)
+		}
+	}
+	return orm.NewSnapshot(next)
 }
 
 // replayRecordedState loads every module's manifest, orders the entries into one
