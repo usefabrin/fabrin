@@ -4,6 +4,14 @@ AI agent instructions (Claude Code, Codex, Cursor): [AGENTS.md](AGENTS.md).
 `CLAUDE.md` only imports that file — edit `AGENTS.md`, not `CLAUDE.md`.
 Engineering / style standards: [docs/coding-guidelines.md](docs/coding-guidelines.md).
 
+## Current v1 workflow
+
+The maintainer has selected direct commits to `main` for v1: no feature branches,
+additional worktrees, or PRs. This overrides the generic branch/PR instructions
+below for this effort. Keep Conventional Commits, TDD, validation, and docs as
+part of every completed change. API/security/ADR review is against concrete
+commits rather than a PR. See [v1 delivery](docs/V1_PLAN.md).
+
 ## Principles
 
 - **Test-Driven Development.** Write the failing test first; make it pass;
@@ -128,6 +136,12 @@ suite could not have caught: a package in the manifest with nothing recorded.
   compiled fine and this rule was the only thing rejecting it. `migrate` is in
   exactly that window now — nothing imports it until `Migrator` lands — so for it
   the rule carries **both** directions rather than just the sibling one.
+- `fabrin/schema` generates source offline. It must not import the root package,
+  Gin, `net/http`, or `database/sql`; generated application code owns runtime I/O.
+  It may consume `orm` metadata and the existing `migratediff` renderer, so initial
+  table SQL and later migrations share one dialect implementation. Tests may
+  compile generated code and exercise PostgreSQL. The `schema-is-offline`
+  rule excludes `_test.go` files so the test harness can verify that boundary.
 - `fabrin/admin` has no deny rule yet. Its unexported seam proof intentionally
   reads `fabrin/orm`, while its eventual forms, auth, and render dependencies do
   not exist. The required boundary marker records that decision; `apicheck`

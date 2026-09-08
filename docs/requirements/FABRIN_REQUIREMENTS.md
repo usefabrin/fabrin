@@ -135,3 +135,9 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | INV-6 | Every gate has been proven to fail on an injected violation **and** to pass its negative control. | done |
 | INV-7 | `/healthz` never consults a dependency; `/readyz` always fails closed. | done |
 | INV-8 | Canonical specialist charters live in `docs/agents`; Claude Code, Codex, and Cursor adapters are generated and parity-checked. | done |
+
+## FR-DATA — generated data access (v1)
+
+| ID | Requirement | Status |
+|----|-------------|--------|
+| FR-DATA-1 | Explicit Go schemas generate deterministic typed PostgreSQL records and create/get access plus migration metadata; no database I/O during generation. | done |

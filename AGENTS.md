@@ -17,6 +17,17 @@ Also follow:
   project. It is gitignored, and deliberately so — never copy its contents into a
   tracked file. Most clones will not have one, and skipping it is correct then.
 
+## V1 implementation workflow
+
+For the current v1 effort, the maintainer explicitly overrides the usual
+branch/PR workflow: implement and commit directly on `main`; do not create
+feature branches, additional worktrees, or PRs. Keep changes focused and run the
+validation gates before committing. Preserve existing local work. Repository
+docs and accurate user-facing guides must accompany completed capabilities.
+`docs/V1_PLAN.md` is the scope and progress record. Review consequential API,
+security, and migration decisions on concrete commits; no PR is required.
+This exception takes precedence over the generic trunk-based/PR guidance below.
+
 ## What this is
 
 **Fabrin** is a **batteries-included web framework for Go**, built on

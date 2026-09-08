@@ -1,0 +1,56 @@
+package records
+
+import (
+ "context"
+ "database/sql"
+ "errors"
+ "os"
+ "testing"
+ "time"
+ "strings"
+
+ _ "github.com/jackc/pgx/v5/stdlib"
+ "github.com/usefabrin/fabrin/migratediff"
+)
+
+func TestGenerated_PostgreSQL(t *testing.T) {
+ dsn:=os.Getenv("FABRIN_TEST_PG_DSN");if dsn=="" {t.Skip("FABRIN_TEST_PG_DSN not set")}
+ db,err:=sql.Open("pgx",dsn);if err!=nil {t.Fatal(err)};defer db.Close()
+ ctx,cancel:=context.WithTimeout(t.Context(),10*time.Second);defer cancel()
+ tx,err:=db.BeginTx(ctx,nil);if err!=nil {t.Fatal(err)};defer tx.Rollback()
+ if _,err=tx.ExecContext(ctx,`CREATE SCHEMA generated_preview`);err!=nil {t.Fatal(err)}
+ if _,err=tx.ExecContext(ctx,`SET LOCAL search_path TO generated_preview`);err!=nil {t.Fatal(err)}
+ if _,err=tx.ExecContext(ctx,NoteCreateTableSQL);err!=nil {t.Fatal(err)}
+ store,err:=NewNoteStore(tx);if err!=nil {t.Fatal(err)}
+ now:=time.Now().UTC().Truncate(time.Microsecond)
+ want:=Note{ID:1,Body:"quote '); DROP TABLE notes; --",Published:true,CreatedAt:now}
+ if err:=store.Create(ctx,want);err!=nil {t.Fatal(err)}
+ got,err:=store.Get(ctx,1);if err!=nil {t.Fatal(err)}
+ if got.ID!=want.ID || got.Body!=want.Body || got.Description.Valid || !got.Published || !got.CreatedAt.Equal(now) {t.Fatalf("roundtrip: %+v",got)}
+ if _,err:=store.Get(ctx,2);!errors.Is(err,sql.ErrNoRows) {t.Fatalf("not-found: %v",err)}
+ cancelled,stop:=context.WithCancel(ctx);stop()
+ if _,err:=store.Get(cancelled,1);!errors.Is(err,context.Canceled) {t.Fatalf("cancellation: %v",err)}
+ want.ID=2;want.Description=sql.NullString{String:"present",Valid:true}
+ if err:=store.Create(ctx,want);err!=nil {t.Fatal(err)}
+ got,err=store.Get(ctx,2);if err!=nil || got.Description!=want.Description {t.Fatalf("nullable roundtrip: %+v %v",got,err)}
+ if _,err:=tx.ExecContext(ctx,`SAVEPOINT bad_length`);err!=nil {t.Fatal(err)}
+ want.ID=3;want.Body=strings.Repeat("x",201)
+ if err:=store.Create(ctx,want);err==nil {t.Fatal("accepted an overlong string")}
+ if _,err:=tx.ExecContext(ctx,`ROLLBACK TO SAVEPOINT bad_length`);err!=nil {t.Fatal(err)}
+ metadata:=NoteModel()
+ if metadata.Table!="notes" || len(metadata.Fields)!=5 || !metadata.Fields[2].Nullable || metadata.Fields[1].MaxLen!=200 {t.Fatalf("metadata: %+v",metadata)}
+ metadata.Fields[0].Name="modified"
+ if NoteModel().Fields[0].Name!="id" {t.Fatal("metadata shares mutable state")}
+}
+
+func TestGenerated_RejectsNilDatabase(t *testing.T) {
+ for _,db:=range []DB{nil,(*sql.DB)(nil),(*sql.Tx)(nil),(*sql.Conn)(nil)} {
+  if _,err:=NewNoteStore(db);err==nil {t.Fatal("accepted nil database")}
+ }
+}
+
+func TestGenerated_DDLMatchesMigrationMetadata(t *testing.T) {
+ statements,err:=(migratediff.Postgres{}).Render(migratediff.CreateTable{Model:NoteModel()})
+ if err!=nil {t.Fatal(err)}
+ if strings.Join(statements,";\n")!=NoteCreateTableSQL {t.Fatalf("initial DDL and migration metadata disagree:\n%s\n%v",NoteCreateTableSQL,statements)}
+}

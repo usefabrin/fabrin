@@ -574,3 +574,10 @@ the version.
 | ADM-001 | One private, reflection-free resource flows from metadata and forms through CRUD persistence | `admin/admin_test.go::TestResource_CRUDFlowsFromMetadataFormsToPersistence` |
 | ADM-002 | Unsafe CRUD validates CSRF then authorization before binding or persistence | `admin/admin_test.go::TestResource_UnsafeActionsFailClosedBeforeBindingOrPersistence` |
 | ADM-003 | Metadata and typed adapters retain field errors and skip invalid persistence | `admin/admin_test.go::TestResource_FormErrorsStayWithMetadataFieldsAndSkipPersistence` |
+
+## Generated data access
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| DATA-001 | Deterministic compiled PostgreSQL stores and metadata | `schema/schema_test.go::TestGenerate_CompilesAndUsesPostgres` |
+| DATA-002 | Reject invalid or colliding schema names | `schema/schema_test.go::TestGenerate_RejectsInvalidNames` |

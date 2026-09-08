@@ -1,5 +1,12 @@
 # Roadmap
 
+**V1 direction:** [V1_PLAN.md](V1_PLAN.md) governs new work: backend-first,
+Go schema generation, PostgreSQL, email OTP, opt-in REST/admin, and R2. The
+September 10 target is a developer preview. The F0–F8 inventory below preserves
+existing implementation history; its password-first ordering and broad rendering
+plans are superseded by the v1 scope. New work commits directly on `main`.
+
+
 Milestones **F0 – F8**, ordered by dependency rather than by appeal. This is
 close to Django's own build order, and for the same reason: you cannot generate an
 admin site from models you do not have, and you cannot have models without

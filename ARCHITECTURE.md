@@ -27,6 +27,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── config/              layered settings           (Django: settings.py)
 ├── health/              liveness + readiness       (Django: system checks)
 ├── logging/             slog setup, request ids
+├── schema/              offline Go schema → typed PostgreSQL source generator
 ├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine over *sql.DB
 ├── migratediff/         schema differ + DDL emitters (graduated public in #59)
@@ -72,6 +73,17 @@ The package is root-level because the eventual API is user-facing; putting it in
 public-to-internal dependency direction when the proof reads `orm`. Keeping every
 current symbol unexported preserves the future path without creating a semver
 promise. See [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md).
+
+### Generated PostgreSQL data access (preview)
+
+`schema` is an offline code declaration and source generator. It emits typed
+records, create/get stores over `database/sql`-compatible handles, initial-table
+SQL, and `orm.Model` metadata. The application owns connections, transactions,
+migrations and authorization; generation performs no I/O. The metadata package
+remains connection-free. This adds a default path alongside custom stores;
+[ADR 0007](docs/adr/0007-generate-postgres-data-access-from-go-schemas.md) records
+the proposed update to ADR 0002. See the [user guide](docs/guides/generated-data.md)
+for supported fields and limitations. REST, auth and usable admin remain planned.
 
 ### Why `orm/` holds no database handle
 

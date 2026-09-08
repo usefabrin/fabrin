@@ -37,6 +37,21 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Schema-generated PostgreSQL access (preview, #109).** New public `schema`
+  package provides `New`, `Generate`, immutable `Field`/`Model` declarations,
+  `String`, `Int64`, `Bool`, `Time`, and field modifiers `PrimaryKey`, `Nullable`,
+  `MaxLen`. Generated source includes typed records, create/get stores,
+  initial-table SQL and fresh `orm.Model` metadata. Names and collisions are
+  validated before output; values are parameterized. Generation is offline and
+  reuses the existing PostgreSQL DDL renderer. Generated store constructors reject
+  nil SQL handles before use.
+  ADR 0007 is proposed; this is not a frozen v1 API. Generated-project compilation
+  runs in tests; live PostgreSQL checks require `FABRIN_TEST_PG_DSN`.
+- V1 delivery record and generated-data user guide. September 10 targets a
+  developer preview; implementation now uses direct commits to `main` by the
+  maintainer's instruction. Auth, REST/admin and operational batteries remain
+  explicitly planned.
+
 - **Complete migration constraint vocabulary.** `migratediff` now exposes
   `ChangeNullability`, `AddUnique`/`DropUnique`, `AddIndex`/`DropIndex`, and
   `AddPrimaryKey`/`DropPrimaryKey`. The differ emits simultaneous field changes

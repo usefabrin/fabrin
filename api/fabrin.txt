@@ -288,3 +288,15 @@ pkg github.com/usefabrin/fabrin/orm, var ErrBadSteps error
 pkg github.com/usefabrin/fabrin/orm, var ErrDuplicateTable error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidField error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidModel error
+
+pkg github.com/usefabrin/fabrin/schema, func Bool(name string) Field
+pkg github.com/usefabrin/fabrin/schema, func Generate(pkg string, models ...Model) ([]byte, error)
+pkg github.com/usefabrin/fabrin/schema, func Int64(name string) Field
+pkg github.com/usefabrin/fabrin/schema, func New(name string, table string, fields ...Field) (Model, error)
+pkg github.com/usefabrin/fabrin/schema, func String(name string) Field
+pkg github.com/usefabrin/fabrin/schema, func Time(name string) Field
+pkg github.com/usefabrin/fabrin/schema, method (Field) MaxLen(n int) Field
+pkg github.com/usefabrin/fabrin/schema, method (Field) Nullable() Field
+pkg github.com/usefabrin/fabrin/schema, method (Field) PrimaryKey() Field
+pkg github.com/usefabrin/fabrin/schema, type Field struct
+pkg github.com/usefabrin/fabrin/schema, type Model struct

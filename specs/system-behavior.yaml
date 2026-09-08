@@ -792,3 +792,17 @@ behaviours:
     requirement: FR-ADMIN-5
     status: implemented
     test: admin/admin_test.go::TestResource_FormErrorsStayWithMetadataFieldsAndSkipPersistence
+
+  - id: DATA-001
+    what: Code-defined schemas generate deterministic compilable typed PostgreSQL create/get stores and matching metadata.
+    why: Users should not hand-write ordinary data mappings or discover generator errors after deployment.
+    requirement: FR-DATA-1
+    status: implemented
+    test: schema/schema_test.go::TestGenerate_CompilesAndUsesPostgres
+
+  - id: DATA-002
+    what: Invalid identifiers, duplicate tables, generated-name collisions and invalid primary keys fail before generated output is returned.
+    why: Ambiguous or injected schema names must never produce unsafe SQL or broken source.
+    requirement: FR-DATA-1
+    status: implemented
+    test: schema/schema_test.go::TestGenerate_RejectsInvalidNames

@@ -234,3 +234,9 @@ enough.
 ## Licence
 
 [MIT](LICENSE) © Fabrin contributors
+
+## V1 development
+
+Fabrin is pre-1.0. See the [v1 scope and progress](docs/V1_PLAN.md) and
+[generated PostgreSQL data guide](docs/guides/generated-data.md). Email OTP,
+REST CRUD, and the usable admin are planned; they are not available yet.

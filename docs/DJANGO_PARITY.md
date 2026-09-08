@@ -41,6 +41,14 @@ app's usages. Fabrin's modules are values in a slice: either eagerly constructed
 dependencies. Names and selections are validated at startup, while the compiler
 still checks the module and every dependency; jump-to-definition still works.
 
+## V1 direction
+
+V1 prioritizes backend APIs, code-defined schemas with generated PostgreSQL
+access, email OTP, and embedded admin. This deliberately departs from Django's
+password-first auth and runtime model machinery. Only schema create/get is
+implemented so far; auth and the usable admin remain planned. See
+[V1_PLAN.md](V1_PLAN.md) and the [data guide](guides/generated-data.md).
+
 ## Models and the database
 
 | Django | Fabrin | Status |

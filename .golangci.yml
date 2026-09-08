@@ -50,6 +50,9 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
+      # boundary: schema — offline source generation; no root, HTTP, Gin, or
+      #     database/sql imports in the generator. Generated applications own I/O.
+      #
       # boundary: migratediff — must not import the root package (root →
       #     migratediff is the dependency direction; makemigrations' command
       #     wiring lives in root), Gin, or net/http. Graduated from the ADR 0005
@@ -267,6 +270,20 @@ linters:
         # differ to the framework it exists to stay describable beside. orm is
         # ALLOWED here — reading model metadata is this package's entire job,
         # and that is exactly why it lives at the root rather than internal/.
+        schema-is-offline:
+          files:
+            - "**/schema/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin$"
+              desc: "schema generation must not depend on application lifecycle"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "schema generation is transport-free"
+            - pkg: "net/http"
+              desc: "schema generation is transport-free"
+            - pkg: "database/sql"
+              desc: "schema emits source; generated applications own database I/O"
+
         migratediff-is-standalone:
           files:
             - "**/migratediff/**"
