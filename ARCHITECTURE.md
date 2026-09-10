@@ -27,6 +27,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── config/              layered settings           (Django: settings.py)
 ├── health/              liveness + readiness       (Django: system checks)
 ├── logging/             slog setup, request ids
+├── mail/                bounded in-memory email capture for tests
 ├── schema/              offline Go schema → typed PostgreSQL source generator
 ├── orm/                 model metadata — no DB handle, no driver
 ├── migrate/             migration engine over *sql.DB
@@ -73,6 +74,17 @@ The package is root-level because the eventual API is user-facing; putting it in
 public-to-internal dependency direction when the proof reads `orm`. Keeping every
 current symbol unexported preserves the future path without creating a semver
 promise. See [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md).
+
+### Email capture and the proposed auth contract
+
+`mail` defines plain-text message values and a bounded concurrent-safe `Capture`.
+It is standalone; consumers declare their own sender interface. It performs no
+network delivery, logging, persistence or HTTP registration. See
+[testing email](docs/guides/testing-email.md) for wiring and limits.
+
+[AUTH_CONTRACT.md](docs/AUTH_CONTRACT.md) records the proposed OTP, identity,
+session and authorization behavior. These authentication capabilities are not
+implemented yet. The contract is security-review input, not availability evidence.
 
 ### Generated PostgreSQL data access (preview)
 

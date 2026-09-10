@@ -37,6 +37,18 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Bounded capture mail (#110, #116).** Public `mail.Message`, `Capture`,
+  `NewCapture`, `Send`, `Messages`, `Drain`, `ErrFull` and `ErrInvalidMessage`
+  support single-recipient plain-text email tests with explicit capacity,
+  cancellation, header validation and independent snapshots. No real delivery,
+  logging, HTTP inbox or production fallback is provided. API snapshot and the
+  user guide describe this deliberately small public surface.
+- **Proposed email-OTP security contract (#80).** Challenge, abuse-budget,
+  delivery-failure, atomic identity/session, CSRF, authorization and audit
+  requirements map to nine planned spec rows. Password-first and replaceable
+  identity requirements are superseded for v1. Auth is not implemented; the
+  September 10 preview remains incomplete, as recorded in `docs/V1_PLAN.md`.
+
 - **Schema-generated PostgreSQL access (preview, #109).** New public `schema`
   package provides `New`, `Generate`, immutable `Field`/`Model` declarations,
   `String`, `Int64`, `Bool`, `Time`, and field modifiers `PrimaryKey`, `Nullable`,

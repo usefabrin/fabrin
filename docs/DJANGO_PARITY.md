@@ -45,8 +45,10 @@ still checks the module and every dependency; jump-to-definition still works.
 
 V1 prioritizes backend APIs, code-defined schemas with generated PostgreSQL
 access, email OTP, and embedded admin. This deliberately departs from Django's
-password-first auth and runtime model machinery. Only schema create/get is
-implemented so far; auth and the usable admin remain planned. See
+password-first auth and runtime model machinery. Schema create/get and bounded capture-only mail are
+implemented; auth and the usable admin remain planned. Email capture offers the
+testability of an in-memory outbox through an explicitly passed Go dependency,
+with bounded capacity and no global mailbox. See
 [V1_PLAN.md](V1_PLAN.md) and the [data guide](guides/generated-data.md).
 
 ## Models and the database

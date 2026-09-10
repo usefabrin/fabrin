@@ -806,3 +806,71 @@ behaviours:
     requirement: FR-DATA-1
     status: implemented
     test: schema/schema_test.go::TestGenerate_RejectsInvalidNames
+
+  - id: MAIL-001
+    what: Capture mail preserves messages in bounded memory and returns independent snapshots or atomically drains them.
+    why: OTP tests need observable delivery without a network or an unbounded secret-bearing inbox.
+    requirement: FR-MAIL-1
+    status: implemented
+    test: mail/mail_test.go::TestCapture_BoundedSnapshotAndDrain
+
+  - id: MAIL-002
+    what: Invalid recipient or subject headers and cancelled sends do not enter the captured inbox.
+    why: A test backend must not silently accept inputs that are unsafe for real delivery.
+    requirement: FR-MAIL-1
+    status: implemented
+    test: mail/mail_test.go::TestCapture_RejectsInvalidAndCancelledMessages
+
+  - id: AUTH-001
+    what: Codes bind to purpose, email and challenge ID, expire at the boundary and have protected verifiers.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-002
+    what: Challenge consumption and attempt accounting are atomic; replay and replaced codes fail.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-003
+    what: Shared address and source abuse budgets survive resends and fail closed on capacity or store errors.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-004
+    what: Delivery failure creates no authenticated result and cleanup cannot revoke a newer challenge.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-005
+    what: Verified signup uniquely resolves identity with invitation and disabled-account policies before granting a session.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-6
+    status: planned
+
+  - id: AUTH-006
+    what: Session rotation, expiry and revocation are enforced by the store on every authenticated request.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-007
+    what: Cookie and native authentication enforce CSRF, credential separation, bounded bodies and no-store responses.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-7
+    status: planned
+
+  - id: AUTH-008
+    what: Authorization covers lists, records and fields and denies access on policy or store failures.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-3
+    status: planned
+
+  - id: AUTH-009
+    what: Public auth responses resist enumeration and audit output excludes credentials; key rotation and cleanup preserve validity rules.
+    why: Authentication defaults must satisfy the reviewed threat model before production use.
+    requirement: FR-AUTH-7
+    status: planned

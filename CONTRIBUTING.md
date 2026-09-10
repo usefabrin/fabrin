@@ -136,6 +136,10 @@ suite could not have caught: a package in the manifest with nothing recorded.
   compiled fine and this rule was the only thing rejecting it. `migrate` is in
   exactly that window now — nothing imports it until `Migrator` lands — so for it
   the rule carries **both** directions rather than just the sibling one.
+- `fabrin/mail` is standalone and cannot import another Fabrin package.
+  Consumers declare the `Send` interface they need. Capture tests require no
+  network. The boundary is tested with root/sibling violations and a stdlib
+  negative control.
 - `fabrin/schema` generates source offline. It must not import the root package,
   Gin, `net/http`, or `database/sql`; generated application code owns runtime I/O.
   It may consume `orm` metadata and the existing `migratediff` renderer, so initial

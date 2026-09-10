@@ -23,11 +23,11 @@ is a reference, not a feature checklist or API constraint.
 
 | Milestone | Acceptance | Current evidence |
 |---|---|---|
-| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator only. Not yet a runnable auth preview. |
+| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator and bounded capture mail implemented. Not yet a runnable auth preview. |
 | Data foundation (#104) | Typed CRUD, keys/defaults/nulls/relations/indexes, transactions, pagination, safe PostgreSQL migrations and upgrade concurrency | Scalar create/get generator implemented; ADR 0007 remains proposed. Existing migrations continue separately. |
-| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Planned; no auth package or login endpoint shipped. |
+| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Proposed threat contract written; no auth package or login endpoint shipped. |
 | REST and admin (#106) | Explicit enablement, field/operation policies, scoped list and record access, bounded queries, embedded admin | Existing private admin proof only. |
-| Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Planned. |
+| Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Capture-only test mail implemented; production adapters remain planned. |
 | Release candidate (#108) | Deployed reference backend, security/API review, upgrade/recovery evidence, gates/races, measured overhead, accurate support docs | Planned; no stable-v1 claim. |
 
 September 10 is a **developer-preview target**, not a stable release deadline.
@@ -93,3 +93,22 @@ root, Gin, HTTP and SQL imports in the generator; an `orm` import passed as the
 negative control. Temporary probes were removed. API review found the constructor
 validation issue, which was fixed with a failing-then-passing regression test.
 This is generator evidence, not evidence that the complete preview or v1 ships.
+
+## September 10 status
+
+The preview target has arrived with the generator and bounded capture email
+available. OTP login and the runnable PostgreSQL auth example are **not complete**;
+no preview release or stable release is claimed. [AUTH_CONTRACT.md](AUTH_CONTRACT.md)
+is proposed security-review input with nine planned behavior rows. It replaces
+password-first assumptions with email OTP and minimal identity plus profiles.
+[Testing email](guides/testing-email.md) documents the implemented capture API.
+Next work remains #110 OTP core, then #111 integrated preview; passing mail tests
+does not satisfy either issue's complete acceptance criteria.
+
+Mail validation on September 10: `just check` and `just race` passed. Tests cover
+bounded insertion, cancellation/invalid input, independent snapshots, and
+concurrent producers/drainers returning each message exactly once. Root and
+sibling import probes failed the new mail boundary; the stdlib negative control
+passed. Read-only review findings were resolved in tests and the proposed auth
+contract. Human security review of that contract remains pending under #80;
+passing capture tests is not auth security evidence.

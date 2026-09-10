@@ -50,6 +50,9 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
+      # boundary: mail — standalone capture/value package. No other Fabrin
+      #     package imports; delivery consumers declare their own sender port.
+      #
       # boundary: schema — offline source generation; no root, HTTP, Gin, or
       #     database/sql imports in the generator. Generated applications own I/O.
       #
@@ -270,6 +273,14 @@ linters:
         # differ to the framework it exists to stay describable beside. orm is
         # ALLOWED here — reading model metadata is this package's entire job,
         # and that is exactly why it lives at the root rather than internal/.
+        mail-is-standalone:
+          files:
+            - "**/mail/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "mail is standalone; consumers own the sender interface"
+
         schema-is-offline:
           files:
             - "**/schema/**"

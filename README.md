@@ -240,3 +240,7 @@ enough.
 Fabrin is pre-1.0. See the [v1 scope and progress](docs/V1_PLAN.md) and
 [generated PostgreSQL data guide](docs/guides/generated-data.md). Email OTP,
 REST CRUD, and the usable admin are planned; they are not available yet.
+
+For email tests, see [bounded capture mail](docs/guides/testing-email.md).
+It performs no network delivery. The [OTP security contract](docs/AUTH_CONTRACT.md)
+is proposed; login is not implemented yet.

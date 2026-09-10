@@ -267,6 +267,12 @@ versions.
 
 ## F4 — Auth
 
+V1 uses email OTP first and a stable identity with related application profiles;
+the password and replaceable-user entries below are historical, superseded v1
+scope. The [proposed auth contract](AUTH_CONTRACT.md) defines the implementation
+and security acceptance matrix. No login endpoint ships yet. Capture-only mail
+is available and documented in [testing email](guides/testing-email.md).
+
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
 - [ ] Server-side sessions, pluggable store. (FR-AUTH-2)
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)

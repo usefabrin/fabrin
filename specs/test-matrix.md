@@ -581,3 +581,24 @@ the version.
 |----|-----------|------|
 | DATA-001 | Deterministic compiled PostgreSQL stores and metadata | `schema/schema_test.go::TestGenerate_CompilesAndUsesPostgres` |
 | DATA-002 | Reject invalid or colliding schema names | `schema/schema_test.go::TestGenerate_RejectsInvalidNames` |
+
+## Mail
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| MAIL-001 | Bounded independent snapshots and drain | `mail/mail_test.go::TestCapture_BoundedSnapshotAndDrain` |
+| MAIL-002 | Invalid headers and cancellation reject before capture | `mail/mail_test.go::TestCapture_RejectsInvalidAndCancelledMessages` |
+
+## Authentication (proposed contract)
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| AUTH-001 | Codes bind to purpose, email and challenge ID, expire at the boundary and have protected verifiers. | _planned_ |
+| AUTH-002 | Challenge consumption and attempt accounting are atomic; replay and replaced codes fail. | _planned_ |
+| AUTH-003 | Shared address and source abuse budgets survive resends and fail closed on capacity or store errors. | _planned_ |
+| AUTH-004 | Delivery failure creates no authenticated result and cleanup cannot revoke a newer challenge. | _planned_ |
+| AUTH-005 | Verified signup uniquely resolves identity with invitation and disabled-account policies before granting a session. | _planned_ |
+| AUTH-006 | Session rotation, expiry and revocation are enforced by the store on every authenticated request. | _planned_ |
+| AUTH-007 | Cookie and native authentication enforce CSRF, credential separation, bounded bodies and no-store responses. | _planned_ |
+| AUTH-008 | Authorization covers lists, records and fields and denies access on policy or store failures. | _planned_ |
+| AUTH-009 | Public auth responses resist enumeration and audit output excludes credentials; key rotation and cleanup preserve validity rules. | _planned_ |

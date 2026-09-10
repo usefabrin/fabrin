@@ -92,10 +92,13 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-AUTH-1 | A default user model with password hashing using a memory-hard KDF. | planned |
+| FR-AUTH-1 | Password-first user model and memory-hard password hashing; superseded for v1 by FR-AUTH-5. Password login is deferred. | superseded |
 | FR-AUTH-2 | Server-side sessions with a pluggable store. | planned |
 | FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
-| FR-AUTH-4 | The user model is replaceable — an app with its own is not forced into Fabrin's. | planned |
+| FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
+| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. | planned |
+| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. | planned |
+| FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. | planned |
 
 ## FR-ADMIN — the admin site (F5)
 
@@ -141,3 +144,9 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |----|-------------|--------|
 | FR-DATA-1 | Explicit Go schemas generate deterministic typed PostgreSQL records and create/get access plus migration metadata; no database I/O during generation. | done |
+
+## FR-MAIL — email delivery
+
+| ID | Requirement | Status |
+|----|-------------|--------|
+| FR-MAIL-1 | A bounded, concurrent-safe capture backend supports deterministic email tests without sending or logging messages. | done |

@@ -16,3 +16,4 @@ migratediff
 migrate
 orm
 schema
+mail

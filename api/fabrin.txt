@@ -165,6 +165,18 @@ pkg github.com/usefabrin/fabrin/logging, func New(w io.Writer, format string, le
 pkg github.com/usefabrin/fabrin/logging, func RequestID() github.com/gin-gonic/gin.HandlerFunc
 pkg github.com/usefabrin/fabrin/logging, func RequestIDFromContext(ctx context.Context) string
 
+pkg github.com/usefabrin/fabrin/mail, func NewCapture(capacity int) (*Capture, error)
+pkg github.com/usefabrin/fabrin/mail, method (*Capture) Drain() []Message
+pkg github.com/usefabrin/fabrin/mail, method (*Capture) Messages() []Message
+pkg github.com/usefabrin/fabrin/mail, method (*Capture) Send(ctx context.Context, m Message) error
+pkg github.com/usefabrin/fabrin/mail, type Capture struct
+pkg github.com/usefabrin/fabrin/mail, type Message struct
+pkg github.com/usefabrin/fabrin/mail, type Message struct, Subject string
+pkg github.com/usefabrin/fabrin/mail, type Message struct, Text string
+pkg github.com/usefabrin/fabrin/mail, type Message struct, To string
+pkg github.com/usefabrin/fabrin/mail, var ErrFull error
+pkg github.com/usefabrin/fabrin/mail, var ErrInvalidMessage error
+
 pkg github.com/usefabrin/fabrin/migrate, const Table untyped string = "fabrin_migrations"
 pkg github.com/usefabrin/fabrin/migrate, func Ensure(ctx context.Context, db *database/sql.DB) error
 pkg github.com/usefabrin/fabrin/migrate, func Rollback(ctx context.Context, db *database/sql.DB, ms []M, toVersion string) ([]M, error)
