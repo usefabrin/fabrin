@@ -959,6 +959,27 @@ behaviours:
     status: implemented
     test: authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner
 
+  - id: AUTHHTTP-001
+    what: Native HTTP verification accepts only native-purpose challenges, returns a bearer credential once without cookies, authenticates only the Authorization header, and revokes before logout succeeds.
+    why: Native and browser credentials must remain separate, and server-side revocation must take effect before a successful logout response.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/native_test.go::TestNative_LoginCurrentAndLogout
+
+  - id: AUTHHTTP-002
+    what: Native HTTP request and verification bodies are strict and bounded, every response is no-store, and known delivery outcomes retain a neutral accepted shape.
+    why: Transport defaults must resist body abuse, cache leakage and delivery enumeration.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/native_test.go::TestNative_StrictBodiesAndNeutralDeliveryResponse
+
+  - id: AUTHHTTP-003
+    what: The native HTTP default abuse-budget source uses the direct peer and ignores forwarding headers.
+    why: A handler mounted on Gin directly must not inherit Gin's permissive proxy behavior and allow request headers to bypass source limits.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders
+
   - id: OTP-002
     what: Private challenge consumption allows at most five attempts and one concurrent successful use.
     why: Prove the private OTP primitive before a public transactional authentication API is exposed.

@@ -6,10 +6,11 @@ claim production readiness. Approval was given after review of commit `a19c4d7`
 under the direct-main workflow. Capture mail, the private challenge primitive,
 and a public OTP core are implemented. Redis now provides shared challenges,
 budgets, verification leases and sessions; PostgreSQL provides durable identity
-resolution, invitation consumption and disabled-identity policy. Browser/native
-transport, broader session revocation, production delivery and authorization
-remain planned. This is approved architecture, not approval of the incomplete
-HTTP or production stack.
+resolution, invitation consumption and disabled-identity policy. Strict native
+bearer handlers now cover request, verification, current-session and logout.
+Browser transport, broader session revocation, production delivery and
+authorization remain planned. This is approved architecture, not approval of
+the incomplete browser or production stack.
 
 ## Goal, trust boundaries and limits
 
@@ -264,9 +265,12 @@ security review. Private challenge tests prove the cryptographic, attempt, expir
 and single-use primitives. Public core tests additionally prove local
 reservation/replacement, bounded budgets, sanitized delivery/store failures,
 atomic identity/session creation, idle/absolute session expiry and logout
-revocation. Conditional PostgreSQL tests exercise shared budgets, concurrent
-single consumption, unique identity resolution, digest-only sessions and
-revocation when `FABRIN_TEST_PG_DSN` is set; the constructor test proves wiring
-does not connect or mutate schema. Invitation policy, identity-wide and
-privilege-change revocation, cleanup, browser CSRF, HTTP enumeration resistance,
-and production delivery remain unproved and unimplemented.
+revocation. Conditional PostgreSQL tests exercise durable concurrent identity
+resolution when `FABRINTEST_PG_DSN` is set; Redis tests exercise shared budgets,
+single consumption, lease recovery and digest-only sessions when
+`FABRINTEST_REDIS_URL` is set. Constructor tests prove wiring does not connect or
+mutate schema. Native HTTP tests prove bounded strict bodies, native-purpose
+separation, neutral delivery responses, no-store bearer flow and logout.
+Identity-wide and privilege-change revocation, cleanup, browser CSRF, complete
+HTTP enumeration resistance, and production delivery remain unproved and
+unimplemented.

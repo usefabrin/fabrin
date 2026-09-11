@@ -23,6 +23,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
 ├── auth/                email OTP core + bounded local store; transport-free
+├── authhttp/            bounded native auth HTTP handlers; Gin transport
 ├── authpg/              PostgreSQL identities and authorization; driver-free
 ├── authredis/           Redis OTP/session adapter; owns its client
 ├── admin/               private CRUD seam proof — exports nothing yet
@@ -112,6 +113,15 @@ valid challenge, calls the idempotent PostgreSQL identity resolver, then consume
 the challenge while creating its session in one Redis script. A transient durable
 store failure releases the lease; a lost Redis completion response is retried
 idempotently. Redis server time controls all ephemeral boundaries.
+
+`authhttp.Native` provides the native bearer transport over those ports. Its
+handlers strictly decode JSON bodies capped at 4 KiB, use native-purpose
+challenges, set `Cache-Control: no-store`, return credentials only in verification
+JSON, ignore cookies and query tokens, and revoke before logout succeeds. The
+default abuse source is the direct peer address and ignores forwarded headers;
+applications may explicitly supply a trusted source function after configuring
+their proxy boundary. Browser-cookie and CSRF transport remains separate and
+planned.
 
 ### Generated PostgreSQL data access (preview)
 

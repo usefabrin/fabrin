@@ -37,6 +37,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Native bearer authentication handlers.** New public `authhttp.Native`,
+  `NewNative`, and `WithSource` expose request-code, verify-code, current-session
+  and logout Gin handlers. They cap strict JSON bodies at 4 KiB, use only native
+  challenges, return the opaque credential once in no-store JSON, reject cookie
+  and query-token fallback, and revoke before logout succeeds. Known delivery
+  failures and send limits retain a neutral accepted response. The secure default
+  source key uses the direct peer and ignores forwarding headers. The API snapshot
+  changes intentionally; browser cookies and CSRF remain a separate v1 slice.
+
 - **Redis OTP and session store.** New public `authredis.New`, `Store`,
   `WithPrefix`, `Ping`, and `Close` provide the production ephemeral adapter
   without exposing a Redis client type. Server-time Lua transitions share

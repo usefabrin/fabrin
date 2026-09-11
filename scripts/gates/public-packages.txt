@@ -18,5 +18,6 @@ orm
 schema
 mail
 auth
+authhttp
 authpg
 authredis

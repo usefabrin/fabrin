@@ -32,7 +32,7 @@ scope before v1. `admin` still exports no public API.
 |---|---|---|
 | Auth core (#105, #110) | Protected OTPs, neutral delivery behavior, bounded shared abuse controls and verified identity creation | Local core plus shared Redis challenge/budget tests implemented |
 | Redis and identity persistence (#111) | Redis OTP/session state plus PostgreSQL identities with retry-safe verification recovery | Both adapters implemented; live CI covers concurrency and lease recovery |
-| Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Initial opaque native session primitive implemented; production transports pending |
+| Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Native bearer handlers implemented; browser transport and broad revocation pending |
 | Authorization (#113) | Invitations, groups, deny-by-default operation/field policy, ownership and administrator bootstrap | Planned |
 | Production email (#116) | Replaceable SMTP with TLS, deadlines, sanitized errors and tested ambiguous delivery behavior | Capture backend implemented; SMTP pending |
 | Release candidate (#108) | Deployed auth reference, recovery evidence, whole-module API/security review, support docs and no blockers | Planned; no stable-v1 claim |

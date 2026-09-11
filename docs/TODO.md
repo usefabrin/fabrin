@@ -287,7 +287,8 @@ or another sender port, and atomically resolves a stable identity plus initial
 opaque session after one successful consumption. `authpg` now supplies durable
 unique identity resolution, transactional invitation consumption and disabled
 checks; `authredis` now owns shared budgets, verification leases and digest-only
-sessions. No login endpoint, browser session, or identity-wide revocation ships yet. See
+sessions. Native bearer login/current/logout handlers now ship; browser sessions
+and identity-wide revocation remain. See
 [authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
@@ -296,7 +297,8 @@ sessions. No login endpoint, browser session, or identity-wide revocation ships 
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)
-- [ ] Login/logout, `RequireAuth` middleware, CSRF.
+- [~] Native login/current/logout handlers exist; browser login, `RequireAuth`
+      middleware and CSRF remain.
 - [ ] Threat model before API freeze: rotation and fixation, cookie defaults,
       enumeration, password upgrades, recovery, audit, and fail-closed authz.
       ([#80](https://github.com/usefabrin/fabrin/issues/80))

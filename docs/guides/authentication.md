@@ -63,9 +63,36 @@ The store sees only the ID and SHA-256 digest. `auth.SessionManager.Current`
 checks and atomically refreshes the 24-hour idle window without extending the
 seven-day absolute expiry. `Logout` revokes the stored credential before success.
 All malformed, unknown, expired and revoked credentials return `auth.ErrSession`.
-This slice has no cookie mode or HTTP middleware; a native preview must accept it
-only in an `Authorization: Bearer` header and return it only with `Cache-Control:
-no-store`.
+
+## Native bearer HTTP
+
+`authhttp.Native` provides four Gin handlers without choosing URL paths for the
+application:
+
+```go
+native, err := authhttp.NewNative(service, sessions)
+if err != nil {
+    return err
+}
+r.POST("/auth/native/request", native.RequestCode)
+r.POST("/auth/native/verify", native.VerifyCode)
+r.GET("/auth/native/current", native.Current)
+r.POST("/auth/native/logout", native.Logout)
+```
+
+Request and verification bodies are strict JSON capped at 4 KiB. Every response
+uses `Cache-Control: no-store`. Verification accepts only native-purpose
+challenges and returns the bearer token once in JSON; the handlers never read or
+set authentication cookies and never accept query-string tokens. `Current` and
+`Logout` require exactly one `Authorization: Bearer <credential>` header, and
+logout revokes the server record before returning 204.
+
+Known delivery failures and send-budget suppression return the same 202 shape as
+an accepted request, using a non-verifiable random challenge ID. Store outages
+return a sanitized unavailable response. The default abuse-budget source is the
+direct TCP peer and ignores forwarding headers. After establishing a trusted
+proxy boundary, an application can opt into its own bounded key with
+`authhttp.WithSource`; request-controlled headers alone are unsafe.
 
 ## Memory-store behavior
 

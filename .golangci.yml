@@ -54,6 +54,9 @@ linters:
       #     mail's value/sender contract inside Fabrin; no application lifecycle,
       #     other sibling, HTTP transport or SQL imports.
       #
+      # boundary: authhttp — Gin transport above auth. It may import auth, Gin
+      #     and net/http; persistence adapters and other siblings stay outside.
+      #
       # boundary: authpg — PostgreSQL adapter below auth. It may import auth and
       #     migrate, plus database/sql; no root/app lifecycle, transport, or
       #     concrete database driver belongs in the adapter.
@@ -343,6 +346,24 @@ linters:
               desc: "durable identity persistence belongs to authpg"
             - pkg: "modernc.org/sqlite"
               desc: "authredis stores only ephemeral authentication state"
+
+        authhttp-is-transport-only:
+          files:
+            - "**/authhttp/**"
+            - "!**/*_test.go"
+          list-mode: lax
+          allow:
+            - "github.com/usefabrin/fabrin/auth$"
+            - "github.com/gin-gonic/gin$"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "authhttp may import only auth inside Fabrin"
+            - pkg: "database/sql"
+              desc: "authhttp is transport and owns no persistence"
+            - pkg: "github.com/redis/go-redis"
+              desc: "authhttp depends on auth ports, not Redis"
+            - pkg: "github.com/jackc/pgx"
+              desc: "authhttp depends on auth ports, not PostgreSQL"
 
         mail-is-standalone:
           files:

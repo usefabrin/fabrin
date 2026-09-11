@@ -153,6 +153,9 @@ suite could not have caught: a package in the manifest with nothing recorded.
   may import `auth` and its private `go-redis` client, but no SQL, migration,
   Gin, HTTP, root lifecycle, or other sibling package. It owns its Redis client;
   construction parses configuration without connecting.
+- `fabrin/authhttp` is Gin transport above `auth`. It may import `auth`, Gin and
+  `net/http`, but no persistence adapter, SQL package, root lifecycle or other
+  sibling. Handlers receive already-wired auth ports.
 - `fabrin/mail` is standalone and cannot import another Fabrin package.
   Consumers declare the `Send` interface they need. Capture tests require no
   network. The boundary is tested with root/sibling violations and a stdlib

@@ -153,6 +153,15 @@ pkg github.com/usefabrin/fabrin/auth, var ErrSession error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
 
+pkg github.com/usefabrin/fabrin/authhttp, func NewNative(service *github.com/usefabrin/fabrin/auth.Service, sessions *github.com/usefabrin/fabrin/auth.SessionManager, options ...NativeOption) (*Native, error)
+pkg github.com/usefabrin/fabrin/authhttp, func WithSource(source func(*github.com/gin-gonic/gin.Context) string) NativeOption
+pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Current(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Logout(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Native) RequestCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Native) VerifyCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, type Native struct
+pkg github.com/usefabrin/fabrin/authhttp, type NativeOption func(*nativeSettings)
+
 pkg github.com/usefabrin/fabrin/authpg, func Migration() github.com/usefabrin/fabrin/migrate.M
 pkg github.com/usefabrin/fabrin/authpg, func New(db *database/sql.DB, options ...Option) (*Store, error)
 pkg github.com/usefabrin/fabrin/authpg, func WithInvitationsRequired() Option

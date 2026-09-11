@@ -638,6 +638,14 @@ the version.
 | AUTHREDIS-001 | Separate Redis clients share abuse budgets, allow one verification winner, and authenticate/revoke digest-only sessions | `authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner` |
 | AUTHREDIS-002 | Transient durable identity failure releases the verification lease for a retry; construction performs no Redis I/O | `authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner`, `authredis/authredis_test.go::TestNew_ValidatesConfigurationWithoutConnecting` |
 
+## Native authentication HTTP
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| AUTHHTTP-001 | Native-purpose login returns a no-store bearer token without cookies; current ignores query tokens and logout revokes before success | `authhttp/native_test.go::TestNative_LoginCurrentAndLogout` |
+| AUTHHTTP-002 | Bodies are strict and bounded, and delivery outcomes retain a neutral accepted shape | `authhttp/native_test.go::TestNative_StrictBodiesAndNeutralDeliveryResponse` |
+| AUTHHTTP-003 | Forwarded headers do not bypass the default direct-peer source budget | `authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders` |
+
 ## Preview sessions
 
 | ID | Behaviour | Test |
