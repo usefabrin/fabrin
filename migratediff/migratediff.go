@@ -98,6 +98,15 @@ type DropColumn struct {
 	Column string
 }
 
+// RenameColumn changes a column's identifier without dropping its data.
+// makemigrations emits it only after a user confirms a compatible drop/add
+// pair; [Diff] never guesses that two names describe one column.
+type RenameColumn struct {
+	Table string
+	From  string
+	To    string
+}
+
 // ChangeType moves a column to a new type or length. What the server does with
 // the existing values is the server's semantics; the Operation states the
 // destination, not a promise about conversion.
@@ -301,6 +310,10 @@ func (o AddColumn) Describe() string {
 
 func (o DropColumn) Describe() string {
 	return fmt.Sprintf("drop column %s.%s", o.Table, o.Column)
+}
+
+func (o RenameColumn) Describe() string {
+	return fmt.Sprintf("rename column %s.%s to %s", o.Table, o.From, o.To)
 }
 
 func (o ChangeType) Describe() string {

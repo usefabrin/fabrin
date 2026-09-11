@@ -37,6 +37,14 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Interactive migration rename detection.** `makemigrations` now presents
+  compatible drop/add pairs one at a time instead of guessing whether two field
+  names share an identity. Confirming emits a reversible public
+  `migratediff.RenameColumn`; declining retains the drop/add and its data-loss
+  warning. `-no-input` and non-terminal input fail before files are written,
+  naming both columns. Confirmed constrained-column renames currently require a
+  hand-written migration so ADR 0006's generated constraint/index names cannot
+  silently remain tied to the old column. ([#58](https://github.com/usefabrin/fabrin/issues/58))
 - **Complete migration constraint vocabulary.** `migratediff` now exposes
   `ChangeNullability`, `AddUnique`/`DropUnique`, `AddIndex`/`DropIndex`, and
   `AddPrimaryKey`/`DropPrimaryKey`. The differ emits simultaneous field changes

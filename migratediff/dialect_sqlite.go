@@ -40,6 +40,12 @@ func (d SQLite) Render(op Operation) ([]string, error) {
 		if o != nil {
 			return oneStatement(d.dropColumn(o.Table, o.Column))
 		}
+	case RenameColumn:
+		return []string{d.renameColumn(o.Table, o.From, o.To)}, nil
+	case *RenameColumn:
+		if o != nil {
+			return []string{d.renameColumn(o.Table, o.From, o.To)}, nil
+		}
 	case ChangeType:
 		return oneStatement(d.changeType(o.Table, o.Column, o.To))
 	case *ChangeType:
@@ -109,6 +115,10 @@ func (SQLite) addColumn(table string, f orm.Field) ([]string, error) {
 func (SQLite) dropColumn(_, _ string) (string, error) {
 	return "", fmt.Errorf("%w: %s cannot drop a column in place; the table-rebuild dance is not implemented yet",
 		ErrUnsupported, SQLite{}.Name())
+}
+
+func (SQLite) renameColumn(table, from, to string) string {
+	return "ALTER TABLE " + quoteIdentifier(table) + " RENAME COLUMN " + quoteIdentifier(from) + " TO " + quoteIdentifier(to)
 }
 
 // ChangeType refuses, for the same reason DropColumn does: altering a column's

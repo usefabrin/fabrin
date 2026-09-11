@@ -200,6 +200,7 @@ pkg github.com/usefabrin/fabrin/migratediff, method (DropTable) Describe() strin
 pkg github.com/usefabrin/fabrin/migratediff, method (DropUnique) Describe() string
 pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) Name() string
 pkg github.com/usefabrin/fabrin/migratediff, method (Postgres) Render(op Operation) ([]string, error)
+pkg github.com/usefabrin/fabrin/migratediff, method (RenameColumn) Describe() string
 pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) Name() string
 pkg github.com/usefabrin/fabrin/migratediff, method (SQLite) Render(op Operation) ([]string, error)
 pkg github.com/usefabrin/fabrin/migratediff, type AddColumn struct
@@ -244,6 +245,10 @@ pkg github.com/usefabrin/fabrin/migratediff, type DropUnique struct, Table strin
 pkg github.com/usefabrin/fabrin/migratediff, type Operation interface
 pkg github.com/usefabrin/fabrin/migratediff, type Operation interface, Describe() string
 pkg github.com/usefabrin/fabrin/migratediff, type Postgres struct
+pkg github.com/usefabrin/fabrin/migratediff, type RenameColumn struct
+pkg github.com/usefabrin/fabrin/migratediff, type RenameColumn struct, From string
+pkg github.com/usefabrin/fabrin/migratediff, type RenameColumn struct, Table string
+pkg github.com/usefabrin/fabrin/migratediff, type RenameColumn struct, To string
 pkg github.com/usefabrin/fabrin/migratediff, type SQLite struct
 pkg github.com/usefabrin/fabrin/migratediff, var ErrUnsupported error
 

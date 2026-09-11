@@ -328,6 +328,12 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-050 | pgx generation preserves multi-statement Up groups and reverses Down groups | `makemigrations_test.go::TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups` |
 | MIG-051 | Same-second migration generation advances beyond the recorded version | `makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond` |
 | MIG-052 | Each module migration records its own cumulative state; replay reaches final schema | `makemigrations_test.go::TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration` |
+| MIG-053 | Explicit SQLite/PostgreSQL column rename; SQLite preserves data | `migratediff/migratediff_test.go::TestSQLite_RenamesAColumnWithoutLosingItsData` |
+| MIG-054 | Confirmed compatible pair generates one reversible rename | `makemigrations_internal_test.go::TestRunMakemigrations_ConfirmedRenameGeneratesReversibleSQL` |
+| MIG-055 | Declined rename remains drop/add with its data-loss warning | `makemigrations_internal_test.go::TestRunMakemigrations_DeclinedRenameGeneratesDropAndAdd` |
+| MIG-056 | `-no-input` refuses a possible rename before writing files | `makemigrations_test.go::TestExecute_MakemigrationsNoInputRefusesPossibleRenameBeforeWriting` |
+| MIG-057 | Ambiguous compatible pairs are asked one at a time | `makemigrations_internal_test.go::TestResolveRenames_AsksAmbiguousCandidatesOneAtATime` |
+| MIG-058 | Confirmed constrained rename requires a hand-written migration | `makemigrations_internal_test.go::TestResolveRenames_ConfirmedConstrainedColumnRequiresHandWrittenMigration` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,
