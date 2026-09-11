@@ -646,6 +646,7 @@ the version.
 | AUTHHTTP-001 | Native-purpose login returns a no-store bearer token without cookies; current ignores query tokens and logout revokes before success | `authhttp/native_test.go::TestNative_LoginCurrentAndLogout` |
 | AUTHHTTP-002 | Bodies are strict and bounded, and delivery outcomes retain a neutral accepted shape | `authhttp/native_test.go::TestNative_StrictBodiesAndNeutralDeliveryResponse` |
 | AUTHHTTP-003 | Forwarded headers do not bypass the default direct-peer source budget | `authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders` |
+| AUTHHTTP-004 | Native protected-route middleware authenticates one bearer credential and carries the identity in standard request context | `authhttp/native_test.go::TestNative_LoginCurrentAndLogout` |
 
 ## Browser pre-authentication
 
@@ -657,6 +658,7 @@ the version.
 | BROWSER-004 | Credentialed CORS accepts only exact configured HTTPS origins, rejects untrusted/null origins, and challenge verification stays bound to its browser context | `authhttp/browser_test.go::TestBrowser_RejectsUntrustedOriginsAndCrossBrowserVerification` |
 | BROWSER-005 | Browser bodies are strict and bounded and ambiguous duplicate pre-auth cookies fail closed | `authhttp/browser_test.go::TestBrowser_StrictInputAndAmbiguousCookiesFailClosed` |
 | BROWSER-006 | Production requires exact HTTPS origins; explicit insecure development accepts only HTTP loopback and uses distinct cookie names | `authhttp/browser_test.go::TestNewBrowser_RestrictsOriginsAndInsecureCookiesToLoopback` |
+| BROWSER-007 | Browser protected-route middleware authenticates the session cookie, carries identity in standard context, and gates unsafe routes with session CSRF | `authhttp/browser_test.go::TestBrowser_LoginCurrentAndLogout` |
 
 ## Preview sessions
 
@@ -665,5 +667,6 @@ the version.
 | SES-001 | Initial sessions use independent 32-byte opaque credential and CSRF secrets, persist only SHA-256 digests, and are created atomically with OTP consumption. | `auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession` |
 | SES-002 | Native preview sessions enforce exclusive seven-day absolute and 24-hour idle expiry, refresh idle activity server-side, and revoke before logout succeeds. | `auth/session_test.go::TestSessionManager_AuthenticatesIdleExpiresAndRevokes` |
 | SES-003 | Logout-all authenticates one session and atomically revokes every session for its identity; Redis uses the same identity index | `auth/session_test.go::TestSessionManager_LogoutAllRevokesEveryIdentitySession`, `authredis/authredis_test.go::TestStore_RedisLogoutAllRevokesIdentityIndex` |
+| SES-004 | Invalid sessions remain authentication failures while unexpected session-store errors become sanitized unavailability | `auth/session_test.go::TestSessionManager_SanitizesStoreFailures` |
 
 Expiry and attempt boundaries also run in `auth/challenge_test.go::TestChallenge_ExpiryAndAttemptBoundary`; verifier encoding is covered by `auth/challenge_test.go::TestChallenge_VerifierUsesUnambiguousFieldEncoding`. Replacement-budget and fail-closed capacity details run in `auth/auth_test.go::TestService_ResendReplacesChallengeWithoutResettingBudgets` and `auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity`; exact cleanup isolation runs in `auth/auth_test.go::TestMemoryStore_InvalidateDoesNotRevokeReplacement`. These local tests do not complete the planned end-to-end AUTH rows.

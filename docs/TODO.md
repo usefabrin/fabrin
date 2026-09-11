@@ -300,8 +300,8 @@ and cleanup remain. See
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)
-- [~] Native and browser login/current/logout handlers exist with browser CSRF
-      and exact-origin CORS; shared `RequireAuth` middleware remains.
+- [x] Native and browser login/current/logout plus protected-route middleware
+      exist with browser CSRF and exact-origin CORS.
 - [ ] Threat model before API freeze: rotation and fixation, cookie defaults,
       enumeration, password upgrades, recovery, audit, and fail-closed authz.
       ([#80](https://github.com/usefabrin/fabrin/issues/80))

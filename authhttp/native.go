@@ -167,6 +167,27 @@ func (n *Native) LogoutAll(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// RequireAuth returns middleware that authenticates exactly one bearer
+// credential and adds its identity to the request context.
+func (n *Native) RequireAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		credential, ok := bearerCredential(c.Request)
+		if !ok {
+			noStore(c)
+			writeError(c, http.StatusUnauthorized, "authentication_failed")
+			return
+		}
+		identity, err := n.sessions.Current(c.Request.Context(), credential)
+		if err != nil {
+			noStore(c)
+			writeAuthError(c, err)
+			return
+		}
+		c.Request = c.Request.WithContext(auth.WithIdentity(c.Request.Context(), identity))
+		c.Next()
+	}
+}
+
 func decodeJSON(c *gin.Context, target any) error {
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || mediaType != "application/json" {

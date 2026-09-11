@@ -19,6 +19,10 @@ import (
 
 func TestNative_LoginCurrentAndLogout(t *testing.T) {
 	router, inbox, service := nativeRouter(t, nil)
+	denied := perform(t, router, http.MethodGet, "/protected", "", "")
+	if denied.Code != http.StatusUnauthorized {
+		t.Fatalf("unprotected bearer route: status=%d body=%s", denied.Code, denied.Body.String())
+	}
 
 	request := perform(t, router, http.MethodPost, "/request", `{"email":"Alice@EXAMPLE.COM"}`, "")
 	if request.Code != http.StatusAccepted || request.Header().Get("Cache-Control") != "no-store" {
@@ -63,6 +67,10 @@ func TestNative_LoginCurrentAndLogout(t *testing.T) {
 	current := perform(t, router, http.MethodGet, "/current", "", "Bearer "+login.Token)
 	if current.Code != http.StatusOK || current.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("current: status=%d body=%s", current.Code, current.Body.String())
+	}
+	protected := perform(t, router, http.MethodGet, "/protected", "", "Bearer "+login.Token)
+	if protected.Code != http.StatusOK || !strings.Contains(protected.Body.String(), login.Identity.ID) {
+		t.Fatalf("protected: status=%d body=%s", protected.Code, protected.Body.String())
 	}
 
 	logout := perform(t, router, http.MethodPost, "/logout", "", "Bearer "+login.Token)
@@ -174,6 +182,14 @@ func nativeRouter(t *testing.T, sender auth.Sender) (*gin.Engine, *mail.Capture,
 	router.GET("/current", native.Current)
 	router.POST("/logout", native.Logout)
 	router.POST("/logout-all", native.LogoutAll)
+	router.GET("/protected", native.RequireAuth(), func(c *gin.Context) {
+		identity, ok := auth.IdentityFromContext(c.Request.Context())
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"identity_id": identity.ID})
+	})
 	return router, inbox, service
 }
 

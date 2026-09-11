@@ -254,19 +254,42 @@ func (b *Browser) LogoutAll(c *gin.Context) {
 	b.logout(c, true)
 }
 
+// RequireAuth returns middleware that authenticates the browser session cookie
+// and adds its identity to the request context.
+func (b *Browser) RequireAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		credential, ok := exactCookie(c.Request, b.sessionCookie)
+		if !ok {
+			noStore(c)
+			writeError(c, http.StatusUnauthorized, "authentication_failed")
+			return
+		}
+		identity, err := b.sessions.Current(c.Request.Context(), credential)
+		if err != nil {
+			noStore(c)
+			writeAuthError(c, err)
+			return
+		}
+		c.Request = c.Request.WithContext(auth.WithIdentity(c.Request.Context(), identity))
+		c.Next()
+	}
+}
+
+// RequireCSRF returns middleware that validates exact origin, session cookie
+// and CSRF state before an unsafe browser handler runs.
+func (b *Browser) RequireCSRF() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if _, ok := b.sessionCSRF(c); !ok {
+			return
+		}
+		c.Next()
+	}
+}
+
 func (b *Browser) logout(c *gin.Context, all bool) {
 	noStore(c)
-	if !b.unsafeOrigin(c) {
-		return
-	}
-	credential, ok := exactCookie(c.Request, b.sessionCookie)
+	credential, ok := b.sessionCSRF(c)
 	if !ok {
-		writeError(c, http.StatusUnauthorized, "authentication_failed")
-		return
-	}
-	csrf, ok := exactHeader(c.Request.Header, csrfHeaderName)
-	if !ok || b.sessions.ValidateCSRF(c.Request.Context(), credential, csrf) != nil {
-		writeError(c, http.StatusForbidden, "csrf_failed")
 		return
 	}
 	var err error
@@ -281,6 +304,31 @@ func (b *Browser) logout(c *gin.Context, all bool) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (b *Browser) sessionCSRF(c *gin.Context) (string, bool) {
+	if !b.unsafeOrigin(c) {
+		return "", false
+	}
+	credential, ok := exactCookie(c.Request, b.sessionCookie)
+	if !ok {
+		writeError(c, http.StatusUnauthorized, "authentication_failed")
+		return "", false
+	}
+	csrf, ok := exactHeader(c.Request.Header, csrfHeaderName)
+	if !ok {
+		writeError(c, http.StatusForbidden, "csrf_failed")
+		return "", false
+	}
+	if err := b.sessions.ValidateCSRF(c.Request.Context(), credential, csrf); err != nil {
+		if errors.Is(err, auth.ErrUnavailable) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			writeError(c, http.StatusServiceUnavailable, "temporarily_unavailable")
+		} else {
+			writeError(c, http.StatusForbidden, "csrf_failed")
+		}
+		return "", false
+	}
+	return credential, true
 }
 
 func (b *Browser) preAuthRequest(c *gin.Context) (string, string, bool) {

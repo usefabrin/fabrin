@@ -18,6 +18,10 @@ const browserOrigin = "https://app.example"
 
 func TestBrowser_LoginCurrentAndLogout(t *testing.T) {
 	router, inbox := browserRouter(t)
+	denied := browserRequest(t, router, http.MethodGet, "/protected", "", "", "", nil)
+	if denied.Code != http.StatusUnauthorized {
+		t.Fatalf("unprotected cookie route: status=%d body=%s", denied.Code, denied.Body.String())
+	}
 	bootstrap := browserRequest(t, router, http.MethodGet, "/bootstrap", "", browserOrigin, "", nil)
 	if bootstrap.Code != http.StatusOK || bootstrap.Header().Get("Cache-Control") != "no-store" || bootstrap.Header().Get("Access-Control-Allow-Origin") != browserOrigin || bootstrap.Header().Get("Access-Control-Allow-Credentials") != "true" {
 		t.Fatalf("bootstrap: status=%d headers=%v body=%s", bootstrap.Code, bootstrap.Header(), bootstrap.Body.String())
@@ -71,6 +75,14 @@ func TestBrowser_LoginCurrentAndLogout(t *testing.T) {
 	current := browserRequest(t, router, http.MethodGet, "/current", "", "", "", session)
 	if current.Code != http.StatusOK {
 		t.Fatalf("current: status=%d body=%s", current.Code, current.Body.String())
+	}
+	protected := browserRequest(t, router, http.MethodGet, "/protected", "", "", "", session)
+	if protected.Code != http.StatusOK || !strings.Contains(protected.Body.String(), login.Identity.ID) {
+		t.Fatalf("protected: status=%d body=%s", protected.Code, protected.Body.String())
+	}
+	unsafe := browserRequest(t, router, http.MethodPost, "/protected", "", browserOrigin, login.CSRFToken, session)
+	if unsafe.Code != http.StatusNoContent {
+		t.Fatalf("unsafe protected: status=%d body=%s", unsafe.Code, unsafe.Body.String())
 	}
 	missingOrigin := browserRequest(t, router, http.MethodPost, "/logout", "", "", login.CSRFToken, session)
 	if missingOrigin.Code != http.StatusForbidden {
@@ -200,6 +212,15 @@ func browserRouter(t *testing.T) (*gin.Engine, *mail.Capture) {
 	router.POST("/verify", browser.VerifyCode)
 	router.GET("/current", browser.Current)
 	router.POST("/logout", browser.Logout)
+	router.GET("/protected", browser.RequireAuth(), func(c *gin.Context) {
+		identity, ok := auth.IdentityFromContext(c.Request.Context())
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"identity_id": identity.ID})
+	})
+	router.POST("/protected", browser.RequireAuth(), browser.RequireCSRF(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	router.OPTIONS("/request", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	return router, inbox
 }

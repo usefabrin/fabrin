@@ -980,6 +980,13 @@ behaviours:
     status: implemented
     test: authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders
 
+  - id: AUTHHTTP-004
+    what: Native protected-route middleware accepts exactly one bearer credential, authenticates it server-side, and carries the verified identity in the standard request context.
+    why: Application handlers need one transport-safe authentication gate and a principal representation that remains usable below Gin.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/native_test.go::TestNative_LoginCurrentAndLogout
+
   - id: BROWSER-001
     what: Browser bootstrap returns independent opaque pre-authentication and CSRF secrets, persists only their digests, expires exclusively after ten minutes, and consumes once.
     why: CSRF protection must exist before login without placing reusable plaintext state in storage or allowing an expired bootstrap to start a session.
@@ -1021,6 +1028,20 @@ behaviours:
     requirement: FR-AUTH-7
     status: implemented
     test: authhttp/browser_test.go::TestNewBrowser_RestrictsOriginsAndInsecureCookiesToLoopback
+
+  - id: BROWSER-007
+    what: Browser protected-route middleware authenticates only the configured session cookie, carries the identity in the standard request context, and provides a reusable exact-origin session-CSRF gate for unsafe routes.
+    why: Browser application handlers must share the reviewed cookie and CSRF boundary rather than reimplementing it per route.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/browser_test.go::TestBrowser_LoginCurrentAndLogout
+
+  - id: SES-004
+    what: Session manager operations preserve invalid-session failures while mapping unexpected store errors to a sanitized unavailable condition.
+    why: An ephemeral-store outage must remain distinguishable from bad credentials without leaking backend errors.
+    requirement: FR-AUTH-2
+    status: implemented
+    test: auth/session_test.go::TestSessionManager_SanitizesStoreFailures
 
   - id: OTP-002
     what: Private challenge consumption allows at most five attempts and one concurrent successful use.

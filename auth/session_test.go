@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
@@ -146,6 +147,32 @@ func TestSessionManager_RejectsMalformedCredentials(t *testing.T) {
 	}
 	if _, err := NewSessionManager(nil); err == nil {
 		t.Fatal("accepted nil session store")
+	}
+}
+
+func TestSessionManager_SanitizesStoreFailures(t *testing.T) {
+	_, session, err := newSession(time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential := session.ID + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+	manager, err := NewSessionManager(errorStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, call := range map[string]func() error{
+		"current": func() error { _, err := manager.Current(t.Context(), credential); return err },
+		"csrf": func() error {
+			return manager.ValidateCSRF(t.Context(), credential, base64.RawURLEncoding.EncodeToString(make([]byte, 32)))
+		},
+		"logout":     func() error { return manager.Logout(t.Context(), credential) },
+		"logout all": func() error { return manager.LogoutAll(t.Context(), credential) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := call(); !errors.Is(err, ErrUnavailable) {
+				t.Fatalf("store failure: %v", err)
+			}
+		})
 	}
 }
 

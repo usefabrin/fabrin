@@ -12,8 +12,10 @@ logout-all. Core and Redis verification bind browser-purpose challenges to a
 single high-entropy client context. Browser handlers now provide bounded
 pre-authentication, session CSRF, secure host-only cookies, exact-origin CORS,
 current-session, logout and logout-all flows over memory or Redis. Privilege
-revocation, production delivery and authorization remain planned. This is
-approved architecture, not approval of the incomplete production stack.
+revocation, production delivery and authorization remain planned. Both
+transports now provide protected-route middleware, and browser application
+writes can reuse the session-CSRF middleware. This is approved architecture,
+not approval of the incomplete production stack.
 
 ## Goal, trust boundaries and limits
 
@@ -277,6 +279,8 @@ separation, neutral delivery responses, no-store bearer flow and logout.
 Browser HTTP tests prove secure cookie attributes, exact-origin CORS,
 missing/null origin rejection, pre-auth and session CSRF, cross-browser
 challenge binding, strict bodies, ambiguous-cookie rejection and
-credential-free verification JSON. Identity-wide logout is implemented;
+credential-free verification JSON. Native/browser middleware tests prove
+transport-specific credential extraction and request-context identity.
+Identity-wide logout is implemented;
 privilege-change revocation, scheduled cleanup, complete HTTP enumeration
 resistance, and production delivery remain unproved and unimplemented.

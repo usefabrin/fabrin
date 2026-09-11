@@ -97,6 +97,16 @@ direct TCP peer and ignores forwarding headers. After establishing a trusted
 proxy boundary, an application can opt into its own bounded key with
 `authhttp.WithSource`; request-controlled headers alone are unsafe.
 
+Protect native application routes with `native.RequireAuth()`. A successful
+check stores the verified `auth.Identity` in the standard request context:
+
+```go
+r.GET("/account", native.RequireAuth(), func(c *gin.Context) {
+    identity, ok := auth.IdentityFromContext(c.Request.Context())
+    // ok is true after RequireAuth.
+})
+```
+
 ## Browser cookie HTTP
 
 `authhttp.Browser` provides the parallel browser flow without choosing URL
@@ -140,6 +150,12 @@ For an HTTP loopback development server only, pass
 non-loopback origin and switches to `fabrin_dev_preauth` and
 `fabrin_dev_session` cookies without `Secure`. Debug mode does not enable this
 behavior, and production origins remain HTTPS-only.
+
+Use `browser.RequireAuth()` for cookie-authenticated application routes. Add
+`browser.RequireCSRF()` to POST, PUT, PATCH and DELETE routes so the same exact
+Origin and session token checks used by logout complete before the handler runs.
+The identity is available through `auth.IdentityFromContext` as in the native
+example.
 
 ## Memory-store behavior
 

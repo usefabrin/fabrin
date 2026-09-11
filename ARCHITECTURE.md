@@ -136,6 +136,9 @@ and cookie-only authenticated sessions. Session creation stores a fresh CSRF
 digest beside the credential digest; verification returns only the CSRF token
 and never serializes the session credential. An explicit development option is
 limited to HTTP loopback origins and uses separate non-`__Host-` cookie names.
+Native and browser `RequireAuth` middleware validates the appropriate transport
+and carries `auth.Identity` in the standard request context; browser unsafe
+routes can add the same origin/session-CSRF gate used by logout.
 
 ### Generated PostgreSQL data access (preview)
 

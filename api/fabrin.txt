@@ -68,11 +68,13 @@ pkg github.com/usefabrin/fabrin, var ErrUnknownModule error
 
 pkg github.com/usefabrin/fabrin/auth, const PurposeBrowser Purpose = "browser"
 pkg github.com/usefabrin/fabrin/auth, const PurposeNative Purpose = "native"
+pkg github.com/usefabrin/fabrin/auth, func IdentityFromContext(ctx context.Context) (Identity, bool)
 pkg github.com/usefabrin/fabrin/auth, func New(store Store, sender Sender, keyID string, key []byte, options ...Option) (*Service, error)
 pkg github.com/usefabrin/fabrin/auth, func NewMemoryStore(capacity int) (*MemoryStore, error)
 pkg github.com/usefabrin/fabrin/auth, func NewPreAuthManager(store PreAuthStore) (*PreAuthManager, error)
 pkg github.com/usefabrin/fabrin/auth, func NewSessionManager(store SessionStore) (*SessionManager, error)
 pkg github.com/usefabrin/fabrin/auth, func WithBinding(value string) ChallengeOption
+pkg github.com/usefabrin/fabrin/auth, func WithIdentity(ctx context.Context, identity Identity) context.Context
 pkg github.com/usefabrin/fabrin/auth, func WithProduction() Option
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) AuthenticatePreAuth(ctx context.Context, proof PreAuthProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) AuthenticateSession(ctx context.Context, proof SessionProof) (Identity, error)
@@ -205,11 +207,14 @@ pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) Current(c *github.co
 pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) Logout(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) LogoutAll(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) RequestCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) RequireAuth() github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) RequireCSRF() github.com/gin-gonic/gin.HandlerFunc
 pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) VerifyCode(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Current(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Logout(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) LogoutAll(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) RequestCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Native) RequireAuth() github.com/gin-gonic/gin.HandlerFunc
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) VerifyCode(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, type Browser struct
 pkg github.com/usefabrin/fabrin/authhttp, type BrowserOption func(*browserSettings)

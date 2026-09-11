@@ -64,10 +64,7 @@ func (m *SessionManager) ValidateCSRF(ctx context.Context, credential, csrf stri
 		return ErrSession
 	}
 	if _, err := m.store.AuthenticateSession(ctx, proof); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		}
-		return ErrSession
+		return sessionStoreError(err)
 	}
 	return nil
 }
@@ -106,10 +103,7 @@ func (m *SessionManager) Current(ctx context.Context, credential string) (Identi
 	}
 	identity, err := m.store.AuthenticateSession(ctx, proof)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return Identity{}, err
-		}
-		return Identity{}, ErrSession
+		return Identity{}, sessionStoreError(err)
 	}
 	return identity, nil
 }
@@ -124,10 +118,7 @@ func (m *SessionManager) Logout(ctx context.Context, credential string) error {
 		return ErrSession
 	}
 	if err := m.store.RevokeSession(ctx, proof); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		}
-		return ErrSession
+		return sessionStoreError(err)
 	}
 	return nil
 }
@@ -143,12 +134,18 @@ func (m *SessionManager) LogoutAll(ctx context.Context, credential string) error
 		return ErrSession
 	}
 	if err := m.store.RevokeAllSessions(ctx, proof); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return err
-		}
-		return ErrSession
+		return sessionStoreError(err)
 	}
 	return nil
+}
+
+func sessionStoreError(err error) error {
+	switch {
+	case errors.Is(err, ErrSession), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return err
+	default:
+		return ErrUnavailable
+	}
 }
 
 func newSession(now time.Time) (Session, SessionRecord, error) {

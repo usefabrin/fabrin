@@ -37,6 +37,14 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Authenticated-route middleware.** `Native.RequireAuth` and
+  `Browser.RequireAuth` validate their transport-specific credential and attach
+  the stable identity to the request context for `auth.IdentityFromContext`.
+  `Browser.RequireCSRF` provides the exact-origin and session-CSRF gate for
+  unsafe application routes. Session store outages now remain the sanitized
+  `auth.ErrUnavailable` condition through current, CSRF and logout operations.
+  The API snapshot changes intentionally.
+
 - **Secure browser authentication handlers.** New public `authhttp.Browser`,
   `NewBrowser`, `BrowserOption`, `WithBrowserSource` and
   `WithInsecureLoopback` mount bootstrap,
