@@ -20,13 +20,13 @@ func shopRegistry() *orm.Registry {
 	must(r.Register("shop", order()))
 	must(r.Register("shop", orm.Model{
 		Table:  "shipments",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	}))
 	must(r.Register("billing", orm.Model{
 		Table: "invoices",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "total", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "total", Type: orm.TypeFloat},
 		},
 	}))
 	return r
@@ -160,17 +160,17 @@ func TestSnapshot_EncodesConstraintFlagsInVersionedState(t *testing.T) {
 	withFlags := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
-			{Name: "shipped_at", Type: orm.Time, Nullable: true, Index: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32, Unique: true},
+			{Name: "shipped_at", Type: orm.TypeTime, Nullable: true, Index: true},
 		},
 	}
 	withoutFlags := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32},
-			{Name: "shipped_at", Type: orm.Time},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32},
+			{Name: "shipped_at", Type: orm.TypeTime},
 		},
 	}
 
@@ -391,13 +391,13 @@ func TestReplayState_IsDeterministicAndCarriesHandWrittenStepsForward(t *testing
 	// because the differ's output inherits whatever wiggle lives here.
 	first := mustSnapshot(t, "shop", orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	})
 	second := mustSnapshot(t, "shop", orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32},
 		},
 	})
 
@@ -452,7 +452,7 @@ func TestReplayState_RejectsBrokenSequences(t *testing.T) {
 	// would reconstruct some OTHER project's history and present it as truth.
 	state := mustSnapshot(t, "shop", orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	})
 
 	tests := []struct {
@@ -500,7 +500,7 @@ func TestReplayState_DoesNotAliasCallerSteps(t *testing.T) {
 	// steps, mutating one would silently change what the other sees.
 	state := mustSnapshot(t, "shop", orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	})
 
 	got, err := orm.ReplayState([]orm.StateStep{

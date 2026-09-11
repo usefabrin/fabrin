@@ -252,13 +252,13 @@ pkg github.com/usefabrin/fabrin/migratediff, type RenameColumn struct, To string
 pkg github.com/usefabrin/fabrin/migratediff, type SQLite struct
 pkg github.com/usefabrin/fabrin/migratediff, var ErrUnsupported error
 
-pkg github.com/usefabrin/fabrin/orm, const Bool Type = "bool"
-pkg github.com/usefabrin/fabrin/orm, const Bytes Type = "bytes"
-pkg github.com/usefabrin/fabrin/orm, const Float Type = "float"
-pkg github.com/usefabrin/fabrin/orm, const Int Type = "int"
-pkg github.com/usefabrin/fabrin/orm, const Int64 Type = "int64"
-pkg github.com/usefabrin/fabrin/orm, const String Type = "string"
-pkg github.com/usefabrin/fabrin/orm, const Time Type = "time"
+pkg github.com/usefabrin/fabrin/orm, const TypeBool Type = "bool"
+pkg github.com/usefabrin/fabrin/orm, const TypeBytes Type = "bytes"
+pkg github.com/usefabrin/fabrin/orm, const TypeFloat Type = "float"
+pkg github.com/usefabrin/fabrin/orm, const TypeInt Type = "int"
+pkg github.com/usefabrin/fabrin/orm, const TypeInt64 Type = "int64"
+pkg github.com/usefabrin/fabrin/orm, const TypeString Type = "string"
+pkg github.com/usefabrin/fabrin/orm, const TypeTime Type = "time"
 pkg github.com/usefabrin/fabrin/orm, func EncodeSnapshot(s Snapshot) ([]byte, error)
 pkg github.com/usefabrin/fabrin/orm, func NewRegistry() *Registry
 pkg github.com/usefabrin/fabrin/orm, func NewSnapshot(models []Registered) (Snapshot, error)

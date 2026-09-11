@@ -53,19 +53,19 @@ type Type string
 // forgotten must be an error rather than silently becoming whichever constant
 // happens to sort first.
 const (
-	String Type = "string"
-	Int    Type = "int"
-	Int64  Type = "int64"
-	Float  Type = "float"
-	Bool   Type = "bool"
-	Time   Type = "time"
-	Bytes  Type = "bytes"
+	TypeString Type = "string"
+	TypeInt    Type = "int"
+	TypeInt64  Type = "int64"
+	TypeFloat  Type = "float"
+	TypeBool   Type = "bool"
+	TypeTime   Type = "time"
+	TypeBytes  Type = "bytes"
 )
 
 // Valid reports whether t is one of the declared types.
 func (t Type) Valid() bool {
 	switch t {
-	case String, Int, Int64, Float, Bool, Time, Bytes:
+	case TypeString, TypeInt, TypeInt64, TypeFloat, TypeBool, TypeTime, TypeBytes:
 		return true
 	}
 	return false
@@ -83,9 +83,9 @@ type Field struct {
 	// Type is the column type. The zero value is invalid.
 	Type Type
 
-	// MaxLen bounds a String column. Zero means unbounded. It is an error on any
-	// other type — a length on an integer is a misunderstanding that every
-	// dialect would either ignore or refuse.
+	// MaxLen bounds a string column (TypeString). Zero means unbounded. It is an
+	// error on any other type — a length on an integer is a misunderstanding that
+	// every dialect would either ignore or refuse.
 	MaxLen int
 
 	// Nullable opts a column OUT of NOT NULL. Columns are NOT NULL unless this
@@ -225,8 +225,8 @@ func validate(m Model) error {
 			return fmt.Errorf("%w: table %q, field %q has type %q, which is not one of Fabrin's column types", ErrInvalidField, m.Table, f.Name, f.Type)
 		case seen[f.Name]:
 			return fmt.Errorf("%w: table %q declares field %q twice — the second would shadow the first in every diff", ErrInvalidField, m.Table, f.Name)
-		case f.MaxLen != 0 && f.Type != String:
-			return fmt.Errorf("%w: table %q, field %q is %s with MaxLen %d — a length applies only to %s", ErrInvalidField, m.Table, f.Name, f.Type, f.MaxLen, String)
+		case f.MaxLen != 0 && f.Type != TypeString:
+			return fmt.Errorf("%w: table %q, field %q is %s with MaxLen %d — a length applies only to %s", ErrInvalidField, m.Table, f.Name, f.Type, f.MaxLen, TypeString)
 		case f.MaxLen < 0:
 			return fmt.Errorf("%w: table %q, field %q has a negative MaxLen", ErrInvalidField, m.Table, f.Name)
 		case f.PrimaryKey && f.Nullable:

@@ -147,22 +147,22 @@ func (SQLite) dropIndex(table, column string) string {
 // metadata records it.
 func sqliteType(f orm.Field) (string, error) {
 	switch f.Type {
-	case orm.String:
+	case orm.TypeString:
 		if f.MaxLen > 0 {
 			return fmt.Sprintf("VARCHAR(%d)", f.MaxLen), nil
 		}
 		return "TEXT", nil
-	case orm.Int:
+	case orm.TypeInt:
 		return "INTEGER", nil
-	case orm.Int64:
+	case orm.TypeInt64:
 		return "BIGINT", nil
-	case orm.Float:
+	case orm.TypeFloat:
 		return "REAL", nil
-	case orm.Bool:
+	case orm.TypeBool:
 		return "BOOLEAN", nil
-	case orm.Time:
+	case orm.TypeTime:
 		return "TIMESTAMP", nil
-	case orm.Bytes:
+	case orm.TypeBytes:
 		return "BLOB", nil
 	default:
 		return "", fmt.Errorf("%w: SQLite has no rendering for type %q", orm.ErrInvalidField, f.Type)

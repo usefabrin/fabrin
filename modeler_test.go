@@ -26,7 +26,7 @@ func modeler(name, table string) fabrin.Module {
 		testModule: testModule{name: name, routes: func(fabrin.Router) {}},
 		models: []orm.Model{{
 			Table:  table,
-			Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+			Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 		}},
 	}
 }

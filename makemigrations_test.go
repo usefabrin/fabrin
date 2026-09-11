@@ -34,7 +34,7 @@ func owner(name, table string) fabrin.Module {
 		testModule: testModule{name: name, routes: func(fabrin.Router) {}},
 		models: []orm.Model{{
 			Table:  table,
-			Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+			Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 		}},
 	}
 }
@@ -50,8 +50,8 @@ func ordersModelFull() orm.Model {
 	return orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32},
 		},
 	}
 }
@@ -317,7 +317,7 @@ func TestExecute_MakemigrationsCarriesHandWrittenStepsForward(t *testing.T) {
 	// Now the model gains a column. The diff must be ONE added column against
 	// the carried-forward state — not a create-everything against an empty one.
 	grown := ordersModelFull()
-	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.Float, Nullable: true})
+	grown.Fields = append(grown.Fields, orm.Field{Name: "total", Type: orm.TypeFloat, Nullable: true})
 	app2, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", grown))
 	if err != nil {
 		t.Fatalf("New again: %v", err)
@@ -345,8 +345,8 @@ func TestExecute_MakemigrationsNoInputRefusesPossibleRenameBeforeWriting(t *test
 	before := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "total", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "total", Type: orm.TypeFloat},
 		},
 	}
 	app, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", before))
@@ -387,7 +387,7 @@ func TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration(t *testing.T
 		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
 		ownerWith("billing", orm.Model{
 			Table:  "invoices",
-			Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+			Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 		}),
 		ownerWith("shop", ordersModelFull()),
 	)
@@ -422,11 +422,11 @@ func TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration(t *testi
 	db := memoryDB(t)
 	billingBefore := orm.Model{
 		Table:  "invoices",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	}
 	shopBefore := orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	}
 	app, err := fabrin.New(
 		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
@@ -441,9 +441,9 @@ func TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration(t *testi
 	}
 
 	billingAfter := billingBefore
-	billingAfter.Fields = append(billingAfter.Fields, orm.Field{Name: "number", Type: orm.String, Nullable: true})
+	billingAfter.Fields = append(billingAfter.Fields, orm.Field{Name: "number", Type: orm.TypeString, Nullable: true})
 	shopAfter := shopBefore
-	shopAfter.Fields = append(shopAfter.Fields, orm.Field{Name: "reference", Type: orm.String, MaxLen: 32, Nullable: true})
+	shopAfter.Fields = append(shopAfter.Fields, orm.Field{Name: "reference", Type: orm.TypeString, MaxLen: 32, Nullable: true})
 	app, err = fabrin.New(
 		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
 		ownerWith("billing", billingAfter),
@@ -516,9 +516,9 @@ func TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroup
 	before := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, Nullable: true},
-			{Name: "code", Type: orm.String, Index: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, Nullable: true},
+			{Name: "code", Type: orm.TypeString, Index: true},
 		},
 	}
 	app, err := fabrin.New(
@@ -536,9 +536,9 @@ func TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroup
 	after := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64},
-			{Name: "reference", Type: orm.String, PrimaryKey: true},
-			{Name: "code", Type: orm.Bytes, Unique: true},
+			{Name: "id", Type: orm.TypeInt64},
+			{Name: "reference", Type: orm.TypeString, PrimaryKey: true},
+			{Name: "code", Type: orm.TypeBytes, Unique: true},
 		},
 	}
 	app, err = fabrin.New(

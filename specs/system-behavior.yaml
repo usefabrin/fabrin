@@ -407,6 +407,13 @@ behaviours:
     status: implemented
     test: orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate
 
+  - id: ORM-014
+    what: Every public column-type constant is prefixed with Type and retains its stable serialized value.
+    why: Bare names such as orm.Time are easy to confuse with time.Time and break the repository's established enum naming convention. Prefixing the names before v1 makes call sites self-describing while retaining the state-file vocabulary already written to disk.
+    requirement: FR-ORM-1
+    status: implemented
+    test: orm/orm_test.go::TestType_PrefixedConstantsAreValidAndKeepTheirWireValues
+
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001
     what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.

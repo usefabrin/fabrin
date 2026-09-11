@@ -88,8 +88,8 @@ func TestResolveRenames_ConfirmedConstrainedColumnRequiresHandWrittenMigration(t
 	before, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "code", Type: orm.String, Unique: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "code", Type: orm.TypeString, Unique: true},
 		},
 	}}})
 	if err != nil {
@@ -98,8 +98,8 @@ func TestResolveRenames_ConfirmedConstrainedColumnRequiresHandWrittenMigration(t
 	after, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "slug", Type: orm.String, Unique: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "slug", Type: orm.TypeString, Unique: true},
 		},
 	}}})
 	if err != nil {
@@ -121,9 +121,9 @@ func TestResolveRenames_AsksAmbiguousCandidatesOneAtATime(t *testing.T) {
 	before, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "subtotal", Type: orm.Float},
-			{Name: "tax", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "subtotal", Type: orm.TypeFloat},
+			{Name: "tax", Type: orm.TypeFloat},
 		},
 	}}})
 	if err != nil {
@@ -132,9 +132,9 @@ func TestResolveRenames_AsksAmbiguousCandidatesOneAtATime(t *testing.T) {
 	after, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "amount", Type: orm.Float},
-			{Name: "vat", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "amount", Type: orm.TypeFloat},
+			{Name: "vat", Type: orm.TypeFloat},
 		},
 	}}})
 	if err != nil {
@@ -197,8 +197,8 @@ func generateRenameMigration(t *testing.T, answer string) string {
 	before := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "total", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "total", Type: orm.TypeFloat},
 		},
 	}
 	app, err := New(Options{Addr: "127.0.0.1:0", DB: db}, renameModule{model: before})
@@ -275,8 +275,8 @@ func renameSnapshots(t *testing.T) (orm.Snapshot, orm.Snapshot) {
 	before, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "total", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "total", Type: orm.TypeFloat},
 		},
 	}}})
 	if err != nil {
@@ -285,8 +285,8 @@ func renameSnapshots(t *testing.T) (orm.Snapshot, orm.Snapshot) {
 	after, err := orm.NewSnapshot([]orm.Registered{{Module: "shop", Model: orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "amount", Type: orm.Float},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "amount", Type: orm.TypeFloat},
 		},
 	}}})
 	if err != nil {
