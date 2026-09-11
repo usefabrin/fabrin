@@ -135,3 +135,21 @@ concurrent failure exhaustion. Separate root/HTTP/SQL boundary probes failed as
 expected and the cryptographic stdlib negative control passed. No public API
 snapshot changes were needed. These checks do not mark the full AUTH contract
 rows implemented.
+
+## September 11 integration
+
+Open contributor PRs were reconciled with the direct-main history. #121 (#120,
+Bash 3.2 empty migration set), #123 (#58, interactive rename detection) and #124
+(#122, `orm.Type*` constants) landed by cherry-pick with authorship preserved and
+conflicts resolved against main. #101 was already resolved by the cumulative
+sidecar fix, so #119 is superseded; #125 and #126 are superseded by the schema
+generator (ADR 0007, still proposed) and the approved `AUTH_CONTRACT.md`. #127
+remains open as an alternative #110 OTP core pending a rebase onto main.
+
+Porting #124 exposed that `schema.Generate` wrote `orm.<Kind>` into generated
+metadata as text, so generated projects stopped compiling. A cached passing test
+result hid it; an uncached `TestGenerate_CompilesAndUsesPostgres` run caught it,
+and the generator now emits `orm.Type<Kind>`. Previously generated source must be
+regenerated. Validation: `go test -count=1 ./...`, `just race` on a cleared test
+cache, `just check`, and the ported migration-version gate passing an empty set
+under Bash 3.2 while rejecting an injected duplicate.
