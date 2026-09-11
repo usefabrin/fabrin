@@ -76,9 +76,9 @@ func orderResource(t *testing.T, memory *orderMemory, actions *[]action, tokens 
 		model: orm.Registered{
 			Module: "shop",
 			Model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true},
-				{Name: "item", Type: orm.String, MaxLen: 64},
-				{Name: "quantity", Type: orm.Int},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+				{Name: "item", Type: orm.TypeString, MaxLen: 64},
+				{Name: "quantity", Type: orm.TypeInt},
 			}},
 		},
 		newRecord: func() order { return order{} },

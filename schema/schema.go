@@ -33,7 +33,7 @@ func Int64(name string) Field { return Field{name: name, kind: "Int64"} }
 // Bool declares a PostgreSQL boolean column.
 func Bool(name string) Field { return Field{name: name, kind: "Bool"} }
 
-// Time declares a PostgreSQL timestamp without time zone, matching orm.Time.
+// Time declares a PostgreSQL timestamp without time zone, matching orm.TypeTime.
 func Time(name string) Field { return Field{name: name, kind: "Time"} }
 
 // PrimaryKey identifies the single, caller-supplied key. It cannot be nullable.
@@ -200,7 +200,7 @@ func (m Model) generate(b *strings.Builder) error {
 	fmt.Fprintf(b, "// %sCreateTableSQL creates the initial table; execute only in a migration.\nconst %sCreateTableSQL = %q\n\n", m.name, m.name, strings.Join(ddl, ";\n"))
 	fmt.Fprintf(b, "// %sModel returns fresh migration metadata.\nfunc %sModel() orm.Model { return orm.Model{Table:%q,Fields:[]orm.Field{\n", m.name, m.name, m.table)
 	for _, f := range m.fields {
-		fmt.Fprintf(b, "{Name:%q,Type:orm.%s,MaxLen:%d,PrimaryKey:%t,Nullable:%t},\n", f.name, f.kind, f.maxLen, f.primary, f.nullable)
+		fmt.Fprintf(b, "{Name:%q,Type:orm.Type%s,MaxLen:%d,PrimaryKey:%t,Nullable:%t},\n", f.name, f.kind, f.maxLen, f.primary, f.nullable)
 	}
 	b.WriteString("}}}\n\n")
 	fmt.Fprintf(b, "// %sStore provides typed access; it does not authorize callers.\ntype %sStore struct { db DB }\n", m.name, m.name)

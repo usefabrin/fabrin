@@ -161,8 +161,10 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-011 | One `Store` port, two implementations — in-memory in tests, the real one in `main` | `examples/hello/orders/orders_test.go::TestModule_ReachesItsDataOnlyThroughTheStoreItWasGiven` |
 | ORM-012 | A primary key marked `Nullable` is rejected at registration | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
 | ORM-013 | Redundant `Unique`/`Index` flags, including on a primary key, are rejected | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
+| ORM-014 | Column-type constants use `Type`-prefixed names while retaining their serialized values | `orm/orm_test.go::TestType_PrefixedConstantsAreValidAndKeepTheirWireValues` |
 
-ORM-001…006 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3; ORM-010…011 cite FR-ORM-2,
+ORM-001…006 and ORM-012…014 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3;
+ORM-010…011 cite FR-ORM-2,
 which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a
 documented adapter pattern and a worked example* rather than an exported Fabrin
 type. The example is `examples/hello/orders`

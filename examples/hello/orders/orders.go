@@ -85,8 +85,8 @@ func (m *Module) Models() []orm.Model {
 	return []orm.Model{{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "item", Type: orm.String, MaxLen: 200},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "item", Type: orm.TypeString, MaxLen: 200},
 		},
 	}}
 }

@@ -598,9 +598,9 @@ with their milestone rather than split into sections. Cutting a version is
   err := r.Register("shop", orm.Model{
       Table: "orders",
       Fields: []orm.Field{
-          {Name: "id", Type: orm.Int64, PrimaryKey: true},
-          {Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
-          {Name: "shipped_at", Type: orm.Time, Nullable: true},
+          {Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+          {Name: "reference", Type: orm.TypeString, MaxLen: 32, Unique: true},
+          {Name: "shipped_at", Type: orm.TypeTime, Nullable: true},
       },
   })
   ```
@@ -1187,6 +1187,14 @@ Added — package `fabrin`:
   readiness. Reported by `App.Capabilities` like `Lifecycle`.
 
 ### Changed
+
+- **Breaking:** `orm` column-type constants now carry the `Type` prefix:
+  `TypeString`, `TypeInt`, `TypeInt64`, `TypeFloat`, `TypeBool`, `TypeTime`, and
+  `TypeBytes`. Their string values are unchanged, so recorded migration state
+  remains compatible. The pre-v1 bare names were removed rather than retained
+  as aliases, and `schema.Generate` now emits the prefixed names; source it
+  generated before this change references the removed constants and must be
+  regenerated. ([#122](https://github.com/usefabrin/fabrin/issues/122))
 
 - Deployment documentation now describes `FABRIN_MODULES` honestly as
   route/capability selection after construction, lifecycle ordering as

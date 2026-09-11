@@ -8,13 +8,38 @@ import (
 	"github.com/usefabrin/fabrin/orm"
 )
 
+func TestType_PrefixedConstantsAreValidAndKeepTheirWireValues(t *testing.T) {
+	t.Parallel()
+
+	types := []struct {
+		typeValue orm.Type
+		wire      string
+	}{
+		{orm.TypeString, "string"},
+		{orm.TypeInt, "int"},
+		{orm.TypeInt64, "int64"},
+		{orm.TypeFloat, "float"},
+		{orm.TypeBool, "bool"},
+		{orm.TypeTime, "time"},
+		{orm.TypeBytes, "bytes"},
+	}
+	for _, tt := range types {
+		if !tt.typeValue.Valid() {
+			t.Errorf("%q is not valid", tt.typeValue)
+		}
+		if string(tt.typeValue) != tt.wire {
+			t.Errorf("wire value = %q, want %q", tt.typeValue, tt.wire)
+		}
+	}
+}
+
 func order() orm.Model {
 	return orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
-			{Name: "shipped_at", Type: orm.Time, Nullable: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32, Unique: true},
+			{Name: "shipped_at", Type: orm.TypeTime, Nullable: true},
 		},
 	}
 }
@@ -56,7 +81,7 @@ func TestRegistry_RejectsTwoModelsClaimingOneTable(t *testing.T) {
 
 	err := r.Register("billing", orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	})
 	if err == nil {
 		t.Fatal("a second model claiming one table must be rejected")
@@ -82,7 +107,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 	}{
 		{
 			name:  "no table name",
-			model: orm.Model{Fields: []orm.Field{{Name: "id", Type: orm.Int64}}},
+			model: orm.Model{Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64}}},
 			want:  orm.ErrInvalidModel,
 			why:   "DDL has nowhere to point",
 		},
@@ -94,7 +119,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		},
 		{
 			name:  "field with no name",
-			model: orm.Model{Table: "orders", Fields: []orm.Field{{Type: orm.Int64}}},
+			model: orm.Model{Table: "orders", Fields: []orm.Field{{Type: orm.TypeInt64}}},
 			want:  orm.ErrInvalidField,
 			why:   "an anonymous column cannot be emitted or diffed",
 		},
@@ -107,8 +132,8 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "two fields with one name",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64},
-				{Name: "id", Type: orm.String},
+				{Name: "id", Type: orm.TypeInt64},
+				{Name: "id", Type: orm.TypeString},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "the second would silently shadow the first in every diff",
@@ -116,7 +141,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "negative MaxLen on a string",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "reference", Type: orm.String, MaxLen: -1},
+				{Name: "reference", Type: orm.TypeString, MaxLen: -1},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "a negative length is not a bound — no dialect would accept it",
@@ -124,7 +149,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "primary key marked nullable",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true, Nullable: true},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true, Nullable: true},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "a primary key is non-null by definition; both flags on one column contradict each other",
@@ -132,8 +157,8 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "unique and indexed on one field",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true},
-				{Name: "reference", Type: orm.String, Unique: true, Index: true},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+				{Name: "reference", Type: orm.TypeString, Unique: true, Index: true},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "a UNIQUE constraint already implies an index on every database Fabrin renders for; asking for a second one is a misunderstanding, not a tuning hint",
@@ -141,7 +166,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "primary key marked unique",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true, Unique: true},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true, Unique: true},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "a primary key is already unique; a second UNIQUE constraint is redundant",
@@ -149,7 +174,7 @@ func TestRegistry_RejectsAModelWithNothingToMigrate(t *testing.T) {
 		{
 			name: "primary key separately indexed",
 			model: orm.Model{Table: "orders", Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true, Index: true},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true, Index: true},
 			}},
 			want: orm.ErrInvalidField,
 			why:  "a primary key already has an index; a second plain index is redundant",
@@ -181,7 +206,7 @@ func TestRegistry_RejectsAModelWithNoPrimaryKey(t *testing.T) {
 	// table's contents.
 	err := orm.NewRegistry().Register("shop", orm.Model{
 		Table:  "orders",
-		Fields: []orm.Field{{Name: "reference", Type: orm.String}},
+		Fields: []orm.Field{{Name: "reference", Type: orm.TypeString}},
 	})
 	if err == nil {
 		t.Fatal("a model with no primary key must be rejected")
@@ -219,7 +244,7 @@ func TestRegistry_ModelsIsOrderedByTableRatherThanRegistration(t *testing.T) {
 	// migration. Sorting by table makes the output a function of the schema alone.
 	r := orm.NewRegistry()
 	for _, table := range []string{"shipments", "orders", "customers"} {
-		m := orm.Model{Table: table, Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}}
+		m := orm.Model{Table: table, Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}}
 		if err := r.Register("shop", m); err != nil {
 			t.Fatalf("Register(%s): %v", table, err)
 		}
@@ -266,7 +291,7 @@ func TestRegistry_RejectsMaxLenOnSomethingThatIsNotAString(t *testing.T) {
 	err := orm.NewRegistry().Register("shop", orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true, MaxLen: 11},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true, MaxLen: 11},
 		},
 	})
 	if err == nil {
@@ -285,7 +310,7 @@ func TestField_TypesAreFabrinsOwn(t *testing.T) {
 	// A driver's type here would undo that, and would need an apicheck allowlist
 	// entry besides. See docs/adr/0002-database-sql-is-the-orm-seam.md.
 	for _, ty := range []orm.Type{
-		orm.String, orm.Int, orm.Int64, orm.Float, orm.Bool, orm.Time, orm.Bytes,
+		orm.TypeString, orm.TypeInt, orm.TypeInt64, orm.TypeFloat, orm.TypeBool, orm.TypeTime, orm.TypeBytes,
 	} {
 		if ty == "" {
 			t.Error("a declared type must not be the zero value, which Register rejects")

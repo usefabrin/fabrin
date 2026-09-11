@@ -49,9 +49,9 @@ func ordersModel() orm.Model {
 	return orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32},
-			{Name: "shipped_at", Type: orm.Time, Nullable: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32},
+			{Name: "shipped_at", Type: orm.TypeTime, Nullable: true},
 		},
 	}
 }
@@ -135,14 +135,14 @@ func TestDiff_EmitsEveryIndependentChangeOnAField(t *testing.T) {
 	before := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32, Nullable: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32, Nullable: true},
 		},
 	}
 	after := before
 	after.Fields = append([]orm.Field(nil), before.Fields...)
 	after.Fields[1] = orm.Field{
-		Name: "reference", Type: orm.Bytes, Nullable: false, Unique: true,
+		Name: "reference", Type: orm.TypeBytes, Nullable: false, Unique: true,
 	}
 
 	got := opKinds(Diff(mustSnap(t, before), mustSnap(t, after)))
@@ -162,15 +162,15 @@ func TestDiff_DetectsIndexAndPrimaryKeyChanges(t *testing.T) {
 	before := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, Index: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, Index: true},
 		},
 	}
 	after := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64},
-			{Name: "reference", Type: orm.String, PrimaryKey: true},
+			{Name: "id", Type: orm.TypeInt64},
+			{Name: "reference", Type: orm.TypeString, PrimaryKey: true},
 		},
 	}
 
@@ -212,8 +212,8 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 		return orm.Model{
 			Table: "orders",
 			Fields: []orm.Field{
-				{Name: "id", Type: orm.Int64, PrimaryKey: true},
-				{Name: "reference", Type: orm.String, MaxLen: 32},
+				{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+				{Name: "reference", Type: orm.TypeString, MaxLen: 32},
 			},
 		}
 	}
@@ -235,7 +235,7 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 			before: []orm.Model{base()},
 			after: []orm.Model{
 				base(),
-				{Table: "shipments", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
+				{Table: "shipments", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
 			},
 			want: []string{"create shipments"},
 		},
@@ -243,7 +243,7 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 			name: "dropped table",
 			before: []orm.Model{
 				base(),
-				{Table: "shipments", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
+				{Table: "shipments", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
 			},
 			after: []orm.Model{base()},
 			want:  []string{"drop shipments"},
@@ -253,7 +253,7 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 			before: []orm.Model{base()},
 			after: func() []orm.Model {
 				m := base()
-				m.Fields = append(m.Fields, orm.Field{Name: "total", Type: orm.Float})
+				m.Fields = append(m.Fields, orm.Field{Name: "total", Type: orm.TypeFloat})
 				return []orm.Model{m}
 			}(),
 			want: []string{"addcol orders.total"},
@@ -273,7 +273,7 @@ func TestDiff_DetectsEachShapeOfChange(t *testing.T) {
 			before: []orm.Model{base()},
 			after: func() []orm.Model {
 				m := base()
-				m.Fields[1].Type = orm.Int
+				m.Fields[1].Type = orm.TypeInt
 				m.Fields[1].MaxLen = 0
 				return []orm.Model{m}
 			}(),
@@ -313,7 +313,7 @@ func TestDiff_EmitsNothingWhenStatesAgree(t *testing.T) {
 	// file full of nothing. An empty diff is the normal case on a redeploy.
 	snap := mustSnap(t, ordersModel(), orm.Model{
 		Table:  "invoices",
-		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+		Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}},
 	})
 
 	if got := Diff(snap, snap); len(got) != 0 {
@@ -329,21 +329,21 @@ func TestDiff_IsDeterministicAndOrdersItsOps(t *testing.T) {
 	// drops last — rather than left to map iteration, because the generated
 	// migration inherits whatever wiggle lives here.
 	before := mustSnap(t,
-		orm.Model{Table: "orders", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
-		orm.Model{Table: "customers", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
-		orm.Model{Table: "archive", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
+		orm.Model{Table: "orders", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
+		orm.Model{Table: "customers", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
+		orm.Model{Table: "archive", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
 	)
 	after := mustSnap(t,
 		orm.Model{Table: "customers", Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "email", Type: orm.String, MaxLen: 254},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "email", Type: orm.TypeString, MaxLen: 254},
 		}},
 		orm.Model{Table: "orders", Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "total", Type: orm.Float},
-			{Name: "memo", Type: orm.String},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "total", Type: orm.TypeFloat},
+			{Name: "memo", Type: orm.TypeString},
 		}},
-		orm.Model{Table: "invoices", Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}}},
+		orm.Model{Table: "invoices", Fields: []orm.Field{{Name: "id", Type: orm.TypeInt64, PrimaryKey: true}}},
 	)
 
 	first := opKinds(Diff(before, after))
@@ -377,9 +377,9 @@ func TestDiff_TreatsAReorderedFieldListAsNoChange(t *testing.T) {
 	a := mustSnap(t, ordersModel())
 	reordered := ordersModel()
 	reordered.Fields = []orm.Field{
-		{Name: "shipped_at", Type: orm.Time, Nullable: true},
-		{Name: "id", Type: orm.Int64, PrimaryKey: true},
-		{Name: "reference", Type: orm.String, MaxLen: 32},
+		{Name: "shipped_at", Type: orm.TypeTime, Nullable: true},
+		{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+		{Name: "reference", Type: orm.TypeString, MaxLen: 32},
 	}
 	b := mustSnap(t, reordered)
 
@@ -453,7 +453,7 @@ func TestApply_ExecutesPreflightedOperationsInOrder(t *testing.T) {
 
 	err = Apply(context.Background(), db, SQLite{}, []Operation{
 		CreateTable{Model: ordersModel()},
-		AddColumn{Table: "orders", Field: orm.Field{Name: "total", Type: orm.Float, Nullable: true}},
+		AddColumn{Table: "orders", Field: orm.Field{Name: "total", Type: orm.TypeFloat, Nullable: true}},
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -502,7 +502,7 @@ func TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL(t *testing.T) {
 	model := orm.Model{
 		Table: "order items",
 		Fields: []orm.Field{
-			{Name: `select"value`, Type: orm.Int64, PrimaryKey: true},
+			{Name: `select"value`, Type: orm.TypeInt64, PrimaryKey: true},
 		},
 	}
 	db, err := sql.Open("sqlite", ":memory:")
@@ -548,10 +548,10 @@ func TestPostgres_RendersCompleteConstraintsForNewTablesAndColumns(t *testing.T)
 	model := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, MaxLen: 32, Unique: true},
-			{Name: "account_id", Type: orm.Int64, Index: true},
-			{Name: "note", Type: orm.String, Nullable: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, MaxLen: 32, Unique: true},
+			{Name: "account_id", Type: orm.TypeInt64, Index: true},
+			{Name: "note", Type: orm.TypeString, Nullable: true},
 		},
 	}
 	stmts, err := Postgres{}.Render(CreateTable{Model: model})
@@ -572,7 +572,7 @@ func TestPostgres_RendersCompleteConstraintsForNewTablesAndColumns(t *testing.T)
 		}
 	}
 
-	added := orm.Field{Name: "external_id", Type: orm.String, Unique: true}
+	added := orm.Field{Name: "external_id", Type: orm.TypeString, Unique: true}
 	stmts, err = Postgres{}.Render(AddColumn{Table: "orders", Field: added})
 	if err != nil {
 		t.Fatalf("AddColumn: %v", err)
@@ -594,9 +594,9 @@ func TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions(t *testi
 	model := orm.Model{
 		Table: "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.Int64, PrimaryKey: true},
-			{Name: "reference", Type: orm.String, Unique: true},
-			{Name: "note", Type: orm.String, Nullable: true, Index: true},
+			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{Name: "reference", Type: orm.TypeString, Unique: true},
+			{Name: "note", Type: orm.TypeString, Nullable: true, Index: true},
 		},
 	}
 	db, err := sql.Open("sqlite", ":memory:")
@@ -625,7 +625,7 @@ func TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions(t *testi
 
 	added := AddColumn{
 		Table: "orders",
-		Field: orm.Field{Name: "external_id", Type: orm.String, Nullable: true, Index: true},
+		Field: orm.Field{Name: "external_id", Type: orm.TypeString, Nullable: true, Index: true},
 	}
 	if err := Apply(context.Background(), db, SQLite{}, []Operation{added}); err != nil {
 		t.Fatalf("add nullable indexed column: %v", err)
@@ -639,8 +639,8 @@ func TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions(t *testi
 	}
 
 	tests := []AddColumn{
-		{Table: "orders", Field: orm.Field{Name: "required", Type: orm.String}},
-		{Table: "orders", Field: orm.Field{Name: "code", Type: orm.String, Nullable: true, Unique: true}},
+		{Table: "orders", Field: orm.Field{Name: "required", Type: orm.TypeString}},
+		{Table: "orders", Field: orm.Field{Name: "code", Type: orm.TypeString, Nullable: true, Unique: true}},
 	}
 	for _, op := range tests {
 		_, err := SQLite{}.Render(op)
@@ -709,7 +709,7 @@ func TestSQLite_RefusesColumnDropAndRetypeWithStatedErrors(t *testing.T) {
 		_, err := SQLite{}.Render(ChangeType{
 			Table:  "orders",
 			Column: "reference",
-			To:     orm.Field{Name: "reference", Type: orm.Int},
+			To:     orm.Field{Name: "reference", Type: orm.TypeInt},
 		})
 		return err
 	}()
@@ -752,7 +752,7 @@ func TestPostgres_RendersDDLThatALiveServerAccepts(t *testing.T) {
 	// a rebuild dance — then confirm the server actually has it.
 	added := mustSnap(t, func() orm.Model {
 		m := ordersModel()
-		m.Fields = append(m.Fields, orm.Field{Name: "total", Type: orm.Float})
+		m.Fields = append(m.Fields, orm.Field{Name: "total", Type: orm.TypeFloat})
 		return m
 	}())
 	if err := Apply(context.Background(), db, Postgres{}, Diff(after, added)); err != nil {

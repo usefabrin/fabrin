@@ -66,7 +66,7 @@ Supported fields are `String`, `Int64`, `Bool`, and `Time`. Fields default to
 NOT NULL. `Nullable()` generates `sql.NullString`, `sql.NullInt64`, `sql.NullBool`,
 or `sql.NullTime`; their default JSON representation is the standard library
 struct, so use your own response DTOs for application APIs. `Time` uses PostgreSQL
-`TIMESTAMP` without time zone, matching existing `orm.Time` metadata; normalize
+`TIMESTAMP` without time zone, matching existing `orm.TypeTime` metadata; normalize
 values to UTC in your application. Time-zone-aware metadata is not supported by
 this preview. `MaxLen` counts PostgreSQL characters, not UTF-8 bytes.
 

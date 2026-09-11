@@ -239,10 +239,12 @@ breaking afterwards, so it needs an answer rather than a discovery.
       wiring are complete; the item remains provisional until the proposed ADR
       and new public operation types receive human review. Composite keys /
       user-named indexes / multi-column UNIQUE remain unwritten. (FR-ORM-1)
-- [ ] **`orm`'s type constants break the repo's only enum precedent.** `health`
-      uses `StatusUp`/`StatusDown`; `orm` uses bare `String`, `Int`, `Time`.
-      `orm.Time` sits one letter from `time.Time` in code that imports both.
-      (FR-ORM-1)
+- [x] **`orm`'s type constants follow the repo's enum precedent.** The public
+      names are `TypeString`, `TypeInt`, `TypeInt64`, `TypeFloat`, `TypeBool`,
+      `TypeTime`, and `TypeBytes`, matching `health.StatusUp`/`StatusDown` and
+      keeping `orm.TypeTime` visually distinct from `time.Time`.
+      ([#122](https://github.com/usefabrin/fabrin/issues/122), FR-ORM-1,
+      ORM-014)
 
 ### Gate hardening
 
