@@ -932,16 +932,16 @@ behaviours:
     test: auth/challenge_test.go::TestChallenge_BindsCredentialsAndConsumesOnce
 
   - id: AUTHPG-001
-    what: PostgreSQL shares OTP budgets, permits one concurrent challenge consumer, uniquely resolves an identity and atomically persists a digest-only initial session that can be authenticated and revoked.
-    why: A multi-process auth default must preserve the core security transitions in durable storage without retaining plaintext credentials.
-    requirement: FR-AUTH-5
+    what: PostgreSQL concurrently resolves one durable identity for a verified canonical email, consumes invitation eligibility atomically, and denies disabled identities.
+    why: The Redis redemption workflow needs an idempotent durable step that cannot duplicate accounts or grant eligibility outside the identity transaction.
+    requirement: FR-AUTH-6
     status: implemented
-    test: authpg/authpg_test.go::TestStore_PostgresEndToEnd
+    test: authpg/authpg_test.go::TestStore_PostgresResolvesOneEligibleIdentity
 
   - id: AUTHPG-002
     what: Constructing the PostgreSQL auth adapter neither connects to the database nor mutates its schema; schema changes are returned as an explicit migration.
     why: Serving must never auto-mutate production schema, and applications must retain driver and connection lifecycle ownership.
-    requirement: FR-AUTH-5
+    requirement: FR-AUTH-6
     status: implemented
     test: authpg/authpg_test.go::TestNew_RejectsNilAndPerformsNoDatabaseIO
 

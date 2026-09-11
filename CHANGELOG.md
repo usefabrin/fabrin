@@ -45,6 +45,16 @@ with their milestone rather than split into sections. Cutting a version is
   lease between them. Work continues through validated direct commits to `main`
   until the stable tag; the whole module still receives API review because one
   Go module version covers every exported package.
+
+- **PostgreSQL identity split.** `authpg.Store` now implements the new
+  `auth.IdentityStore` and no longer implements challenge or session storage.
+  Its migration now contains only durable identities and invitations;
+  `WithInvitationsRequired` atomically consumes an invitation on first verified
+  identity creation. Concurrent retries return the same identity and disabled
+  identities fail closed. This intentionally removes the pre-release
+  `auth.Store` methods and rewrites the unreleased migration before Redis takes
+  ownership of ephemeral auth state. Preview databases using commit `0ad3552`
+  must be reset. The API snapshot changes intentionally.
 - **PostgreSQL auth store (#111).** New public `authpg.New`, `Store`, and
   `Migration` provide the durable `auth.Store`/`SessionStore` adapter without
   importing a driver or connecting during construction. The explicit migration

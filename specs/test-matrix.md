@@ -624,11 +624,11 @@ the version.
 | OTP-007 | The bounded development store fails closed when it cannot represent another active challenge or budget key. | `auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity` |
 | OTP-008 | Known delivery rejection invalidates its reservation, while an ambiguous timeout leaves a possibly delivered challenge verifiable until expiry. | `auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures` |
 
-## PostgreSQL authentication persistence
+## PostgreSQL identity persistence
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| AUTHPG-001 | Shared durable budgets, one concurrent OTP consumer, unique identity and digest-only session lifecycle | `authpg/authpg_test.go::TestStore_PostgresEndToEnd` |
+| AUTHPG-001 | Concurrent verified resolution returns one eligible identity and atomically consumes its invitation | `authpg/authpg_test.go::TestStore_PostgresResolvesOneEligibleIdentity` |
 | AUTHPG-002 | Construction performs no database I/O; migration remains explicit | `authpg/authpg_test.go::TestNew_RejectsNilAndPerformsNoDatabaseIO` |
 
 ## Preview sessions

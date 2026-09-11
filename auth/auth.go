@@ -38,6 +38,21 @@ type Identity struct {
 	CreatedAt time.Time
 }
 
+// IdentityResolution is durable identity input after an ephemeral store has
+// proved mailbox possession. ProposedID is used only when the email has no
+// identity yet; repeated calls must return the existing identity.
+type IdentityResolution struct {
+	Email      string
+	ProposedID string
+	VerifiedAt time.Time
+}
+
+// IdentityStore resolves verified email addresses into durable identities and
+// enforces invitation and disabled-identity policy transactionally.
+type IdentityStore interface {
+	ResolveVerified(context.Context, IdentityResolution) (Identity, error)
+}
+
 // Challenge contains the non-secret values a caller needs for verification.
 type Challenge struct {
 	ID        string

@@ -86,7 +86,7 @@ When a new challenge or budget key cannot be represented, the store fails closed
 State is local to one process and disappears on restart, so its limits are not
 shared across replicas. Use it only for tests or an explicitly local tool.
 
-## Store contract and remaining transaction
+## Store contracts and the Redis split
 
 Applications may implement `auth.Store` using durable storage. `Reserve` must
 atomically consume address/source send budgets and replace the prior active
@@ -96,30 +96,29 @@ identity for the canonical email, and persist `Verification.Session` for that
 identity. `Invalidate` must affect only its named
 challenge so cleanup cannot revoke a newer resend.
 
-`authpg.New(db)` supplies this store for PostgreSQL without connecting or
-changing schema. Register `authpg.Migration()` with the application's migrations
-and run `./yourapp migrate` as a separate deploy step before serving. The
-application imports and selects its PostgreSQL driver, owns the `*sql.DB`
-lifecycle, and keeps the OTP HMAC key outside the database.
+`authpg.New(db)` now supplies `auth.IdentityStore` for PostgreSQL without
+connecting or changing schema. Register `authpg.Migration()` with the
+application's migrations and run `./yourapp migrate` as a separate deploy step
+before serving. The application imports and selects its PostgreSQL driver and
+owns the `*sql.DB` lifecycle.
 
 ```go
-store, err := authpg.New(db)
+identities, err := authpg.New(db, authpg.WithInvitationsRequired())
 if err != nil {
     return err
 }
 migrations := []migrate.M{authpg.Migration()}
 ```
 
-The adapter uses PostgreSQL advisory locks and row locks to share send/verify
-budgets across processes and allow exactly one challenge consumer. It stores
-HMAC verifiers and SHA-256 session digests, never plaintext codes or bearer
-credentials. Set `FABRIN_TEST_PG_DSN` to run its live end-to-end test; without
-that variable the test reports an explicit skip.
+The adapter serializes resolution by canonical email, returns an existing
+eligible identity on retry, consumes an invitation in the same transaction as
+first identity creation, and denies disabled identities. Set
+`FABRIN_TEST_PG_DSN` to run its live concurrency test; without that variable the
+test reports an explicit skip.
 
 The approved [authentication contract](../AUTH_CONTRACT.md) additionally requires
-invitation eligibility, privilege-change revocation and browser/native transport
-separation. Disabled identities are denied during verification and on every
-session check. Invitation-only policy, identity-wide revocation, event cleanup,
-browser sessions, HTTP request limits/no-store behavior, production mail and
-resource authorization remain required. Do not describe this adapter alone as a
-production-ready authentication stack.
+Redis challenge/session persistence, privilege-change revocation and
+browser/native transport separation. The Redis adapter is the next slice; until
+it lands, `auth.MemoryStore` remains the only complete `auth.Store`. Browser
+sessions, HTTP request limits/no-store behavior, production mail and resource
+authorization remain required.

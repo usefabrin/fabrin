@@ -91,6 +91,12 @@ pkg github.com/usefabrin/fabrin/auth, type Identity struct
 pkg github.com/usefabrin/fabrin/auth, type Identity struct, CreatedAt time.Time
 pkg github.com/usefabrin/fabrin/auth, type Identity struct, Email string
 pkg github.com/usefabrin/fabrin/auth, type Identity struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type IdentityResolution struct
+pkg github.com/usefabrin/fabrin/auth, type IdentityResolution struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type IdentityResolution struct, ProposedID string
+pkg github.com/usefabrin/fabrin/auth, type IdentityResolution struct, VerifiedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type IdentityStore interface
+pkg github.com/usefabrin/fabrin/auth, type IdentityStore interface, ResolveVerified(context.Context, IdentityResolution) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type MemoryStore struct
 pkg github.com/usefabrin/fabrin/auth, type Option func(*settings)
 pkg github.com/usefabrin/fabrin/auth, type Purpose string
@@ -148,12 +154,10 @@ pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
 
 pkg github.com/usefabrin/fabrin/authpg, func Migration() github.com/usefabrin/fabrin/migrate.M
-pkg github.com/usefabrin/fabrin/authpg, func New(db *database/sql.DB) (*Store, error)
-pkg github.com/usefabrin/fabrin/authpg, method (*Store) AuthenticateSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) (github.com/usefabrin/fabrin/auth.Identity, error)
-pkg github.com/usefabrin/fabrin/authpg, method (*Store) Invalidate(ctx context.Context, id string) error
-pkg github.com/usefabrin/fabrin/authpg, method (*Store) Reserve(ctx context.Context, reservation github.com/usefabrin/fabrin/auth.Reservation) error
-pkg github.com/usefabrin/fabrin/authpg, method (*Store) RevokeSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) error
-pkg github.com/usefabrin/fabrin/authpg, method (*Store) Verify(ctx context.Context, attempt github.com/usefabrin/fabrin/auth.Verification) (github.com/usefabrin/fabrin/auth.Identity, error)
+pkg github.com/usefabrin/fabrin/authpg, func New(db *database/sql.DB, options ...Option) (*Store, error)
+pkg github.com/usefabrin/fabrin/authpg, func WithInvitationsRequired() Option
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) ResolveVerified(ctx context.Context, resolution github.com/usefabrin/fabrin/auth.IdentityResolution) (github.com/usefabrin/fabrin/auth.Identity, error)
+pkg github.com/usefabrin/fabrin/authpg, type Option func(*settings)
 pkg github.com/usefabrin/fabrin/authpg, type Store struct
 
 pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string) error

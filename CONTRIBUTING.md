@@ -145,7 +145,7 @@ suite could not have caught: a package in the manifest with nothing recorded.
   transitions sit behind `Store`, so tests and workers can use the core without
   constructing an HTTP or database stack. Production adapters live in
   applications or later dedicated packages.
-- `fabrin/authpg` is the dedicated PostgreSQL adapter below `auth`. It may import
+- `fabrin/authpg` is the PostgreSQL identity/authorization adapter below `auth`. It may import
   `auth`, `migrate`, and `database/sql`, but no concrete driver, Gin, HTTP, root
   lifecycle, or other sibling. Applications open the database and explicitly
   run its migration; constructing the adapter performs no I/O.
