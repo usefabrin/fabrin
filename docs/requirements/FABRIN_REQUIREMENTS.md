@@ -93,11 +93,11 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |---|---|---|
 | FR-AUTH-1 | Password-first user model and memory-hard password hashing; superseded for v1 by FR-AUTH-5. Password login is deferred. | superseded |
-| FR-AUTH-2 | Server-side sessions with a pluggable store. Initial opaque sessions, idle/absolute expiry and single-session logout are implemented for the local native preview; rotation, identity-wide revocation and browser integration remain. | in progress |
+| FR-AUTH-2 | Server-side sessions with a pluggable store. Initial opaque sessions, idle/absolute expiry and single-session logout have local and PostgreSQL stores; rotation, identity-wide revocation and browser integration remain. | in progress |
 | FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
 | FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
-| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. The public local core covers reservation, delivery, bounded process-local budgets and atomic consumption; shared durable storage and session integration remain pending. | in progress |
-| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. The local core resolves stable identities, while eligibility and session integration remain pending. | in progress |
+| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. The core and PostgreSQL adapter cover reservation, delivery orchestration, durable shared budgets and atomic consumption/session creation; production delivery and HTTP integration remain. | in progress |
+| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. PostgreSQL resolves unique identities and denies disabled ones transactionally; invitation policy remains pending. | in progress |
 | FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. | planned |
 
 ## FR-ADMIN — the admin site (F5)

@@ -3,13 +3,12 @@
 Fabrin now exposes the first email-code authentication core. It reserves an
 eight-digit, five-minute challenge, sends it through an explicit `auth.Sender`,
 and atomically consumes it through an `auth.Store`. The included
-`auth.MemoryStore` and `mail.Capture` make this flow runnable in tests and local
-development.
+`auth.MemoryStore` supports tests and local development; `authpg.Store` provides
+durable PostgreSQL persistence. `mail.Capture` remains test/local delivery only.
 
 This is not a login endpoint or a production authentication stack. Successful
 verification atomically creates a minimal opaque server-side session, but browser
-and native HTTP routes, pre-auth CSRF state, durable PostgreSQL storage,
-invitations, disabled-identity policy, rotation, identity-wide revocation,
+and native HTTP routes, pre-auth CSRF state, invitations, rotation, identity-wide revocation,
 production mail and authorization remain to be implemented. `auth.WithProduction`
 rejects the included memory and capture backends so they cannot be selected
 directly as production defaults.
@@ -97,9 +96,30 @@ identity for the canonical email, and persist `Verification.Session` for that
 identity. `Invalidate` must affect only its named
 challenge so cleanup cannot revoke a newer resend.
 
+`authpg.New(db)` supplies this store for PostgreSQL without connecting or
+changing schema. Register `authpg.Migration()` with the application's migrations
+and run `./yourapp migrate` as a separate deploy step before serving. The
+application imports and selects its PostgreSQL driver, owns the `*sql.DB`
+lifecycle, and keeps the OTP HMAC key outside the database.
+
+```go
+store, err := authpg.New(db)
+if err != nil {
+    return err
+}
+migrations := []migrate.M{authpg.Migration()}
+```
+
+The adapter uses PostgreSQL advisory locks and row locks to share send/verify
+budgets across processes and allow exactly one challenge consumer. It stores
+HMAC verifiers and SHA-256 session digests, never plaintext codes or bearer
+credentials. Set `FABRIN_TEST_PG_DSN` to run its live end-to-end test; without
+that variable the test reports an explicit skip.
+
 The approved [authentication contract](../AUTH_CONTRACT.md) additionally requires
-identity eligibility in that transaction plus privilege-change revocation and
-browser/native transport separation. This preview is therefore not enough to
-implement a production store or expose `Request`/`Verify` directly as public HTTP
-handlers. The next integration slice supplies PostgreSQL persistence and the
-transport's generic public response rules.
+invitation eligibility, privilege-change revocation and browser/native transport
+separation. Disabled identities are denied during verification and on every
+session check. Invitation-only policy, identity-wide revocation, event cleanup,
+browser sessions, HTTP request limits/no-store behavior, production mail and
+resource authorization remain required. Do not describe this adapter alone as a
+production-ready authentication stack.

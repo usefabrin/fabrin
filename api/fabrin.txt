@@ -147,6 +147,15 @@ pkg github.com/usefabrin/fabrin/auth, var ErrSession error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
 
+pkg github.com/usefabrin/fabrin/authpg, func Migration() github.com/usefabrin/fabrin/migrate.M
+pkg github.com/usefabrin/fabrin/authpg, func New(db *database/sql.DB) (*Store, error)
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) AuthenticateSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) (github.com/usefabrin/fabrin/auth.Identity, error)
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) Invalidate(ctx context.Context, id string) error
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) Reserve(ctx context.Context, reservation github.com/usefabrin/fabrin/auth.Reservation) error
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) RevokeSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) error
+pkg github.com/usefabrin/fabrin/authpg, method (*Store) Verify(ctx context.Context, attempt github.com/usefabrin/fabrin/auth.Verification) (github.com/usefabrin/fabrin/auth.Identity, error)
+pkg github.com/usefabrin/fabrin/authpg, type Store struct
+
 pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string) error
 pkg github.com/usefabrin/fabrin/cli, type Command struct
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Flags func(*flag.FlagSet)

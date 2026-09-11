@@ -37,6 +37,16 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **PostgreSQL auth store (#111).** New public `authpg.New`, `Store`, and
+  `Migration` provide the durable `auth.Store`/`SessionStore` adapter without
+  importing a driver or connecting during construction. The explicit migration
+  creates protected challenges, shared rolling-budget events, unique minimal
+  identities and digest-only sessions. Advisory and row locks serialize resends,
+  verification, identity resolution and session creation; disabled identities,
+  idle/absolute expiry and logout fail closed. A conditional live PostgreSQL test
+  exercises concurrent single consumption and the full native session lifecycle.
+  The API snapshot changes intentionally. Invitations, cleanup, HTTP transport,
+  production mail, broad revocation and authorization remain planned.
 - **Atomic initial sessions (#111).** Successful OTP verification now persists
   an independent 32-byte opaque session in the same store operation as challenge
   consumption and identity resolution, returning its secret once. Stores receive

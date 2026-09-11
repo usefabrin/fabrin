@@ -8,7 +8,10 @@ and a public local OTP core are implemented. The local core reserves challenges,
 enforces bounded process-local budgets, cleans up known delivery failures, and
 atomically resolves stable identities plus initial opaque sessions. Durable shared
 storage, eligibility policy, browser/native transport, broader session revocation,
-and authorization remain planned.
+and authorization remain planned. The `authpg` adapter now implements the
+durable PostgreSQL challenge, abuse-budget, identity and initial-session
+transaction described here. This is implementation progress, not approval of
+the incomplete HTTP or production stack.
 
 ## Goal, trust boundaries and limits
 
@@ -28,7 +31,7 @@ not authentication factors. The default trusted-proxy behavior remains unchanged
 
 Fabrin owns identity, challenge and session persistence. Business modules consume
 locally declared identity/permission ports; they do not import each other. A
-PostgreSQL adapter is the production default. A memory adapter may be supplied
+The `authpg` PostgreSQL adapter is the durable default. A memory adapter may be supplied
 only as an explicitly selected, bounded development/test option. Capture mail
 must never become a production delivery fallback.
 
@@ -258,6 +261,9 @@ security review. Private challenge tests prove the cryptographic, attempt, expir
 and single-use primitives. Public core tests additionally prove local
 reservation/replacement, bounded budgets, sanitized delivery/store failures,
 atomic identity/session creation, idle/absolute session expiry and logout
-revocation. They do not prove transactional eligibility, identity-wide or
-privilege-change revocation, shared multi-instance limits, PostgreSQL behavior,
-browser CSRF, or HTTP enumeration resistance.
+revocation. Conditional PostgreSQL tests exercise shared budgets, concurrent
+single consumption, unique identity resolution, digest-only sessions and
+revocation when `FABRIN_TEST_PG_DSN` is set; the constructor test proves wiring
+does not connect or mutate schema. Invitation policy, identity-wide and
+privilege-change revocation, cleanup, browser CSRF, HTTP enumeration resistance,
+and production delivery remain unproved and unimplemented.

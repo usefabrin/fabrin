@@ -23,9 +23,9 @@ is a reference, not a feature checklist or API constraint.
 
 | Milestone | Acceptance | Current evidence |
 |---|---|---|
-| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator, bounded capture mail, and local OTP/identity core implemented. No integrated PostgreSQL auth preview yet. |
+| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator, bounded capture mail, OTP/session core and durable PostgreSQL auth adapter implemented. HTTP integration and authenticated owned-resource example remain. |
 | Data foundation (#104) | Typed CRUD, keys/defaults/nulls/relations/indexes, transactions, pagination, safe PostgreSQL migrations and upgrade concurrency | Scalar create/get generator implemented; ADR 0007 remains proposed. Existing migrations continue separately. |
-| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; public local OTP core implements bounded process-local budgets, delivery cleanup, atomic identity plus initial native-session creation, idle/absolute expiry and logout. No HTTP login, durable auth store, browser session, broad revocation or authorization yet. |
+| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; core plus `authpg` implement protected OTPs, shared durable budgets, atomic identity/session creation, disabled checks, idle/absolute expiry and logout. No HTTP login, browser session, invitations, broad revocation or authorization yet. |
 | REST and admin (#106) | Explicit enablement, field/operation policies, scoped list and record access, bounded queries, embedded admin | Existing private admin proof only. |
 | Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Capture-only test mail implemented; production adapters remain planned. |
 | Release candidate (#108) | Deployed reference backend, security/API review, upgrade/recovery evidence, gates/races, measured overhead, accurate support docs | Planned; no stable-v1 claim. |
@@ -124,9 +124,11 @@ reviewable `Store` and `Sender` ports, purpose separation, exact delivery cleanu
 bounded rolling abuse budgets, and atomic stable-identity plus initial-session
 creation. `mail.Capture` satisfies the sender port directly.
 
-Next: a PostgreSQL store must share budgets and apply eligibility inside that
-atomic verification transaction. Browser/native transport, production mail and
-authorization remain separate reviewed slices.
+The `authpg` adapter now shares budgets across PostgreSQL-connected processes and
+atomically consumes a challenge, resolves a unique identity, checks disabled
+state and creates the initial digest-only session. Its migration is explicit and
+its constructor performs no database I/O. Invitation eligibility, HTTP transport,
+production mail and authorization remain separate reviewed slices.
 See the [authentication preview](guides/authentication.md).
 
 Validation for the private OTP proof: `just check` and `just race` passed. Two
@@ -150,6 +152,13 @@ private proof and `mail.Capture`; the earlier stacked #127 is superseded. The
 follow-up atomic-session seam now creates the first opaque credential inside the
 same store transition, closing the split-transaction gap before #111's PostgreSQL
 adapter and HTTP preview are wired.
+
+The #111 persistence slice adds `authpg.Store`, a driver-free PostgreSQL adapter with an
+explicit migration. A conditional live test exercises concurrent single-use OTP
+verification, identity/session persistence, authentication and logout; it emits
+an explicit skip without `FABRIN_TEST_PG_DSN`. The package boundary passed with
+stdlib/first-party imports, rejected an injected pgx driver import, and passed
+again after the probe was removed. The runnable JSON preview remains next.
 
 Porting #124 exposed that `schema.Generate` wrote `orm.<Kind>` into generated
 metadata as text, so generated projects stopped compiling. A cached passing test

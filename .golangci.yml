@@ -54,6 +54,10 @@ linters:
       #     mail's value/sender contract inside Fabrin; no application lifecycle,
       #     other sibling, HTTP transport or SQL imports.
       #
+      # boundary: authpg — PostgreSQL adapter below auth. It may import auth and
+      #     migrate, plus database/sql; no root/app lifecycle, transport, or
+      #     concrete database driver belongs in the adapter.
+      #
       # boundary: mail — standalone capture/value package. No other Fabrin
       #     package imports; delivery consumers declare their own sender port.
       #
@@ -293,6 +297,26 @@ linters:
               desc: "auth core defines no HTTP transport"
             - pkg: "database/sql"
               desc: "auth core declares a Store port; applications own database adapters"
+
+        authpg-is-postgres-adapter:
+          files:
+            - "**/authpg/**"
+            - "!**/*_test.go"
+          list-mode: lax
+          allow:
+            - "github.com/usefabrin/fabrin/auth$"
+            - "github.com/usefabrin/fabrin/migrate$"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "authpg may import only auth and migrate inside Fabrin"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "authpg is persistence, not HTTP transport"
+            - pkg: "net/http"
+              desc: "authpg is persistence, not HTTP transport"
+            - pkg: "github.com/jackc/pgx"
+              desc: "authpg imports no driver; applications open database/sql"
+            - pkg: "modernc.org/sqlite"
+              desc: "authpg is PostgreSQL-only and imports no driver"
 
         mail-is-standalone:
           files:

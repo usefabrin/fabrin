@@ -23,6 +23,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
 ├── auth/                email OTP core + bounded local store; transport-free
+├── authpg/              PostgreSQL auth.Store adapter; driver-free
 ├── admin/               private CRUD seam proof — exports nothing yet
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
@@ -94,6 +95,20 @@ consumption. The memory store authenticates, idle-refreshes and revokes that
 native preview session. HTTP transport, durable shared storage, eligibility
 policy, browser sessions and broad revocation are still absent, so this is a
 runnable local core rather than production login.
+
+### PostgreSQL authentication persistence
+
+`authpg.Store` is the durable PostgreSQL implementation of the ports owned by
+`auth`. The application opens and closes `*sql.DB`; the adapter imports no
+driver and its constructor performs no connection or schema work. Its explicit
+`Migration` creates identities, protected challenges, shared abuse events and
+digest-only sessions. Advisory locks and row locks put budget accounting,
+single-use verification, identity resolution and initial session creation in
+the required transactions. Serving never applies this migration.
+
+The adapter enforces disabled identities but does not yet implement invitations,
+identity-wide revocation, cleanup, browser transport or authorization. Those
+remain required before the auth stack is production-complete.
 
 ### Generated PostgreSQL data access (preview)
 
@@ -315,6 +330,7 @@ Enforced by depguard (`.golangci.yml`); documented for humans in
 | `admin` has no deny rule yet | Its private proof intentionally consumes `orm` metadata, while the forms, auth, and render packages that will determine its eventual dependency directions do not exist. `apicheck` still guards the exported surface; a boundary rule lands with the real dependencies rather than guessing from one vertical. |
 | `orm` must not import `database/sql` | Metadata is a description; the handle belongs to the application. Otherwise the admin needs a database running to render a form, and this package's tests need one to run |
 | `migrate` must not import Gin, `net/http`, or a driver | Migrations run from a process that mounts no routes, which is a deployment shape Fabrin promises. The engine takes a `*sql.DB`; the application supplies the driver. The SQLite driver is permitted in this package's `_test.go` files only — and, being an application rather than the engine, in `examples/hello`. See [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) |
+| `authpg` may import `auth`, `migrate`, and `database/sql`, but no driver or HTTP package | Persistence stays reusable with an application-owned connection; routes and driver selection belong to the application |
 | `internal/**` must not import the root package | The dependency runs public → internal |
 
 Every public package needs a `# boundary: <name> — <decision>` line in

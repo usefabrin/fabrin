@@ -282,13 +282,15 @@ scope. The [approved auth contract](AUTH_CONTRACT.md) defines the implementation
 and security acceptance matrix. The public OTP core now reserves protected
 challenges, enforces bounded local abuse budgets, delivers through `mail.Capture`
 or another sender port, and atomically resolves a stable identity plus initial
-opaque session after one successful consumption. It remains a local preview: no
-login endpoint, durable shared store, eligibility policy, browser session, or
-identity-wide revocation ships yet. See
+opaque session after one successful consumption. `authpg` now supplies durable
+shared PostgreSQL budgets, unique identities, disabled checks and digest-only
+sessions through an explicit migration. No login endpoint, invitation policy,
+browser session, event cleanup, or identity-wide revocation ships yet. See
 [authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
-- [ ] Server-side sessions, pluggable store. (FR-AUTH-2)
+- [~] Server-side sessions, pluggable memory/PostgreSQL stores; rotation and
+      identity-wide revocation remain. (FR-AUTH-2)
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)
