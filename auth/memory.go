@@ -128,7 +128,7 @@ func (s *MemoryStore) Verify(ctx context.Context, attempt Verification) (Identit
 	if !stored.active || stored.attempts >= challengeAttempts || attempt.Now.Before(stored.reservation.IssuedAt) || !attempt.Now.Before(stored.reservation.ExpiresAt) {
 		return Identity{}, ErrAuthentication
 	}
-	valid := stored.reservation.Email == attempt.Email && stored.reservation.Purpose == attempt.Purpose && stored.reservation.KeyID == attempt.KeyID && hmac.Equal(stored.reservation.Verifier[:], attempt.Verifier[:])
+	valid := stored.reservation.Email == attempt.Email && stored.reservation.Purpose == attempt.Purpose && stored.reservation.KeyID == attempt.KeyID && hmac.Equal(stored.reservation.Verifier[:], attempt.Verifier[:]) && hmac.Equal(stored.reservation.Binding[:], attempt.Binding[:])
 	if !valid {
 		if _, exists := s.addressFailures[stored.reservation.Email]; !exists && len(s.addressFailures) >= s.capacity {
 			return Identity{}, ErrRateLimited

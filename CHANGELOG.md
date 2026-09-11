@@ -37,6 +37,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Browser challenge context binding.** `auth.WithBinding` now binds challenge
+  reservation and verification to the SHA-256 digest of a high-entropy client
+  context. Memory and Redis stores include the digest in their constant-time
+  credential checks, so a browser-purpose code cannot be redeemed from a missing
+  or different pre-authentication context. Request and verification methods gain
+  matching pre-release variadic options; the API snapshot changes intentionally.
+
 - **Identity-wide session logout.** `auth.SessionStore` now includes atomic
   `RevokeAllSessions`, `SessionManager.LogoutAll` exposes it to callers, and the
   native HTTP transport provides a logout-all handler. Memory and Redis stores

@@ -288,7 +288,8 @@ opaque session after one successful consumption. `authpg` now supplies durable
 unique identity resolution, transactional invitation consumption and disabled
 checks; `authredis` now owns shared budgets, verification leases and digest-only
 sessions. Native bearer login/current/logout handlers now ship; browser sessions
-and privilege-change revocation remain. See
+have challenge-context binding, while pre-authentication/CSRF and
+privilege-change revocation remain. See
 [authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)

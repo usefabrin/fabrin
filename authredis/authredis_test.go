@@ -147,6 +147,18 @@ func TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner(t *testing.T) {
 		t.Fatalf("verification after lease release: %v", err)
 	}
 
+	boundChallenge, err := service.Request(t.Context(), "browser@example.com", auth.PurposeBrowser, "browser-send", auth.WithBinding("browser-a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundCode := messageCode(t, inbox.Drain())
+	if _, err := service.Verify(t.Context(), boundChallenge.ID, "browser@example.com", boundCode, auth.PurposeBrowser, "browser-verify", auth.WithBinding("browser-b")); !errors.Is(err, auth.ErrAuthentication) {
+		t.Fatalf("cross-browser verification: %v", err)
+	}
+	if _, err := secondService.Verify(t.Context(), boundChallenge.ID, "browser@example.com", boundCode, auth.PurposeBrowser, "browser-verify", auth.WithBinding("browser-a")); err != nil {
+		t.Fatalf("bound browser verification: %v", err)
+	}
+
 	for i := range 20 {
 		if _, err := service.Request(t.Context(), fmt.Sprintf("budget-%02d@example.com", i), auth.PurposeNative, "shared-source"); err != nil {
 			t.Fatalf("seed source budget %d: %v", i, err)

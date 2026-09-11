@@ -162,6 +162,24 @@ func TestService_ConcurrentConsumeAndIdentityResolution(t *testing.T) {
 	}
 }
 
+func TestService_BindsBrowserChallengeToOneContext(t *testing.T) {
+	service, inbox := newService(t, 8)
+	challenge, err := service.Request(t.Context(), "a@example.com", PurposeBrowser, "source", WithBinding("browser-a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := strings.TrimPrefix(inbox.Messages()[0].Text, "Your Fabrin sign-in code is: ")
+	if _, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeBrowser, "source", WithBinding("browser-b")); !errors.Is(err, ErrAuthentication) {
+		t.Fatalf("other browser binding: %v", err)
+	}
+	if _, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeBrowser, "source"); !errors.Is(err, ErrAuthentication) {
+		t.Fatalf("missing browser binding: %v", err)
+	}
+	if _, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeBrowser, "source", WithBinding("browser-a")); err != nil {
+		t.Fatalf("matching browser binding: %v", err)
+	}
+}
+
 func TestService_ExpiryBoundaryAndNoIdentityBeforeVerification(t *testing.T) {
 	store, err := NewMemoryStore(8)
 	if err != nil {

@@ -86,7 +86,7 @@ func (s *Store) Reserve(ctx context.Context, reservation auth.Reservation) error
 		s.prefix + "send:source:" + source,
 		s.prefix + "active:" + digest(string(reservation.Purpose)+"\x00"+reservation.Email),
 		s.prefix + "challenge:" + reservation.ID,
-	}, s.prefix+"challenge:", reservation.ID, reservation.Email, address, reservation.KeyID, string(reservation.Purpose), hex.EncodeToString(reservation.Verifier[:])).Int64()
+	}, s.prefix+"challenge:", reservation.ID, reservation.Email, address, reservation.KeyID, string(reservation.Purpose), hex.EncodeToString(reservation.Verifier[:]), hex.EncodeToString(reservation.Binding[:])).Int64()
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (s *Store) Verify(ctx context.Context, attempt auth.Verification) (auth.Ide
 	result, err := verifyScript.Run(ctx, s.client, []string{
 		s.prefix + "verify:source:" + digest(attempt.Source),
 		s.prefix + "challenge:" + attempt.ID,
-	}, s.prefix+"verify:address:", lease, attempt.Email, attempt.KeyID, string(attempt.Purpose), hex.EncodeToString(attempt.Verifier[:])).Int64()
+	}, s.prefix+"verify:address:", lease, attempt.Email, attempt.KeyID, string(attempt.Purpose), hex.EncodeToString(attempt.Verifier[:]), hex.EncodeToString(attempt.Binding[:])).Int64()
 	if err != nil {
 		return auth.Identity{}, err
 	}
@@ -263,7 +263,7 @@ redis.call('PEXPIRE', KEYS[1], window+60000); redis.call('PEXPIRE', KEYS[2], win
 local previous = redis.call('GET', KEYS[3])
 if previous and redis.call('EXISTS', ARGV[1]..previous) == 1 then redis.call('HSET', ARGV[1]..previous, 'active', '0') end
 redis.call('SET', KEYS[3], ARGV[2], 'PX', 300000)
-redis.call('HSET', KEYS[4], 'email', ARGV[3], 'address', ARGV[4], 'key_id', ARGV[5], 'purpose', ARGV[6], 'verifier', ARGV[7], 'attempts', '0', 'active', '1')
+redis.call('HSET', KEYS[4], 'email', ARGV[3], 'address', ARGV[4], 'key_id', ARGV[5], 'purpose', ARGV[6], 'verifier', ARGV[7], 'binding', ARGV[8], 'attempts', '0', 'active', '1')
 redis.call('PEXPIRE', KEYS[4], 300000)
 return 1`)
 
@@ -279,11 +279,11 @@ redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ms-window)
 if redis.call('ZCARD', KEYS[1]) >= 100 then return 2 end
 redis.call('ZADD', KEYS[1], ms, tostring(ms)..':'..ARGV[2]); redis.call('PEXPIRE', KEYS[1], window+60000)
 if redis.call('EXISTS', KEYS[2]) == 0 then return 0 end
-local values=redis.call('HMGET',KEYS[2],'email','address','key_id','purpose','verifier','attempts','active','lease','lease_until')
+local values=redis.call('HMGET',KEYS[2],'email','address','key_id','purpose','verifier','attempts','active','lease','lease_until','binding')
 if values[7] ~= '1' then return 0 end
 if values[8] and tonumber(values[9]) > ms then return 0 end
 if values[8] then redis.call('HDEL',KEYS[2],'lease','lease_until') end
-if not (equal(values[1],ARGV[3]) and equal(values[3],ARGV[4]) and equal(values[4],ARGV[5]) and equal(values[5],ARGV[6])) then
+if not (equal(values[1],ARGV[3]) and equal(values[3],ARGV[4]) and equal(values[4],ARGV[5]) and equal(values[5],ARGV[6]) and equal(values[10],ARGV[7])) then
   local failures=ARGV[1]..values[2]; redis.call('ZREMRANGEBYSCORE',failures,'-inf',ms-window)
   if redis.call('ZCARD',failures) >= 20 then return 2 end
   redis.call('ZADD',failures,ms,tostring(ms)..':'..ARGV[2]); redis.call('PEXPIRE',failures,window+60000)

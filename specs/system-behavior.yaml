@@ -1029,6 +1029,13 @@ behaviours:
     status: implemented
     test: auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures
 
+  - id: OTP-009
+    what: Browser-purpose challenges bind reservation and verification to the digest of one high-entropy client context in memory and Redis.
+    why: Possession of an emailed code and challenge ID must not let a different browser context complete the browser login flow.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: auth/auth_test.go::TestService_BindsBrowserChallengeToOneContext
+
   - id: SES-001
     what: Initial sessions use independent 32-byte opaque secrets, persist only SHA-256 digests, and are created atomically with OTP consumption.
     why: Losing the verification response must not make a spent code replayable, and database reads must not reveal bearer credentials.

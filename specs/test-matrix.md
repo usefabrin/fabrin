@@ -623,6 +623,7 @@ the version.
 | OTP-006 | Unknown challenge IDs consume source verification budget. | `auth/auth_test.go::TestService_UnknownChallengesConsumeSourceBudget` |
 | OTP-007 | The bounded development store fails closed when it cannot represent another active challenge or budget key. | `auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity` |
 | OTP-008 | Known delivery rejection invalidates its reservation, while an ambiguous timeout leaves a possibly delivered challenge verifiable until expiry. | `auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures` |
+| OTP-009 | Browser challenges reject missing or different client-context bindings; Redis enforces the same digest check | `auth/auth_test.go::TestService_BindsBrowserChallengeToOneContext`, `authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner` |
 
 ## PostgreSQL identity persistence
 

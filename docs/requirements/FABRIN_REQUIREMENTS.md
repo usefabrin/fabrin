@@ -98,7 +98,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
 | FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. Redis is the implemented v1 authority for challenges, budgets and redemption; production delivery and HTTP integration remain. | in progress |
 | FR-AUTH-6 | Framework-owned PostgreSQL identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. The adapter resolves unique identities, consumes invitations and denies disabled identities; authorization relations remain. | in progress |
-| FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. Native bearer handlers implement bounded strict input, purpose separation, no-store responses and single-session logout; browser and broader policy remain. | in progress |
+| FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. Native bearer handlers implement bounded strict input, purpose separation and no-store responses; core and Redis challenge binding prevent cross-browser verification. Browser pre-auth/CSRF and broader policy remain. | in progress |
 
 ## FR-ADMIN — the admin site (F5)
 

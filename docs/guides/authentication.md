@@ -158,6 +158,13 @@ secret digest. Independently constructed stores share the same budgets when they
 use the same prefix. Use `authredis.WithPrefix` only for a non-secret deployment
 namespace. V1 supports one standalone Redis primary.
 
+Custom browser transports must bind both request and verification to the same
+high-entropy pre-authentication credential with `auth.WithBinding`. The core
+hashes the value before passing it to a store; memory and Redis reject a missing
+or different binding as the same authentication failure. Fabrin's built-in
+browser handlers will manage this option with their pre-auth cookie and CSRF
+state; callers should not use a user identifier or other guessable value.
+
 `authpg.New(db)` now supplies `auth.IdentityStore` for PostgreSQL without
 connecting or changing schema. Register `authpg.Migration()` with the
 application's migrations and run `./yourapp migrate` as a separate deploy step

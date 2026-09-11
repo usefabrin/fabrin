@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -65,6 +66,7 @@ type Reservation struct {
 	ID, Email, KeyID string
 	Purpose          Purpose
 	Verifier         [32]byte
+	Binding          [32]byte
 	IssuedAt         time.Time
 	ExpiresAt        time.Time
 	Source           string
@@ -75,6 +77,7 @@ type Verification struct {
 	ID, Email, KeyID string
 	Purpose          Purpose
 	Verifier         [32]byte
+	Binding          [32]byte
 	Now              time.Time
 	Source           string
 	IdentityID       string
@@ -101,6 +104,26 @@ type Sender interface {
 
 // Option configures Service construction.
 type Option func(*settings)
+
+// ChallengeOption configures one challenge request or verification.
+type ChallengeOption func(*challengeSettings)
+
+// WithBinding binds a challenge to a high-entropy client context such as a
+// browser pre-authentication credential. Stores receive only its SHA-256 digest.
+func WithBinding(value string) ChallengeOption {
+	return func(settings *challengeSettings) {
+		if value == "" || len(value) > 256 {
+			settings.valid = false
+			return
+		}
+		settings.binding = sha256.Sum256([]byte(value))
+	}
+}
+
+type challengeSettings struct {
+	binding [32]byte
+	valid   bool
+}
 
 // WithProduction rejects Fabrin's in-process store and capture mail backend.
 func WithProduction() Option { return func(s *settings) { s.production = true } }
@@ -155,19 +178,23 @@ func validKeyID(value string) bool {
 // Request reserves a challenge before sending its neutral sign-in message.
 // A known delivery rejection invalidates that exact reservation; cancellation
 // and deadlines are ambiguous and leave it verifiable until expiry.
-func (s *Service) Request(ctx context.Context, email string, purpose Purpose, source string) (Challenge, error) {
+func (s *Service) Request(ctx context.Context, email string, purpose Purpose, source string, options ...ChallengeOption) (Challenge, error) {
 	if err := ctx.Err(); err != nil {
 		return Challenge{}, err
 	}
 	if source == "" || len(source) > 256 {
 		return Challenge{}, ErrRateLimited
 	}
+	binding, err := challengeBinding(options)
+	if err != nil {
+		return Challenge{}, ErrAuthentication
+	}
 	now := s.now().UTC()
 	c, code, err := newChallenge(s.key, email, string(purpose), now)
 	if err != nil {
 		return Challenge{}, ErrAuthentication
 	}
-	reservation := Reservation{ID: c.id, Email: c.email, KeyID: s.keyID, Purpose: purpose, Verifier: c.digest, IssuedAt: c.issued, ExpiresAt: c.expires, Source: source}
+	reservation := Reservation{ID: c.id, Email: c.email, KeyID: s.keyID, Purpose: purpose, Verifier: c.digest, Binding: binding, IssuedAt: c.issued, ExpiresAt: c.expires, Source: source}
 	if err := s.store.Reserve(ctx, reservation); err != nil {
 		return Challenge{}, storeError(err)
 	}
@@ -189,12 +216,16 @@ func (s *Service) Request(ctx context.Context, email string, purpose Purpose, so
 
 // Verify atomically consumes one attempt, resolves a stable identity and
 // persists its first opaque session before returning the secret once.
-func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Purpose, source string) (Authentication, error) {
+func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Purpose, source string, options ...ChallengeOption) (Authentication, error) {
 	if err := ctx.Err(); err != nil {
 		return Authentication{}, err
 	}
 	if source == "" || len(source) > 256 {
 		return Authentication{}, ErrRateLimited
+	}
+	binding, err := challengeBinding(options)
+	if err != nil {
+		return Authentication{}, ErrAuthentication
 	}
 	canonical, err := canonicalEmail(email)
 	if err != nil {
@@ -211,12 +242,26 @@ func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Pu
 	if err != nil {
 		return Authentication{}, fmt.Errorf("auth: generate session: %w", err)
 	}
-	request := Verification{ID: id, Email: canonical, KeyID: s.keyID, Purpose: purpose, Verifier: verifier(s.key, string(purpose), id, canonical, code), Now: now, Source: source, IdentityID: identityID, Session: record}
+	request := Verification{ID: id, Email: canonical, KeyID: s.keyID, Purpose: purpose, Verifier: verifier(s.key, string(purpose), id, canonical, code), Binding: binding, Now: now, Source: source, IdentityID: identityID, Session: record}
 	identity, err := s.store.Verify(ctx, request)
 	if err != nil {
 		return Authentication{}, storeError(err)
 	}
 	return Authentication{Identity: identity, Session: session}, nil
+}
+
+func challengeBinding(options []ChallengeOption) ([32]byte, error) {
+	settings := challengeSettings{valid: true}
+	for _, option := range options {
+		if option == nil {
+			return [32]byte{}, ErrAuthentication
+		}
+		option(&settings)
+	}
+	if !settings.valid {
+		return [32]byte{}, ErrAuthentication
+	}
+	return settings.binding, nil
 }
 
 func storeError(err error) error {
