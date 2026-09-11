@@ -1,10 +1,12 @@
 package fabrin
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"go/format"
 	"io"
@@ -36,11 +38,18 @@ import (
 
 // makemigrationsCommand builds the makemigrations built-in.
 func makemigrationsCommand(a *App) cli.Command {
+	var noInput bool
 	return cli.Command{
 		Name:  "makemigrations",
 		Short: "generate migration files for schema changes the modules declared",
-		Run: func(ctx context.Context, out io.Writer, _ []string) error {
-			return a.runMakemigrations(ctx, out)
+		Flags: func(fs *flag.FlagSet) {
+			fs.BoolVar(&noInput, "no-input", false, "refuse changes that require an interactive answer")
+		},
+		Run: func(ctx context.Context, out io.Writer, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("fabrin: makemigrations takes no positional arguments")
+			}
+			return a.runMakemigrations(ctx, os.Stdin, out, !noInput && readerIsTerminal(os.Stdin))
 		},
 	}
 }
@@ -53,7 +62,7 @@ func makemigrationsCommand(a *App) cli.Command {
 // driver's identity chooses the SQL dialect the files are rendered for. A
 // migration written for PostgreSQL that later runs against SQLite is worse than
 // none.
-func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
+func (a *App) runMakemigrations(ctx context.Context, in io.Reader, out io.Writer, interactive bool) error {
 	if a.registry.sliced {
 		return fmt.Errorf("fabrin: this process is sliced by FABRIN_MODULES (registered: %v, mounted: %v) — "+
 			"migration commands refuse to act on part of the schema, because half-migrating the shared database "+
@@ -79,6 +88,10 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 	}
 
 	ops := migratediff.Diff(before, after)
+	ops, err = resolveRenames(ops, before, after, in, out, interactive)
+	if err != nil {
+		return err
+	}
 	if len(ops) == 0 {
 		_, err := fmt.Fprintln(out, "no changes detected in any module's models")
 		return err
@@ -343,6 +356,8 @@ func operationTable(op migratediff.Operation) string {
 		return o.Table
 	case migratediff.DropColumn:
 		return o.Table
+	case migratediff.RenameColumn:
+		return o.Table
 	case migratediff.ChangeType:
 		return o.Table
 	case migratediff.ChangeNullability:
@@ -362,6 +377,144 @@ func operationTable(op migratediff.Operation) string {
 	default:
 		return ""
 	}
+}
+
+type renameCandidate struct {
+	drop  int
+	add   int
+	op    migratediff.RenameColumn
+	field orm.Field
+}
+
+// resolveRenames is the only interactive part of schema detection. Diff stays
+// pure and reports the observable drop plus add; this layer asks whether a
+// compatible pair is one identity-preserving rename. Silence never authorizes
+// data loss: a non-interactive run refuses before any file is written.
+func resolveRenames(ops []migratediff.Operation, before, after orm.Snapshot, in io.Reader, out io.Writer, interactive bool) ([]migratediff.Operation, error) {
+	var candidates []renameCandidate
+	for dropIndex, op := range ops {
+		drop, ok := op.(migratediff.DropColumn)
+		if !ok {
+			continue
+		}
+		oldField, ok := snapshotField(before, drop.Table, drop.Column)
+		if !ok {
+			continue
+		}
+		for addIndex, possible := range ops {
+			add, ok := possible.(migratediff.AddColumn)
+			if !ok || add.Table != drop.Table || !renameCompatible(oldField, add.Field) {
+				continue
+			}
+			if _, exists := snapshotField(after, add.Table, add.Field.Name); !exists {
+				continue
+			}
+			candidates = append(candidates, renameCandidate{
+				drop:  dropIndex,
+				add:   addIndex,
+				op:    migratediff.RenameColumn{Table: drop.Table, From: drop.Column, To: add.Field.Name},
+				field: oldField,
+			})
+		}
+	}
+	if len(candidates) == 0 {
+		return ops, nil
+	}
+	if !interactive {
+		candidate := candidates[0].op
+		return nil, fmt.Errorf("fabrin: possible column rename %s.%s -> %s.%s requires an answer, but makemigrations is non-interactive; rerun in a terminal", candidate.Table, candidate.From, candidate.Table, candidate.To)
+	}
+
+	reader := bufio.NewReader(in)
+	replacements := make(map[int]migratediff.RenameColumn)
+	consumed := make(map[int]bool)
+	for _, candidate := range candidates {
+		if consumed[candidate.drop] || consumed[candidate.add] {
+			continue
+		}
+		yes, err := askRename(reader, out, candidate.op)
+		if err != nil {
+			return nil, err
+		}
+		if yes {
+			if candidate.field.PrimaryKey || candidate.field.Unique || candidate.field.Index {
+				return nil, fmt.Errorf("fabrin: cannot automatically rename constrained column %s.%s -> %s.%s without leaving its generated constraint or index name stale; hand-write this migration", candidate.op.Table, candidate.op.From, candidate.op.Table, candidate.op.To)
+			}
+			replacements[candidate.drop] = candidate.op
+			consumed[candidate.drop] = true
+			consumed[candidate.add] = true
+		}
+	}
+
+	resolved := make([]migratediff.Operation, 0, len(ops))
+	for index, op := range ops {
+		if rename, ok := replacements[index]; ok {
+			resolved = append(resolved, rename)
+			continue
+		}
+		if consumed[index] {
+			continue
+		}
+		resolved = append(resolved, op)
+	}
+	return resolved, nil
+}
+
+func askRename(in *bufio.Reader, out io.Writer, candidate migratediff.RenameColumn) (bool, error) {
+	for {
+		if _, err := fmt.Fprintf(out, "Did you rename %s.%s -> %s.%s? [y/N] ", candidate.Table, candidate.From, candidate.Table, candidate.To); err != nil {
+			return false, err
+		}
+		answer, err := in.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return false, fmt.Errorf("fabrin: read rename answer: %w", err)
+		}
+		switch strings.ToLower(strings.TrimSpace(answer)) {
+		case "y", "yes":
+			return true, nil
+		case "", "n", "no":
+			return false, nil
+		default:
+			if _, writeErr := fmt.Fprintln(out, "Please answer yes or no."); writeErr != nil {
+				return false, writeErr
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return false, nil
+		}
+	}
+}
+
+func renameCompatible(before, after orm.Field) bool {
+	return before.Type == after.Type &&
+		before.MaxLen == after.MaxLen &&
+		before.Nullable == after.Nullable &&
+		before.PrimaryKey == after.PrimaryKey &&
+		before.Unique == after.Unique &&
+		before.Index == after.Index
+}
+
+func snapshotField(state orm.Snapshot, table, column string) (orm.Field, bool) {
+	for _, reg := range state.Models() {
+		if reg.Model.Table != table {
+			continue
+		}
+		for _, field := range reg.Model.Fields {
+			if field.Name == column {
+				return field, true
+			}
+		}
+	}
+	return orm.Field{}, false
+}
+
+func readerIsTerminal(in io.Reader) bool {
+	file, ok := in.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // invert builds the schema-level inverse of an operation: creates become drops,
@@ -393,6 +546,8 @@ func invert(op migratediff.Operation, before orm.Snapshot) (migratediff.Operatio
 			}
 		}
 		return nil, fmt.Errorf("cannot reverse dropping %s.%s: no recorded field", o.Table, o.Column)
+	case migratediff.RenameColumn:
+		return migratediff.RenameColumn{Table: o.Table, From: o.To, To: o.From}, nil
 	case migratediff.ChangeType:
 		for _, reg := range before.Models() {
 			if reg.Model.Table != o.Table {

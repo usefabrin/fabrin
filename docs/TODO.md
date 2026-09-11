@@ -165,7 +165,7 @@ pre-v0 decisions are provisional ORM constraints
       `Render(Operation) []string` seam, both implementations quote metadata as
       identifiers, and `Apply` preflights the complete operation list. Still
       open: SQLite's table-rebuild implementation. (FR-ORM-4, MIG-019…026,
-      MIG-041…051)
+      MIG-041…058)
 - [x] `fabrin migrate` as `./myapp migrate [-to]` is done: the `Migrator`
       interface collects declared migrations from mounted modules, cross-module
       duplicate versions and mixed widths fail at construction, the command
@@ -183,6 +183,13 @@ pre-v0 decisions are provisional ORM constraints
       to public here — #59 consuming it was ADR 0005's anticipated moment.
       (FR-ORM-4, MIG-033…038,
       [#59](https://github.com/usefabrin/fabrin/issues/59))
+- [x] Rename detection asks instead of guessing. A compatible drop/add pair is
+      offered one at a time; yes emits a reversible `RenameColumn`, no retains
+      the explicit data-losing drop/add, and `-no-input` or a non-terminal stdin
+      refuses before writing. Constrained renames fail with a hand-written
+      instruction until their generated database-object names can move safely.
+      (FR-ORM-4, MIG-053…058,
+      [#58](https://github.com/usefabrin/fabrin/issues/58))
 - [x] Duplicate-version gate (#55). The **engine** half rejects two migrations
       at one version (MIG-007) and versions that do not sort as written
       (MIG-009); construction-time collection adds cross-module duplicate and

@@ -334,6 +334,51 @@ func TestExecute_MakemigrationsCarriesHandWrittenStepsForward(t *testing.T) {
 	}
 }
 
+func TestExecute_MakemigrationsNoInputRefusesPossibleRenameBeforeWriting(t *testing.T) {
+	projectChdir(t)
+
+	db, err := sql.Open("pgx/v5", "postgres://unused")
+	if err != nil {
+		t.Fatalf("open pgx handle: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	before := orm.Model{
+		Table: "orders",
+		Fields: []orm.Field{
+			{Name: "id", Type: orm.Int64, PrimaryKey: true},
+			{Name: "total", Type: orm.Float},
+		},
+	}
+	app, err := fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", before))
+	if err != nil {
+		t.Fatalf("New before: %v", err)
+	}
+	if err := app.Execute(t.Context(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("record before: %v", err)
+	}
+	filesBefore := migrationFiles(t, "shop")
+
+	after := before
+	after.Fields[1].Name = "amount"
+	app, err = fabrin.New(fabrin.Options{Addr: "127.0.0.1:0", DB: db}, ownerWith("shop", after))
+	if err != nil {
+		t.Fatalf("New after: %v", err)
+	}
+	err = app.Execute(t.Context(), io.Discard, []string{"makemigrations", "-no-input"})
+	if err == nil {
+		t.Fatal("-no-input must refuse a possible rename")
+	}
+	for _, want := range []string{"orders.total", "orders.amount", "non-interactive"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error must contain %q: %v", want, err)
+		}
+	}
+	filesAfter := migrationFiles(t, "shop")
+	if !slices.Equal(filesAfter, filesBefore) {
+		t.Errorf("refused generation wrote files: before %v, after %v", filesBefore, filesAfter)
+	}
+}
+
 func TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration(t *testing.T) {
 	projectChdir(t)
 

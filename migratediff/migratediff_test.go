@@ -56,6 +56,42 @@ func ordersModel() orm.Model {
 	}
 }
 
+func TestSQLite_RenamesAColumnWithoutLosingItsData(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:rename-column?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(`CREATE TABLE "orders" ("id" INTEGER PRIMARY KEY, "total" TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO "orders" ("id", "total") VALUES (1, '12.50')`); err != nil {
+		t.Fatalf("insert row: %v", err)
+	}
+
+	op := RenameColumn{Table: "orders", From: "total", To: "amount"}
+	if err := Apply(t.Context(), db, SQLite{}, []Operation{op}); err != nil {
+		t.Fatalf("Apply rename: %v", err)
+	}
+
+	var amount string
+	if err := db.QueryRow(`SELECT "amount" FROM "orders" WHERE "id" = 1`).Scan(&amount); err != nil {
+		t.Fatalf("read renamed column: %v", err)
+	}
+	if amount != "12.50" {
+		t.Errorf("renamed value = %q, want 12.50", amount)
+	}
+
+	stmts, err := (Postgres{}).Render(op)
+	if err != nil {
+		t.Fatalf("Postgres.Render: %v", err)
+	}
+	want := `ALTER TABLE "orders" RENAME COLUMN "total" TO "amount"`
+	if len(stmts) != 1 || stmts[0] != want {
+		t.Errorf("Postgres rename = %v, want [%s]", stmts, want)
+	}
+}
+
 // opKinds reduces a diff to "create orders / addcol orders.total / ..." so the
 // table-driven tests assert shape without spelling out rendered SQL.
 func opKinds(ops []Operation) []string {
@@ -487,6 +523,13 @@ func TestDialects_QuoteIdentifiersInsteadOfTreatingThemAsSQL(t *testing.T) {
 	}
 	if len(stmts) != 1 || !strings.Contains(stmts[0], `ALTER TABLE "order items" DROP COLUMN "select""value"`) {
 		t.Errorf("PostgreSQL identifiers are not quoted safely: %q", stmts)
+	}
+	stmts, err = Postgres{}.Render(RenameColumn{Table: model.Table, From: model.Fields[0].Name, To: `new"value`})
+	if err != nil {
+		t.Fatalf("Postgres rename Render: %v", err)
+	}
+	if len(stmts) != 1 || !strings.Contains(stmts[0], `ALTER TABLE "order items" RENAME COLUMN "select""value" TO "new""value"`) {
+		t.Errorf("PostgreSQL rename identifiers are not quoted safely: %q", stmts)
 	}
 }
 

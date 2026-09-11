@@ -42,6 +42,12 @@ func (d Postgres) Render(op Operation) ([]string, error) {
 		if o != nil {
 			return oneStatement(d.dropColumn(o.Table, o.Column))
 		}
+	case RenameColumn:
+		return []string{d.renameColumn(o.Table, o.From, o.To)}, nil
+	case *RenameColumn:
+		if o != nil {
+			return []string{d.renameColumn(o.Table, o.From, o.To)}, nil
+		}
 	case ChangeType:
 		return oneStatement(d.changeType(o.Table, o.Column, o.To))
 	case *ChangeType:
@@ -130,6 +136,10 @@ func (Postgres) addColumn(table string, f orm.Field) ([]string, error) {
 func (Postgres) dropColumn(table, column string) (string, error) {
 	return "-- fabrin: dropping " + strconv.Quote(table+"."+column) +
 		" discards its data\nALTER TABLE " + quoteIdentifier(table) + " DROP COLUMN " + quoteIdentifier(column), nil
+}
+
+func (Postgres) renameColumn(table, from, to string) string {
+	return "ALTER TABLE " + quoteIdentifier(table) + " RENAME COLUMN " + quoteIdentifier(from) + " TO " + quoteIdentifier(to)
 }
 
 func (Postgres) changeType(table, column string, to orm.Field) (string, error) {

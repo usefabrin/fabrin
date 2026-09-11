@@ -583,6 +583,48 @@ behaviours:
     status: implemented
     test: makemigrations_test.go::TestExecute_MakemigrationsRecordsCumulativeStateAtEachGeneratedVersion
 
+  - id: MIG-053
+    what: RenameColumn is an explicit schema operation rendered with quoted identifiers by PostgreSQL and SQLite, and SQLite execution preserves the column's data.
+    why: A rename is observably different from drop-plus-add because the latter destroys every value. It belongs in the operation vocabulary so generated migrations and custom dialects can express that intent without raw SQL.
+    requirement: FR-ORM-4
+    status: implemented
+    test: migratediff/migratediff_test.go::TestSQLite_RenamesAColumnWithoutLosingItsData
+
+  - id: MIG-054
+    what: Confirming a compatible drop/add pair generates one reversible column rename instead of a drop and add.
+    why: A schema diff cannot infer identity from two names, but a user can. Asking preserves data without teaching the pure differ to guess.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_internal_test.go::TestRunMakemigrations_ConfirmedRenameGeneratesReversibleSQL
+
+  - id: MIG-055
+    what: Declining a possible rename generates the original drop and add, with the data-loss warning carried in the migration file.
+    why: No is a deliberate answer that the two fields have different identities. The destructive consequence must remain visible at review time rather than only in command output.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_internal_test.go::TestRunMakemigrations_DeclinedRenameGeneratesDropAndAdd
+
+  - id: MIG-056
+    what: -no-input and non-terminal generation refuse a possible rename before writing any files, naming both columns.
+    why: CI and pipes have nobody present to authorize drop-plus-add. Defaulting to no there would silently choose the data-destroying interpretation.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsNoInputRefusesPossibleRenameBeforeWriting
+
+  - id: MIG-057
+    what: Several compatible dropped and added fields are presented as individual rename questions rather than matched collectively.
+    why: Type compatibility does not establish identity. A bulk guess becomes less trustworthy as candidates multiply, so each possible pair needs its own explicit answer.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_internal_test.go::TestResolveRenames_AsksAmbiguousCandidatesOneAtATime
+
+  - id: MIG-058
+    what: Confirming a primary-key, UNIQUE, or indexed column rename refuses with a hand-written-migration instruction until generated database-object names can be updated safely.
+    why: Renaming only the column preserves its data but leaves ADR 0006's deterministic constraint or index name tied to the old column, breaking later generated drops. A stated refusal is safer than recording false schema identity.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_internal_test.go::TestResolveRenames_ConfirmedConstrainedColumnRequiresHandWrittenMigration
+
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
     why: A state record nobody can parse must never become a silently empty "before" - which would make the next makemigrations emit a create-everything migration against a live schema. "Unparseable" without a file name sends the reader grepping a directory.
