@@ -37,6 +37,16 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Redis OTP and session store.** New public `authredis.New`, `Store`,
+  `WithPrefix`, `Ping`, and `Close` provide the production ephemeral adapter
+  without exposing a Redis client type. Server-time Lua transitions share
+  challenge replacement, rolling address/source budgets, verification leases,
+  single-winner redemption, digest-only session authentication and revocation
+  across processes. The lease releases after transient PostgreSQL identity
+  failures and completion retries idempotently after ambiguous Redis responses.
+  Construction validates without connecting; CI now runs live Redis 8.2.5 and
+  PostgreSQL 17 adapter tests. The API snapshot changes intentionally.
+
 - **Auth-focused v1 scope and Redis decision.** V1 now completes email OTP,
   production SMTP, browser/native sessions, invitations, groups, authorization,
   audit and cleanup before expanding other product areas. Accepted ADR 0008

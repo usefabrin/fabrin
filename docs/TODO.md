@@ -286,13 +286,13 @@ challenges, enforces bounded local abuse budgets, delivers through `mail.Capture
 or another sender port, and atomically resolves a stable identity plus initial
 opaque session after one successful consumption. `authpg` now supplies durable
 unique identity resolution, transactional invitation consumption and disabled
-checks; Redis will own shared budgets and digest-only sessions. No login endpoint,
-browser session, Redis store, or identity-wide revocation ships yet. See
+checks; `authredis` now owns shared budgets, verification leases and digest-only
+sessions. No login endpoint, browser session, or identity-wide revocation ships yet. See
 [authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
-- [~] Server-side sessions; bounded memory exists, while Redis, rotation and
-      identity-wide revocation remain. (FR-AUTH-2)
+- [~] Server-side sessions; bounded memory and standalone Redis exist, while
+      rotation and identity-wide revocation remain. (FR-AUTH-2)
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)

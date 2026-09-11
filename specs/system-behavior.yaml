@@ -945,6 +945,20 @@ behaviours:
     status: implemented
     test: authpg/authpg_test.go::TestNew_RejectsNilAndPerformsNoDatabaseIO
 
+  - id: AUTHREDIS-001
+    what: Independently constructed Redis auth stores share send and verification budgets, permit one concurrent verification winner, and persist digest-only sessions that authenticate and revoke across clients.
+    why: Production replicas must enforce one security boundary rather than per-process limits, and a replay must never create another authenticated result.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner
+
+  - id: AUTHREDIS-002
+    what: A transient durable identity failure releases the Redis verification lease so the same valid challenge can retry, while construction validates configuration without connecting.
+    why: Redis and PostgreSQL cannot share a transaction; the explicit recovery protocol must fail closed without permanently consuming a valid challenge during a retryable outage.
+    requirement: FR-AUTH-6
+    status: implemented
+    test: authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner
+
   - id: OTP-002
     what: Private challenge consumption allows at most five attempts and one concurrent successful use.
     why: Prove the private OTP primitive before a public transactional authentication API is exposed.

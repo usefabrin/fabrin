@@ -631,6 +631,13 @@ the version.
 | AUTHPG-001 | Concurrent verified resolution returns one eligible identity and atomically consumes its invitation | `authpg/authpg_test.go::TestStore_PostgresResolvesOneEligibleIdentity` |
 | AUTHPG-002 | Construction performs no database I/O; migration remains explicit | `authpg/authpg_test.go::TestNew_RejectsNilAndPerformsNoDatabaseIO` |
 
+## Redis authentication persistence
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| AUTHREDIS-001 | Separate Redis clients share abuse budgets, allow one verification winner, and authenticate/revoke digest-only sessions | `authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner` |
+| AUTHREDIS-002 | Transient durable identity failure releases the verification lease for a retry; construction performs no Redis I/O | `authredis/authredis_test.go::TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner`, `authredis/authredis_test.go::TestNew_ValidatesConfigurationWithoutConnecting` |
+
 ## Preview sessions
 
 | ID | Behaviour | Test |

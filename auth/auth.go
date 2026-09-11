@@ -82,8 +82,8 @@ type Verification struct {
 }
 
 // Store owns challenge replacement, abuse budgets, attempt accounting,
-// one-time consumption, unique identity resolution and initial session creation
-// as atomic operations.
+// one-time consumption and initial session creation. A production adapter may
+// coordinate an idempotent IdentityStore through a bounded verification lease.
 // Reserve must keep address/source budgets across replacement. Verify must make
 // one concurrent attempt the sole winner and return ErrAuthentication for every
 // credential failure. Invalidate must affect only the named challenge.

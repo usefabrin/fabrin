@@ -3,8 +3,10 @@
 Fabrin now exposes the first email-code authentication core. It reserves an
 eight-digit, five-minute challenge, sends it through an explicit `auth.Sender`,
 and atomically consumes it through an `auth.Store`. The included
-`auth.MemoryStore` supports tests and local development; `authpg.Store` provides
-durable PostgreSQL persistence. `mail.Capture` remains test/local delivery only.
+`auth.MemoryStore` supports tests and local development. In production,
+`authredis.Store` provides ephemeral Redis persistence and delegates verified
+identity resolution to `authpg.Store`. `mail.Capture` remains test/local delivery
+only.
 
 This is not a login endpoint or a production authentication stack. Successful
 verification atomically creates a minimal opaque server-side session, but browser
@@ -86,7 +88,7 @@ When a new challenge or budget key cannot be represented, the store fails closed
 State is local to one process and disappears on restart, so its limits are not
 shared across replicas. Use it only for tests or an explicitly local tool.
 
-## Store contracts and the Redis split
+## Production Redis and PostgreSQL stores
 
 Applications may implement `auth.Store` using durable storage. `Reserve` must
 atomically consume address/source send budgets and replace the prior active
@@ -96,6 +98,36 @@ identity for the canonical email, and persist `Verification.Session` for that
 identity. `Invalidate` must affect only its named
 challenge so cleanup cannot revoke a newer resend.
 
+Construct the PostgreSQL identity store first, then pass it to the Redis store.
+Neither constructor connects. Register the PostgreSQL migration explicitly and
+use `Ping` as a Redis readiness check. The Redis URL supports `redis://` and
+TLS-enabled `rediss://`; production deployments should use transport protection
+appropriate to their network and provider.
+
+```go
+identities, err := authpg.New(db, authpg.WithInvitationsRequired())
+if err != nil {
+    return err
+}
+store, err := authredis.New(redisURL, identities)
+if err != nil {
+    return err
+}
+defer store.Close()
+
+service, err := auth.New(store, smtpSender, keyID, key, auth.WithProduction())
+if err != nil {
+    return err
+}
+```
+
+`authredis.Store` uses Redis server time for five-minute challenges, rolling
+address/source budgets, the 30-second verification lease, and session expiry.
+Keys use SHA-256 digests for email and source lookups; sessions persist only the
+secret digest. Independently constructed stores share the same budgets when they
+use the same prefix. Use `authredis.WithPrefix` only for a non-secret deployment
+namespace. V1 supports one standalone Redis primary.
+
 `authpg.New(db)` now supplies `auth.IdentityStore` for PostgreSQL without
 connecting or changing schema. Register `authpg.Migration()` with the
 application's migrations and run `./yourapp migrate` as a separate deploy step
@@ -103,22 +135,22 @@ before serving. The application imports and selects its PostgreSQL driver and
 owns the `*sql.DB` lifecycle.
 
 ```go
-identities, err := authpg.New(db, authpg.WithInvitationsRequired())
-if err != nil {
-    return err
-}
 migrations := []migrate.M{authpg.Migration()}
 ```
 
 The adapter serializes resolution by canonical email, returns an existing
 eligible identity on retry, consumes an invitation in the same transaction as
 first identity creation, and denies disabled identities. Set
-`FABRIN_TEST_PG_DSN` to run its live concurrency test; without that variable the
+`FABRINTEST_PG_DSN` to run its live concurrency test; without that variable the
 test reports an explicit skip.
 
-The approved [authentication contract](../AUTH_CONTRACT.md) additionally requires
-Redis challenge/session persistence, privilege-change revocation and
-browser/native transport separation. The Redis adapter is the next slice; until
-it lands, `auth.MemoryStore` remains the only complete `auth.Store`. Browser
-sessions, HTTP request limits/no-store behavior, production mail and resource
-authorization remain required.
+The verification lease prevents concurrent winners while PostgreSQL resolves the
+identity. A transient durable-store error releases the lease for retry; a worker
+crash leaves it reclaimable after 30 seconds. Redis completion is idempotent so
+an ambiguous client response cannot revive a consumed code. Identity-policy
+rejection consumes the challenge.
+
+Set `FABRINTEST_REDIS_URL` and `FABRINTEST_PG_DSN` to run the live adapter
+tests. Browser sessions, privilege-change and identity-wide revocation, HTTP
+request limits/no-store behavior, production mail and resource authorization
+remain required by the approved [authentication contract](../AUTH_CONTRACT.md).

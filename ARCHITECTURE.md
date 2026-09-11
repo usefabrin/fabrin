@@ -24,7 +24,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
 ├── auth/                email OTP core + bounded local store; transport-free
 ├── authpg/              PostgreSQL identities and authorization; driver-free
-├── authredis/           planned Redis OTP/session adapter; owns its client
+├── authredis/           Redis OTP/session adapter; owns its client
 ├── admin/               private CRUD seam proof — exports nothing yet
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
@@ -93,9 +93,9 @@ process-local store for tests. It generates eight decimal digits, stores only an
 HMAC verifier, preserves rolling abuse budgets across resends, and resolves one
 stable identity plus its first opaque session after one successful concurrent
 consumption. The memory store authenticates, idle-refreshes and revokes that
-native preview session. HTTP transport, durable shared storage, eligibility
-policy, browser sessions and broad revocation are still absent, so this is a
-runnable local core rather than production login.
+native preview session. HTTP transport, production delivery, browser sessions
+and broad revocation are still absent, so this is a persistence-complete core
+rather than production login.
 
 ### Redis and PostgreSQL authentication persistence
 
@@ -105,11 +105,13 @@ groups, permissions, audit records and profile relations remain in PostgreSQL.
 The split is recorded in [ADR 0008](docs/adr/0008-redis-owns-ephemeral-auth-state.md).
 Neither adapter connects or mutates schema during construction.
 
-The existing `authpg.Store` predates this decision and temporarily implements
-the full store. It will be narrowed to identity and eligibility persistence as
-`authredis` takes over the short-lived state. Verification uses an explicit
-Redis lease and idempotent PostgreSQL identity resolution rather than pretending
-the two systems share a transaction.
+`authpg.Store` implements identity and invitation eligibility persistence.
+`authredis.Store` implements shared challenge, rolling-budget and digest-only
+session persistence against one standalone Redis primary. Verification leases a
+valid challenge, calls the idempotent PostgreSQL identity resolver, then consumes
+the challenge while creating its session in one Redis script. A transient durable
+store failure releases the lease; a lost Redis completion response is retried
+idempotently. Redis server time controls all ephemeral boundaries.
 
 ### Generated PostgreSQL data access (preview)
 

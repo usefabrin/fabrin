@@ -29,12 +29,37 @@ permissions:
 
 env:
   GOFLAGS: -mod=mod
+  FABRINTEST_PG_DSN: postgres://fabrin:fabrin@127.0.0.1:5432/fabrin?sslmode=disable
+  FABRINTEST_REDIS_URL: redis://127.0.0.1:6379/0
 
 jobs:
   quality:
     name: Gates · Lint · Test · Arch · API · Examples · Specs
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fabrin
+          POSTGRES_PASSWORD: fabrin
+          POSTGRES_DB: fabrin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fabrin -d fabrin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8.2.5
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -94,6 +119,29 @@ jobs:
     name: Race detector
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fabrin
+          POSTGRES_PASSWORD: fabrin
+          POSTGRES_DB: fabrin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fabrin -d fabrin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8.2.5
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 

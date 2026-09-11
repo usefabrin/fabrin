@@ -149,6 +149,10 @@ suite could not have caught: a package in the manifest with nothing recorded.
   `auth`, `migrate`, and `database/sql`, but no concrete driver, Gin, HTTP, root
   lifecycle, or other sibling. Applications open the database and explicitly
   run its migration; constructing the adapter performs no I/O.
+- `fabrin/authredis` is the ephemeral authentication adapter below `auth`. It
+  may import `auth` and its private `go-redis` client, but no SQL, migration,
+  Gin, HTTP, root lifecycle, or other sibling package. It owns its Redis client;
+  construction parses configuration without connecting.
 - `fabrin/mail` is standalone and cannot import another Fabrin package.
   Consumers declare the `Send` interface they need. Capture tests require no
   network. The boundary is tested with root/sibling violations and a stdlib

@@ -19,3 +19,4 @@ schema
 mail
 auth
 authpg
+authredis

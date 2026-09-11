@@ -58,6 +58,10 @@ linters:
       #     migrate, plus database/sql; no root/app lifecycle, transport, or
       #     concrete database driver belongs in the adapter.
       #
+      # boundary: authredis — Redis adapter below auth. It may import auth and
+      #     its private go-redis client; no root lifecycle, HTTP, SQL, migration,
+      #     or other sibling package belongs in the adapter.
+      #
       # boundary: mail — standalone capture/value package. No other Fabrin
       #     package imports; delivery consumers declare their own sender port.
       #
@@ -317,6 +321,28 @@ linters:
               desc: "authpg imports no driver; applications open database/sql"
             - pkg: "modernc.org/sqlite"
               desc: "authpg is PostgreSQL-only and imports no driver"
+
+        authredis-is-ephemeral-adapter:
+          files:
+            - "**/authredis/**"
+            - "!**/*_test.go"
+          list-mode: lax
+          allow:
+            - "github.com/usefabrin/fabrin/auth$"
+            - "github.com/redis/go-redis/v9$"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "authredis may import only auth inside Fabrin"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "authredis is persistence, not HTTP transport"
+            - pkg: "net/http"
+              desc: "authredis is persistence, not HTTP transport"
+            - pkg: "database/sql"
+              desc: "durable identity persistence belongs to authpg"
+            - pkg: "github.com/jackc/pgx"
+              desc: "durable identity persistence belongs to authpg"
+            - pkg: "modernc.org/sqlite"
+              desc: "authredis stores only ephemeral authentication state"
 
         mail-is-standalone:
           files:

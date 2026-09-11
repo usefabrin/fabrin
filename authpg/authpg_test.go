@@ -101,9 +101,9 @@ func TestStore_PostgresResolvesOneEligibleIdentity(t *testing.T) {
 
 func postgresDB(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("FABRIN_TEST_PG_DSN")
+	dsn := os.Getenv("FABRINTEST_PG_DSN")
 	if dsn == "" {
-		t.Skip("FABRIN_TEST_PG_DSN not set; skipping live PostgreSQL identity test")
+		t.Skip("FABRINTEST_PG_DSN not set; skipping live PostgreSQL identity test")
 	}
 	adminDB, err := sql.Open("pgx", dsn)
 	if err != nil {

@@ -30,8 +30,8 @@ scope before v1. `admin` still exports no public API.
 
 | Milestone | Acceptance | Current evidence |
 |---|---|---|
-| Auth core (#105, #110) | Protected OTPs, neutral delivery behavior, bounded shared abuse controls and verified identity creation | Local core and memory tests implemented; Redis split pending |
-| Redis and identity persistence (#111) | Redis OTP/session state plus PostgreSQL identities with retry-safe verification recovery | PostgreSQL-only adapter exists and will be refactored before v1 |
+| Auth core (#105, #110) | Protected OTPs, neutral delivery behavior, bounded shared abuse controls and verified identity creation | Local core plus shared Redis challenge/budget tests implemented |
+| Redis and identity persistence (#111) | Redis OTP/session state plus PostgreSQL identities with retry-safe verification recovery | Both adapters implemented; live CI covers concurrency and lease recovery |
 | Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Initial opaque native session primitive implemented; production transports pending |
 | Authorization (#113) | Invitations, groups, deny-by-default operation/field policy, ownership and administrator bootstrap | Planned |
 | Production email (#116) | Replaceable SMTP with TLS, deadlines, sanitized errors and tested ambiguous delivery behavior | Capture backend implemented; SMTP pending |
@@ -44,7 +44,7 @@ owned-resource preview in #111 is superseded by an auth reference application.
 ## Implementation order
 
 1. Refactor `authpg` to durable identity/eligibility persistence and add the
-   Redis verification/session adapter without exposing its client type.
+   Redis verification/session adapter without exposing its client type. **Done.**
 2. Implement production native and browser transports, including pre-auth CSRF,
    exact-origin CORS, rotation, revoke-all and dependency health checks.
 3. Add invitation, group, permission, ownership and field-policy APIs with an
@@ -87,10 +87,13 @@ digest-only initial session. `mail.Capture` is bounded and available only to
 tests or explicitly local tools.
 
 Commit `0ad3552` added a PostgreSQL implementation of the complete auth store.
-The v1 Redis decision supersedes that persistence shape before any release:
-`authpg` will retain durable identity and eligibility data, while challenges,
-budgets and sessions move to Redis. Existing preview databases may be reset;
-there is no released migration compatibility promise yet.
+The v1 Redis decision superseded that persistence shape before any release:
+`authpg` now retains durable identity and eligibility data, while `authredis`
+owns challenges, shared rolling budgets, verification leases and sessions. Live
+integration tests exercise PostgreSQL identity serialization and Redis
+cross-client concurrency, retry after a transient identity failure, session
+authentication and revocation. Existing preview databases may be reset; there
+is no released migration compatibility promise yet.
 
 The generated schema work and its proposed ADR remain in the repository, but
 the auth-focused release does not extend them. The unfinished local preview test

@@ -4,14 +4,12 @@ Status: **approved by the maintainer for implementation**, September 10, 2026. T
 #105, #110, #112, #113. This document specifies intended behavior; it does not
 claim production readiness. Approval was given after review of commit `a19c4d7`
 under the direct-main workflow. Capture mail, the private challenge primitive,
-and a public local OTP core are implemented. The local core reserves challenges,
-enforces bounded process-local budgets, cleans up known delivery failures, and
-atomically resolves stable identities plus initial opaque sessions. Durable shared
-storage, eligibility policy, browser/native transport, broader session revocation,
-and authorization remain planned. The earlier `authpg` all-in-one store is being
-split before v1: Redis will own ephemeral challenges, budgets and sessions;
-PostgreSQL will retain durable identities and authorization. This is approved
-architecture, not approval of the incomplete HTTP or production stack.
+and a public OTP core are implemented. Redis now provides shared challenges,
+budgets, verification leases and sessions; PostgreSQL provides durable identity
+resolution, invitation consumption and disabled-identity policy. Browser/native
+transport, broader session revocation, production delivery and authorization
+remain planned. This is approved architecture, not approval of the incomplete
+HTTP or production stack.
 
 ## Goal, trust boundaries and limits
 
@@ -102,12 +100,16 @@ a generic durable job payload, error string, tracing attribute or access log.
 
 ## Atomic verification and identity creation
 
-The store performs attempt accounting, expiry/purpose checks, verifier comparison,
-challenge consumption, invitation/disabled-account policy, and identity resolution
-in one transaction or equivalent atomic operation. Failed attempts commit their
-budget increments even when no identity is returned. Unexpected store failure
-returns no authenticated result. Only one concurrent request can succeed with
-the same challenge. A replay never creates a second identity or session.
+The ephemeral store performs attempt accounting, expiry/purpose checks and
+verifier comparison atomically, then leases one valid challenge to the durable
+identity resolver. Durable identity and eligibility changes commit idempotently.
+The ephemeral store then consumes the challenge and creates the digest-only
+session atomically. A transient durable failure releases the lease; a crashed
+worker's lease expires; completion is idempotent after an ambiguous Redis reply.
+Failed attempts commit their budget increments even when no identity is returned.
+Unexpected store failure returns no authenticated result. Only one concurrent
+request can succeed with the same challenge. A replay never creates a second
+identity or session.
 
 Identity IDs are random, opaque and stable. Canonical email has a unique database
 constraint. Concurrent verified signup resolves to one identity, not duplicate
