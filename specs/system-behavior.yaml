@@ -463,6 +463,115 @@ behaviours:
     status: implemented
     test: internal/ormgentest/orderdb/orderdb_test.go::TestQueries_CreateAndGetAgainstPostgreSQL
 
+  # ── Authentication security contract ────────────────────────────────────────
+  - id: AUTH-001
+    what: OTP challenge and session secrets come from crypto/rand with the reviewed minimum entropy, and only domain-separated keyed digests are stored.
+    why: Predictable secrets permit online guessing; plaintext database values turn a database-only disclosure into immediate account takeover.
+    requirement: FR-AUTH-1
+    status: planned
+
+  - id: AUTH-002
+    what: A challenge expires after the bounded lifetime and locks after the bounded verification-attempt count; expiry and lock transitions are atomic.
+    why: Unlimited or racy attempts convert a one-time secret into a reusable low-cost password.
+    requirement: FR-AUTH-1
+    status: planned
+
+  - id: AUTH-003
+    what: Resend rotates the verifier and invalidates the prior code without resetting first-issued time, verification attempts, or the distributed send budget.
+    why: Resetting any budget lets an attacker loop resend to extend expiry or obtain unlimited guesses.
+    requirement: FR-AUTH-1
+    status: planned
+
+  - id: AUTH-004
+    what: Concurrent verification atomically consumes one challenge; exactly one caller succeeds and every replay fails.
+    why: A read-then-write consume permits two processes to accept the same one-time credential during a race.
+    requirement: FR-AUTH-1
+    status: planned
+
+  - id: AUTH-005
+    what: No identity exists before successful challenge consumption, and identity creation is atomic with verification.
+    why: Creating an account on request lets unverified addresses reserve or control identity state and leaves orphan identities after delivery failure.
+    requirement: FR-AUTH-1
+    status: planned
+
+  - id: AUTH-006
+    what: Challenge request, verification, resend, and recovery responses do not reveal whether an email is known, invited, blocked, or already registered through status, schema, or network-level work.
+    why: Account enumeration turns the authentication endpoint into a directory of users and can expose sensitive membership.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-007
+    what: Authentication and privilege changes rotate a high-entropy session identifier; a pre-authentication identifier is never promoted.
+    why: Reusing an attacker-selected or previously observed identifier enables session fixation and preserves stolen credentials across privilege changes.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-008
+    what: The default browser cookie uses the __Host- prefix, Secure, HttpOnly, SameSite=Lax, Path=/, no Domain, and an expiry no later than server state; unsafe production transport configuration is rejected.
+    why: Weak scope or transport defaults expose bearer credentials to script, sibling hosts, cleartext networks, and cross-site requests.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-009
+    what: Every state-changing cookie-authenticated auth or application request requires a session-bound CSRF token with constant-time verification.
+    why: SameSite is defense in depth and does not cover every navigation, browser, or explicitly cross-site deployment.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-010
+    what: Logout revokes server state before clearing the cookie; global logout and security-sensitive identity changes revoke all sessions, while a store outage fails authentication closed.
+    why: Client-only deletion leaves copied credentials valid, and treating an unavailable revocation store as success grants access during the least observable failure.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-011
+    what: Native bearer credentials are opaque, digest-stored, excluded from URLs/cookies, atomically rotated, and server-revocable without ambiguity with browser-cookie authentication.
+    why: Persisted plaintext or non-atomic rotation extends a token theft indefinitely; mixed parsing can downgrade CSRF-protected browser requests to bearer semantics.
+    requirement: FR-AUTH-2
+    status: planned
+
+  - id: AUTH-012
+    what: Missing, denied, and errored permission, group, and ownership decisions deny access before protected data is read, serialized, bound, or mutated in REST and admin.
+    why: Fail-open authorization or post-read checks expose data and make admin a bypass around the application's resource policy.
+    requirement: FR-AUTH-3
+    status: planned
+
+  - id: AUTH-013
+    what: Recovery and invitations use separate single-use purpose-bound verifiers and budgets; success consumes atomically, rotates the current session, and revokes older sessions where required.
+    why: Reusing login state or non-atomic invite/recovery consumption creates replay and account-takeover paths outside the main login tests.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-014
+    what: Auth audit events contain bounded identifiers and reason codes but no email by default and no OTP, verifier, cookie, bearer token, CSRF token, password material, or key; configured durable-audit failure fails state-changing success closed.
+    why: Logs are broadly accessible and long-lived, while silently losing a required security event destroys incident evidence.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-015
+    what: Stored and signed credentials carry a key id; verification accepts the active and explicit retiring keys, generation uses only the active key, and unknown ids fail closed.
+    why: Rotation without key identity either invalidates everything immediately or keeps every old key active indefinitely.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-016
+    what: Any future password verifier uses a bounded, versioned memory-hard KDF envelope with random salt, replaceable pepper, and atomic upgrade after successful authentication.
+    why: Fast hashes enable offline cracking, attacker-controlled parameters enable resource exhaustion, and an unversioned format cannot be strengthened safely.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-017
+    what: Store and delivery cancellation, timeout, unavailable, corrupt, conflict, and not-found outcomes remain distinguishable internally, fail closed, and never expose dependency details or claim an undelivered challenge was sent.
+    why: Treating timeout as absence or retrying an ambiguous consume can create identities twice; returning infrastructure errors leaks internals and creates enumeration differences.
+    requirement: FR-AUTH-5
+    status: planned
+
+  - id: AUTH-018
+    what: The capture delivery backend works for tests and local preview and is rejected during production construction.
+    why: A backend that stores codes in process is useful evidence but silently selecting it in production makes authentication depend on local memory and exposes secrets to operators.
+    requirement: FR-AUTH-5
+    status: planned
+
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001
     what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.

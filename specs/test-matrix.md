@@ -286,6 +286,34 @@ whose modules declare no models has an empty schema rather than an error, and
 `App.Models()` returns a deep copy — the root-package half of ORM-005, since
 handing out `*orm.Registry` would hand out `Register` with it.
 
+## Authentication security contract
+
+These rows are the reviewed acceptance contract for #80. They stay `planned`
+until an implementation change supplies the exact test named by that change;
+`AUTH_THREAT_MODEL.md` states the defaults and trust boundaries each test must
+exercise.
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| AUTH-001 | Cryptographic OTP/session secrets; only keyed digests stored | `_planned_` |
+| AUTH-002 | Atomic expiry and verification-attempt lockout | `_planned_` |
+| AUTH-003 | Resend rotates the code without resetting abuse budgets | `_planned_` |
+| AUTH-004 | Concurrent verify consumes once; replay fails | `_planned_` |
+| AUTH-005 | Identity creation occurs only with successful atomic consume | `_planned_` |
+| AUTH-006 | Login, resend, and recovery resist account enumeration | `_planned_` |
+| AUTH-007 | Login and privilege change prevent session fixation | `_planned_` |
+| AUTH-008 | Browser cookie defaults and unsafe-production rejection | `_planned_` |
+| AUTH-009 | Session-bound CSRF on every cookie-authenticated state change | `_planned_` |
+| AUTH-010 | Logout/global revocation and store outage fail closed | `_planned_` |
+| AUTH-011 | Opaque digest-stored native bearer rotation and revocation | `_planned_` |
+| AUTH-012 | REST/admin permission and ownership checks fail before data access | `_planned_` |
+| AUTH-013 | Purpose-bound atomic recovery and invitation consumption | `_planned_` |
+| AUTH-014 | Secret-free audit and explicit durable-audit failure behavior | `_planned_` |
+| AUTH-015 | Active/retiring key rotation and unknown-key denial | `_planned_` |
+| AUTH-016 | Future password KDF envelope is memory-hard, bounded, and upgradeable | `_planned_` |
+| AUTH-017 | Store/delivery failures stay distinct internally and generic externally | `_planned_` |
+| AUTH-018 | Capture delivery works locally and is rejected in production | `_planned_` |
+
 ## Migrations
 
 | ID | Behaviour | Test |

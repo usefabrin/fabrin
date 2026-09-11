@@ -204,10 +204,10 @@ your binary.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.auth` | `fabrin/auth` | 📋 F4 |
-| `User` model, swappable | Replaceable user model | 📋 F4 |
-| Permissions and groups | Same | 📋 F4 |
-| Sessions | Server-side, pluggable store | 📋 F4 |
+| `django.contrib.auth` | `fabrin/auth`: reviewed-contract-first email OTP for v1; passwords/social/passkeys deferred | 📝 v1 threat model proposed |
+| `User` model, swappable | Framework-owned identity with application-owned related profile rows | 📋 v1 |
+| Permissions and groups | Groups, permissions, and resource ownership shared by REST/admin | 📋 v1 |
+| Sessions | Revocable browser-cookie and native-bearer sessions over an atomic pluggable store | 📋 v1 |
 | `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
 | Django template language | `html/template`, or `templ` if you prefer | 📋 F3 |
 | `{% csrf_token %}` | CSRF middleware + template helper | 📋 F3 |
@@ -218,6 +218,14 @@ restricts logic to keep designers out of trouble. `html/template` already does
 that, and Go's answer to "the template needs a computed value" is a function in
 the template's FuncMap — not a new mini-language. Fabrin will not ship a template
 DSL.
+
+**Why identity is framework-owned while profiles are application-owned.** Email
+verification, session revocation, audit, groups, and admin need one stable
+subject identifier. Making that row replaceable moves security invariants into
+every application adapter. Application attributes still vary, so they belong in
+related profile tables rather than in Fabrin's credential record. The proposed
+[auth threat model](security/AUTH_THREAT_MODEL.md) fixes the boundary and its
+AUTH-001…018 acceptance rows before implementation begins.
 
 ## Signals, tasks, caching
 

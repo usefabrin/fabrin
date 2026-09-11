@@ -1156,6 +1156,18 @@ Added — package `fabrin`:
 
 ### Changed
 
+- **The v1 authentication security contract is proposed before implementation.**
+  The threat model covers cryptographic email OTP, protected verifiers,
+  distributed attempt/send budgets, atomic consume and identity creation,
+  enumeration resistance, browser and native sessions, fixation, secure cookie
+  defaults, CSRF, revocation, fail-closed authorization, recovery, invitations,
+  secret-free audit, key rotation, dependency failures, and capture-backend
+  production rejection. AUTH-001…018 are planned executable acceptance rows.
+  It also resolves the roadmap direction to framework-owned identity with
+  application-owned related profiles and defers passwords/social/passkeys from
+  v1. Human security review is required before auth implementation.
+  ([#80](https://github.com/usefabrin/fabrin/issues/80))
+
 - **Breaking:** `orm.Model` and `orm.Field` gain optional `GoName` fields so the
   same declaration can drive generated source and database metadata. This can
   break downstream unkeyed struct literals. Registry copies retain the names;

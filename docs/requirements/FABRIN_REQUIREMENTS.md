@@ -93,10 +93,11 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-AUTH-1 | A default user model with password hashing using a memory-hard KDF. | planned |
-| FR-AUTH-2 | Server-side sessions with a pluggable store. | planned |
-| FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
-| FR-AUTH-4 | The user model is replaceable — an app with its own is not forced into Fabrin's. | planned |
+| FR-AUTH-1 | Framework-owned identity is created only after atomic email-OTP verification. Challenges use cryptographic secrets, protected verifiers, bounded expiry/attempt/send budgets, replay resistance, and enumeration-safe responses. Passwords, social login, and passkeys are deferred from v1. | planned |
+| FR-AUTH-2 | Secure, server-revocable browser-cookie and native-bearer sessions have fixation resistance, rotation, expiry, logout, secret rotation, CSRF protection where applicable, and a pluggable atomic store. | planned |
+| FR-AUTH-3 | Groups, permissions, and resource ownership fail closed and are shared by REST handlers and admin. Authorization runs before protected data is read, bound, serialized, or mutated. | planned |
+| FR-AUTH-4 | Applications extend framework identity through related profile data rather than replacing the authentication identity row; authentication and application authorization remain separate. | planned |
+| FR-AUTH-5 | Auth defaults and ports satisfy the reviewed threat model, including enumeration resistance, distributed abuse budgets, recovery, invitation-only mode, secret-free durable audit, key rotation, cancellation, and fail-closed dependency behavior. | planned |
 
 ## FR-ADMIN — the admin site (F5)
 
