@@ -602,3 +602,13 @@ the version.
 | AUTH-007 | Cookie and native authentication enforce CSRF, credential separation, bounded bodies and no-store responses. | _planned_ |
 | AUTH-008 | Authorization covers lists, records and fields and denies access on policy or store failures. | _planned_ |
 | AUTH-009 | Public auth responses resist enumeration and audit output excludes credentials; key rotation and cleanup preserve validity rules. | _planned_ |
+
+## Private OTP proof
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| OTP-001 | Private challenge verification binds purpose, ID, canonical email and code using protected verifiers and enforces the exact expiry boundary. | `auth/challenge_test.go::TestChallenge_BindsCredentialsAndConsumesOnce` |
+| OTP-002 | Private challenge consumption allows at most five attempts and one concurrent successful use. | `auth/challenge_test.go::TestChallenge_ConcurrentVerificationHasOneWinner` |
+| OTP-003 | Email canonicalization rejects controls and non-ASCII input, preserving local-part case and aliases while lowercasing the domain. | `auth/challenge_test.go::TestChallenge_RejectsInvalidInputsAndCanonicalizesEmail` |
+
+Expiry and attempt boundaries also run in `auth/challenge_test.go::TestChallenge_ExpiryAndAttemptBoundary`; verifier encoding is covered by `auth/challenge_test.go::TestChallenge_VerifierUsesUnambiguousFieldEncoding`. These private tests do not complete the planned end-to-end AUTH rows.

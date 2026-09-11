@@ -37,6 +37,16 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Private OTP challenge proof (#110).** `auth` has no exported API. Cryptographic
+  challenge IDs and eight-digit codes, canonical email handling, HMAC-SHA-256
+  binding, exact expiry, five-attempt limits and concurrent single-use verification
+  are tested. The proof holds no plaintext code/key and performs no delivery,
+  persistence, signup, session creation or HTTP authentication. Shared abuse
+  budgets and transactional orchestration remain unimplemented.
+- Recorded the maintainer's approval of the OTP contract after review of
+  `a19c4d7`. The contract is approved for implementation, not a production-readiness
+  declaration. User-facing authentication availability is documented explicitly.
+
 - **Bounded capture mail (#110, #116).** Public `mail.Message`, `Capture`,
   `NewCapture`, `Send`, `Messages`, `Drain`, `ErrFull` and `ErrInvalidMessage`
   support single-recipient plain-text email tests with explicit capacity,

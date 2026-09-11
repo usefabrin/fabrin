@@ -243,4 +243,5 @@ REST CRUD, and the usable admin are planned; they are not available yet.
 
 For email tests, see [bounded capture mail](docs/guides/testing-email.md).
 It performs no network delivery. The [OTP security contract](docs/AUTH_CONTRACT.md)
-is proposed; login is not implemented yet.
+is approved for implementation; login is not available yet. See
+[authentication status](docs/guides/authentication.md) for the exact boundary.

@@ -874,3 +874,24 @@ behaviours:
     why: Authentication defaults must satisfy the reviewed threat model before production use.
     requirement: FR-AUTH-7
     status: planned
+
+  - id: OTP-001
+    what: Private challenge verification binds purpose, ID, canonical email and code using protected verifiers and enforces the exact expiry boundary.
+    why: Prove the private OTP primitive before a public transactional authentication API is exposed.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/challenge_test.go::TestChallenge_BindsCredentialsAndConsumesOnce
+
+  - id: OTP-002
+    what: Private challenge consumption allows at most five attempts and one concurrent successful use.
+    why: Prove the private OTP primitive before a public transactional authentication API is exposed.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/challenge_test.go::TestChallenge_ConcurrentVerificationHasOneWinner
+
+  - id: OTP-003
+    what: Email canonicalization rejects controls and non-ASCII input, preserving local-part case and aliases while lowercasing the domain.
+    why: Prove the private OTP primitive before a public transactional authentication API is exposed.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/challenge_test.go::TestChallenge_RejectsInvalidInputsAndCanonicalizesEmail

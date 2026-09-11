@@ -22,6 +22,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
+├── auth/                private OTP challenge proof; no user-facing API yet
 ├── admin/               private CRUD seam proof — exports nothing yet
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
@@ -75,16 +76,19 @@ public-to-internal dependency direction when the proof reads `orm`. Keeping ever
 current symbol unexported preserves the future path without creating a semver
 promise. See [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md).
 
-### Email capture and the proposed auth contract
+### Email capture and the approved auth contract
 
 `mail` defines plain-text message values and a bounded concurrent-safe `Capture`.
 It is standalone; consumers declare their own sender interface. It performs no
 network delivery, logging, persistence or HTTP registration. See
 [testing email](docs/guides/testing-email.md) for wiring and limits.
 
-[AUTH_CONTRACT.md](docs/AUTH_CONTRACT.md) records the proposed OTP, identity,
-session and authorization behavior. These authentication capabilities are not
-implemented yet. The contract is security-review input, not availability evidence.
+[AUTH_CONTRACT.md](docs/AUTH_CONTRACT.md) records the approved OTP, identity,
+session and authorization behavior. A private `auth` state machine now proves HMAC-bound verification, canonical email,
+five-minute expiry, five attempts and single successful consumption under concurrent
+calls. It exports nothing and holds neither plaintext code nor signing key. It is
+not wired to a server or persistence. The remaining authentication capabilities are
+not implemented. Contract approval is not production-readiness evidence.
 
 ### Generated PostgreSQL data access (preview)
 

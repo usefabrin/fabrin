@@ -1,10 +1,11 @@
 # Email OTP authentication contract
 
-Status: **proposed for security review**, September 10, 2026. Tracking: #80,
+Status: **approved by the maintainer for implementation**, September 10, 2026. Tracking: #80,
 #105, #110, #112, #113. This document specifies intended behavior; it does not
-claim an authentication implementation exists. Review happens on a concrete
-commit under the direct-main workflow. The mail capture dependency is implemented;
-OTP, identities, transport, sessions and authorization remain planned.
+claim production readiness. Approval was given after review of commit `a19c4d7`
+under the direct-main workflow. Capture mail and a private challenge primitive are
+implemented. Transactional OTP orchestration, identities, transport, sessions and
+authorization remain planned.
 
 ## Goal, trust boundaries and limits
 
@@ -30,7 +31,7 @@ must never become a production delivery fallback.
 
 ## Challenge lifecycle
 
-Proposed defaults are Fabrin decisions, not claims that OWASP mandates these
+Approved defaults are Fabrin decisions, not claims that OWASP mandates these
 specific values. Changes require matching acceptance tests and documentation.
 
 - Generate an unpredictable 32-byte challenge ID and uniformly sampled eight
@@ -233,8 +234,8 @@ those principles to login; it does not claim login is a password-reset flow.
 
 OWASP's [session guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
 informs the cookie, expiry, rotation and revocation requirements. Specific code
-lengths, TTLs, budgets and persistence choices above are proposed Fabrin defaults
-requiring executable evidence and human security review before production.
+lengths, TTLs, budgets and persistence choices above are approved Fabrin defaults
+requiring executable evidence and implementation security review before production.
 
 Passwords, KDF upgrades, password-reset endpoints, social login and passkeys are
 outside this v1 auth scope. The earlier password-first requirement is superseded;
@@ -245,6 +246,9 @@ there is no unused password-hashing API to freeze for a future feature.
 September 10 static review identified and resolved ambiguity in public delivery
 failures, revocation on privilege changes, in-flight revocation boundaries,
 failed-invalidation behavior, and browser pre-auth bootstrap. No auth implementation
-has been tested or approved by this review. Human security review remains pending;
-#80 explicitly requires it before implementation. The direct-main workflow moves
-that review to this concrete commit rather than a PR.
+was tested by that static review. The maintainer subsequently explicitly approved
+the contract for implementation on September 10, satisfying #80's pre-implementation
+review requirement. This does not accept implementation defects or waive production
+security review. Private challenge tests now prove the cryptographic, attempt,
+expiry and single-use primitives; they do not prove transactional signup/session
+creation or shared abuse limits.
