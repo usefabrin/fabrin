@@ -1,169 +1,98 @@
-# V1 delivery and release evidence
+# Auth-focused v1 delivery and release evidence
 
 This is the canonical v1 scope and progress record. Implementation proceeds in
 small tested commits directly on `main`, without PRs, feature branches, or
-additional worktrees, as requested by the maintainer. Repository and user docs
-are part of each completed change. Existing issue links are references, not a
-requirement to use a PR workflow.
+additional worktrees, as requested by the maintainer. That workflow remains in
+force until v1 is stable.
 
 ## Product contract
 
-Fabrin is a backend framework. Developers define schemas in Go, generate typed
-PostgreSQL models and data access, and explicitly enable REST CRUD and embedded
-admin. Email OTP is the first authentication method. Framework-owned identities
-are extended with related application profiles. Browser cookie and native bearer
-sessions are v1 requirements. Signup creates an account only after verification;
-invitation-only mode is configurable. The only built-in frontend is admin.
+Fabrin v1 is an authentication and authorization release. It ships email OTP,
+production SMTP delivery, secure browser-cookie and native-bearer sessions,
+invitation-only signup, stable identities, groups, permissions, ownership
+authorization, audit records, cleanup, and explicit administrator bootstrap.
+Passwords, social login and passkeys are deferred.
 
-PostgreSQL is the supported production target. Preserve existing SQLite behavior,
-but defer SQLite completeness. R2 is the primary object storage adapter. Django
-is a reference, not a feature checklist or API constraint.
+Redis owns ephemeral auth state: challenges, abuse budgets, verification leases,
+browser pre-authentication state, sessions, rotation and revocation. PostgreSQL
+owns durable identities, invitations, groups, permissions, audit records and
+relations to application profiles. Redis v1 supports one standalone primary;
+Sentinel and Cluster follow later. The decision and its failure model are in
+[ADR 0008](adr/0008-redis-owns-ephemeral-auth-state.md).
+
+Fabrin remains one Go module, so the v1 tag stabilizes every exported package.
+Existing core, CLI, configuration, health, logging, metadata, migration,
+generated-data and capture-mail capabilities remain available and must pass API
+review. They receive correctness and security fixes, but no new non-auth product
+scope before v1. `admin` still exports no public API.
 
 ## Milestones
 
 | Milestone | Acceptance | Current evidence |
 |---|---|---|
-| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator, bounded capture mail, OTP/session core and durable PostgreSQL auth adapter implemented. HTTP integration and authenticated owned-resource example remain. |
-| Data foundation (#104) | Typed CRUD, keys/defaults/nulls/relations/indexes, transactions, pagination, safe PostgreSQL migrations and upgrade concurrency | Scalar create/get generator implemented; ADR 0007 remains proposed. Existing migrations continue separately. |
-| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; core plus `authpg` implement protected OTPs, shared durable budgets, atomic identity/session creation, disabled checks, idle/absolute expiry and logout. No HTTP login, browser session, invitations, broad revocation or authorization yet. |
-| REST and admin (#106) | Explicit enablement, field/operation policies, scoped list and record access, bounded queries, embedded admin | Existing private admin proof only. |
-| Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Capture-only test mail implemented; production adapters remain planned. |
-| Release candidate (#108) | Deployed reference backend, security/API review, upgrade/recovery evidence, gates/races, measured overhead, accurate support docs | Planned; no stable-v1 claim. |
+| Auth core (#105, #110) | Protected OTPs, neutral delivery behavior, bounded shared abuse controls and verified identity creation | Local core and memory tests implemented; Redis split pending |
+| Redis and identity persistence (#111) | Redis OTP/session state plus PostgreSQL identities with retry-safe verification recovery | PostgreSQL-only adapter exists and will be refactored before v1 |
+| Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Initial opaque native session primitive implemented; production transports pending |
+| Authorization (#113) | Invitations, groups, deny-by-default operation/field policy, ownership and administrator bootstrap | Planned |
+| Production email (#116) | Replaceable SMTP with TLS, deadlines, sanitized errors and tested ambiguous delivery behavior | Capture backend implemented; SMTP pending |
+| Release candidate (#108) | Deployed auth reference, recovery evidence, whole-module API/security review, support docs and no blockers | Planned; no stable-v1 claim |
 
-September 10 is a **developer-preview target**, not a stable release deadline.
-Incomplete acceptance criteria remain visibly incomplete if that date arrives.
-The preview excludes generated REST, usable admin, native sessions, and cloud
-uploads. Its auth is capture-only and cannot be represented as production-ready.
+Non-auth feature epics #104, #106, #107 and their unfinished children move after
+v1 unless an item is required to operate or validate auth. The earlier generated
+owned-resource preview in #111 is superseded by an auth reference application.
 
-## Dependency order and work queue
+## Implementation order
 
-1. Reconcile migration state and constraints (#79, #95, #101); retain their tests.
-2. Review the schema/data-access decision and harden generated create/get (#109).
-3. Define the email-OTP threat model (#80); implement OTP and capture delivery
-   (#110), then integrate the runnable PostgreSQL preview (#111).
-4. Finish PostgreSQL CRUD/relations/migration capabilities; add production
-   sessions (#112), authorization (#113), and email (#116).
-5. Build explicitly enabled REST and embedded admin over those shared contracts.
-6. Add private R2 storage (#114), durable jobs/scheduling (#115), caches and
-   distributed limits (#117), and local signals/observability (#118).
-7. Exercise a deployed release candidate, resolve blockers, and freeze the
-   reviewed public API before tagging stable v1.
-
-Issue [#102](https://github.com/usefabrin/fabrin/issues/102) links the original
-tracking scope. Individual feature changes remain small and use Conventional
-Commits even though there are no PRs. A proposed ADR is not silently marked
-accepted because code compiles. Maintainer API/security review can happen on a
-concrete commit; it does not require a PR.
+1. Refactor `authpg` to durable identity/eligibility persistence and add the
+   Redis verification/session adapter without exposing its client type.
+2. Implement production native and browser transports, including pre-auth CSRF,
+   exact-origin CORS, rotation, revoke-all and dependency health checks.
+3. Add invitation, group, permission, ownership and field-policy APIs with an
+   explicit administrator bootstrap and no implicit superuser signup.
+4. Add the TLS-required SMTP backend, secret-free audit events and bounded
+   cleanup commands.
+5. Exercise the auth reference deployment, review the complete public surface,
+   fix release blockers, publish support/recovery/upgrade guides and tag v1.
 
 ## Stable-v1 gate
 
-The reference backend must demonstrate verified signup, browser/native login,
-owned-resource CRUD, admin permissions, an authorized R2 upload, and a durable
-job. Record commands and results for:
+Record commands and results for:
 
-- Reproducible generation and compilation of generated applications.
-- PostgreSQL empty/existing database migrations, supported rollback, concurrent
-  execution, and upgrade/recovery scenarios.
-- OTP expiry/replay/race/abuse and outage tests; session revocation and CSRF;
-  denied list/read/write and field-exposure tests.
-- Worker crash, retry, cancellation, dependency failure, and graceful shutdown.
-- Real R2 integration and unauthorized/oversized object operations.
-- `just check`, `just race`, governed docs checks, and performance measurements.
-- Security and API review, supported version policy, user setup/upgrade guides,
-  and no unresolved release-blocking defects.
+- OTP malformed-input, expiry, replay, resend, concurrency, enumeration, shared
+  address/source limits, delivery ambiguity and Redis/PostgreSQL outage windows.
+- Browser bootstrap/login/logout CSRF, cookie flags, exact origins, native/browser
+  purpose separation, body bounds and no-store responses.
+- Session fixation, rotation, idle/absolute expiry, single/revoke-all behavior,
+  privilege-change barriers, restart and cleanup.
+- Invitation and disabled-identity races; group, operation, record ownership and
+  field policies denying before protected persistence.
+- SMTP TLS/authentication, timeouts, accepted-message ambiguity and credential-safe
+  errors; secret-free audit output.
+- Empty/existing PostgreSQL migrations, rollback/recovery, Redis restart, supported
+  Go/PostgreSQL/Redis versions, `just check`, `just race` and performance evidence.
+- Whole-module API and dependency review, SECURITY guidance, installation,
+  configuration, upgrade/recovery guides and no unresolved release blocker.
 
-Defer passwords/social/passkeys, i18n, distributed signal backends, service
-mesh/discovery, organization/tenant management, and additional production DBs.
-No calendar date substitutes for these gates.
+No calendar date substitutes for these gates. Direct `main` delivery ends only
+after the stable tag; later work returns to the repository's normal contribution
+workflow.
 
-## User documentation
+## Current implementation record
 
-Start with [generated PostgreSQL data](guides/generated-data.md). Guides must
-state what ships today, show executable configuration, explain ownership and
-security boundaries, and name preview limitations. Do not present planned auth,
-REST, admin, or cloud adapters as available functionality.
+The approved [authentication contract](AUTH_CONTRACT.md) defines nine threat-led
+behavior groups. The core generates cryptographic challenge IDs and eight-digit
+codes, binds them with length-prefixed HMAC-SHA-256, uses exclusive five-minute
+expiry and five attempts, sanitizes store/delivery errors, and creates an opaque
+digest-only initial session. `mail.Capture` is bounded and available only to
+tests or explicitly local tools.
 
-## Generator validation evidence — September 8, 2026
+Commit `0ad3552` added a PostgreSQL implementation of the complete auth store.
+The v1 Redis decision supersedes that persistence shape before any release:
+`authpg` will retain durable identity and eligibility data, while challenges,
+budgets and sessions move to Redis. Existing preview databases may be reset;
+there is no released migration compatibility promise yet.
 
-Unit tests cover deterministic source and rejected schemas. The generated project
-compiles and checks constructor nil rejection and exact agreement between initial
-SQL and migration metadata. A live PostgreSQL 17 run passed create/get, null,
-length, cancellation and not-found checks. Boundary probes independently rejected
-root, Gin, HTTP and SQL imports in the generator; an `orm` import passed as the
-negative control. Temporary probes were removed. API review found the constructor
-validation issue, which was fixed with a failing-then-passing regression test.
-This is generator evidence, not evidence that the complete preview or v1 ships.
-
-## September 10 status
-
-The preview target has arrived with the generator, bounded capture email, and a
-local OTP/identity core available. HTTP login and the runnable PostgreSQL auth example are **not complete**;
-no preview release or stable release is claimed. [AUTH_CONTRACT.md](AUTH_CONTRACT.md)
-has been approved for implementation; its nine end-to-end behavior rows remain planned. It replaces
-password-first assumptions with email OTP and minimal identity plus profiles.
-[Testing email](guides/testing-email.md) documents the implemented capture API.
-Issue #110 now has a reconciled implementation candidate; #111 still needs the
-durable integrated preview. Passing the local memory-store tests does not satisfy
-the shared-storage, session, transport or production-delivery requirements.
-
-Mail validation on September 10: `just check` and `just race` passed. Tests cover
-bounded insertion, cancellation/invalid input, independent snapshots, and
-concurrent producers/drainers returning each message exactly once. Root and
-sibling import probes failed the new mail boundary; the stdlib negative control
-passed. Read-only review findings were resolved in tests and the proposed auth
-contract. The maintainer subsequently approved the contract for implementation;
-passing capture tests is not auth security evidence.
-
-## Approved contract and OTP core
-
-The maintainer approved `AUTH_CONTRACT.md` on September 10. The private challenge
-state machine uses cryptographic IDs/eight-digit codes, length-prefixed HMAC
-binding, constant-time verifier comparison, exclusive five-minute expiry and five
-attempts with one concurrent winner. The public core reuses that proof and adds
-reviewable `Store` and `Sender` ports, purpose separation, exact delivery cleanup,
-bounded rolling abuse budgets, and atomic stable-identity plus initial-session
-creation. `mail.Capture` satisfies the sender port directly.
-
-The `authpg` adapter now shares budgets across PostgreSQL-connected processes and
-atomically consumes a challenge, resolves a unique identity, checks disabled
-state and creates the initial digest-only session. Its migration is explicit and
-its constructor performs no database I/O. Invitation eligibility, HTTP transport,
-production mail and authorization remain separate reviewed slices.
-See the [authentication preview](guides/authentication.md).
-
-Validation for the private OTP proof: `just check` and `just race` passed. Two
-independent static reviews identified test-evidence gaps; tests now exercise
-well-formed wrong codes, malformed codes, concurrent successful consumption and
-concurrent failure exhaustion. Separate root/HTTP/SQL boundary probes failed as
-expected and the cryptographic stdlib negative control passed. No public API
-snapshot changes were needed. These checks do not mark the full AUTH contract
-rows implemented.
-
-## September 11 integration
-
-Open contributor PRs were reconciled with the direct-main history. #121 (#120,
-Bash 3.2 empty migration set), #123 (#58, interactive rename detection) and #124
-(#122, `orm.Type*` constants) landed by cherry-pick with authorship preserved and
-conflicts resolved against main. #101 was already resolved by the cumulative
-sidecar fix, so #119 is superseded; #125 and #126 are superseded by the schema
-generator (ADR 0007, still proposed) and the approved `AUTH_CONTRACT.md`. The
-#110 implementation was reconciled directly on `main` with that contract, the
-private proof and `mail.Capture`; the earlier stacked #127 is superseded. The
-follow-up atomic-session seam now creates the first opaque credential inside the
-same store transition, closing the split-transaction gap before #111's PostgreSQL
-adapter and HTTP preview are wired.
-
-The #111 persistence slice adds `authpg.Store`, a driver-free PostgreSQL adapter with an
-explicit migration. A conditional live test exercises concurrent single-use OTP
-verification, identity/session persistence, authentication and logout; it emits
-an explicit skip without `FABRIN_TEST_PG_DSN`. The package boundary passed with
-stdlib/first-party imports, rejected an injected pgx driver import, and passed
-again after the probe was removed. The runnable JSON preview remains next.
-
-Porting #124 exposed that `schema.Generate` wrote `orm.<Kind>` into generated
-metadata as text, so generated projects stopped compiling. A cached passing test
-result hid it; an uncached `TestGenerate_CompilesAndUsesPostgres` run caught it,
-and the generator now emits `orm.Type<Kind>`. Previously generated source must be
-regenerated. Validation: `go test -count=1 ./...`, `just race` on a cleared test
-cache, `just check`, and the ported migration-version gate passing an empty set
-under Bash 3.2 while rejecting an injected duplicate.
+The generated schema work and its proposed ADR remain in the repository, but
+the auth-focused release does not extend them. The unfinished local preview test
+is preserved while its no-auto-migration and no-public-inbox assertions are
+carried into the auth reference application.

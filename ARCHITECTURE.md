@@ -23,7 +23,8 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
 ├── auth/                email OTP core + bounded local store; transport-free
-├── authpg/              PostgreSQL auth.Store adapter; driver-free
+├── authpg/              PostgreSQL identities and authorization; driver-free
+├── authredis/           planned Redis OTP/session adapter; owns its client
 ├── admin/               private CRUD seam proof — exports nothing yet
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
@@ -96,19 +97,19 @@ native preview session. HTTP transport, durable shared storage, eligibility
 policy, browser sessions and broad revocation are still absent, so this is a
 runnable local core rather than production login.
 
-### PostgreSQL authentication persistence
+### Redis and PostgreSQL authentication persistence
 
-`authpg.Store` is the durable PostgreSQL implementation of the ports owned by
-`auth`. The application opens and closes `*sql.DB`; the adapter imports no
-driver and its constructor performs no connection or schema work. Its explicit
-`Migration` creates identities, protected challenges, shared abuse events and
-digest-only sessions. Advisory locks and row locks put budget accounting,
-single-use verification, identity resolution and initial session creation in
-the required transactions. Serving never applies this migration.
+V1 assigns challenges, shared abuse budgets, verification leases, browser
+pre-authentication and sessions to Redis. Durable identities, invitations,
+groups, permissions, audit records and profile relations remain in PostgreSQL.
+The split is recorded in [ADR 0008](docs/adr/0008-redis-owns-ephemeral-auth-state.md).
+Neither adapter connects or mutates schema during construction.
 
-The adapter enforces disabled identities but does not yet implement invitations,
-identity-wide revocation, cleanup, browser transport or authorization. Those
-remain required before the auth stack is production-complete.
+The existing `authpg.Store` predates this decision and temporarily implements
+the full store. It will be narrowed to identity and eligibility persistence as
+`authredis` takes over the short-lived state. Verification uses an explicit
+Redis lease and idempotent PostgreSQL identity resolution rather than pretending
+the two systems share a transaction.
 
 ### Generated PostgreSQL data access (preview)
 

@@ -37,6 +37,14 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Auth-focused v1 scope and Redis decision.** V1 now completes email OTP,
+  production SMTP, browser/native sessions, invitations, groups, authorization,
+  audit and cleanup before expanding other product areas. Accepted ADR 0008
+  assigns ephemeral auth state to standalone Redis and durable identity and
+  authorization state to PostgreSQL, with an explicit retryable verification
+  lease between them. Work continues through validated direct commits to `main`
+  until the stable tag; the whole module still receives API review because one
+  Go module version covers every exported package.
 - **PostgreSQL auth store (#111).** New public `authpg.New`, `Store`, and
   `Migration` provide the durable `auth.Store`/`SessionStore` adapter without
   importing a driver or connecting during construction. The explicit migration

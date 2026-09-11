@@ -8,10 +8,10 @@ and a public local OTP core are implemented. The local core reserves challenges,
 enforces bounded process-local budgets, cleans up known delivery failures, and
 atomically resolves stable identities plus initial opaque sessions. Durable shared
 storage, eligibility policy, browser/native transport, broader session revocation,
-and authorization remain planned. The `authpg` adapter now implements the
-durable PostgreSQL challenge, abuse-budget, identity and initial-session
-transaction described here. This is implementation progress, not approval of
-the incomplete HTTP or production stack.
+and authorization remain planned. The earlier `authpg` all-in-one store is being
+split before v1: Redis will own ephemeral challenges, budgets and sessions;
+PostgreSQL will retain durable identities and authorization. This is approved
+architecture, not approval of the incomplete HTTP or production stack.
 
 ## Goal, trust boundaries and limits
 
@@ -31,7 +31,8 @@ not authentication factors. The default trusted-proxy behavior remains unchanged
 
 Fabrin owns identity, challenge and session persistence. Business modules consume
 locally declared identity/permission ports; they do not import each other. A
-The `authpg` PostgreSQL adapter is the durable default. A memory adapter may be supplied
+Redis adapter is the production default for ephemeral auth state and `authpg`
+is the durable identity/authorization default. A memory adapter may be supplied
 only as an explicitly selected, bounded development/test option. Capture mail
 must never become a production delivery fallback.
 

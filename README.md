@@ -21,7 +21,9 @@ middleware you already use keeps working.
 
 ## Status
 
-**v0 — the API is unstable and will break.** Fabrin is being built in public,
+**v0 — the API is unstable and will break.** Fabrin is being built in public;
+the first stable release is intentionally focused on complete email-OTP
+authentication and authorization. Non-auth expansion resumes after v1.
 milestone by milestone. See [docs/TODO.md](docs/TODO.md) for the roadmap and
 [docs/DJANGO_PARITY.md](docs/DJANGO_PARITY.md) for what exists today versus what
 Django offers. Breaking changes in v0 are allowed but are always listed in

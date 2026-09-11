@@ -1,10 +1,10 @@
 # Roadmap
 
-**V1 direction:** [V1_PLAN.md](V1_PLAN.md) governs new work: backend-first,
-Go schema generation, PostgreSQL, email OTP, opt-in REST/admin, and R2. The
-September 10 target is a developer preview. The F0–F8 inventory below preserves
-existing implementation history; its password-first ordering and broad rendering
-plans are superseded by the v1 scope. New work commits directly on `main`.
+**V1 direction:** [V1_PLAN.md](V1_PLAN.md) governs new work. V1 is now focused on
+a complete email-OTP authentication and authorization platform backed by Redis
+and PostgreSQL. Non-auth feature expansion is deferred until after the stable
+tag. The F0–F8 inventory below preserves implementation history; its broad
+milestone ordering no longer controls v1. New work commits directly on `main`.
 
 
 Milestones **F0 – F8**, ordered by dependency rather than by appeal. This is
@@ -262,6 +262,8 @@ breaking afterwards, so it needs an answer rather than a discovery.
 
 ## F3 — Rendering, forms, static, and CSRF foundation
 
+Post-v1 except for the minimum CSRF behavior implemented inside auth transport.
+
 This minimal vertical foundation comes before auth and admin because both need
 safe form errors, templates, and CSRF integration rather than private one-off
 versions.
@@ -300,6 +302,9 @@ browser session, event cleanup, or identity-wide revocation ships yet. See
       ([#80](https://github.com/usefabrin/fabrin/issues/80))
 
 ## F5 — The admin site
+
+Post-v1. V1 authorization APIs must support a future admin without making the
+existing private seam public.
 
 The reason people want a Django-like framework. Everything above exists to make
 this possible.

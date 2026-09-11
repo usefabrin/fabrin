@@ -217,10 +217,10 @@ your binary.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.auth` | `fabrin/auth` core + `authpg` durable adapter | 🚧 F4 |
+| `django.contrib.auth` | `fabrin/auth` + Redis ephemeral state + PostgreSQL identities | 🚧 v1 |
 | `User` model, swappable | Replaceable user model | 📋 F4 |
 | Permissions and groups | Same | 📋 F4 |
-| Sessions | Server-side memory/PostgreSQL stores; native HTTP/browser integration pending | 🚧 F4 |
+| Sessions | Server-side memory/Redis stores; native HTTP/browser integration pending | 🚧 v1 |
 | `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
 | Django template language | `html/template`, or `templ` if you prefer | 📋 F3 |
 | `{% csrf_token %}` | CSRF middleware + template helper | 📋 F3 |

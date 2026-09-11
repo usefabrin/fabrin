@@ -93,11 +93,11 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |---|---|---|
 | FR-AUTH-1 | Password-first user model and memory-hard password hashing; superseded for v1 by FR-AUTH-5. Password login is deferred. | superseded |
-| FR-AUTH-2 | Server-side sessions with a pluggable store. Initial opaque sessions, idle/absolute expiry and single-session logout have local and PostgreSQL stores; rotation, identity-wide revocation and browser integration remain. | in progress |
+| FR-AUTH-2 | Server-side browser and native sessions use Redis in production and a bounded memory store in tests. Initial opaque sessions, idle/absolute expiry and single-session logout exist; Redis persistence, rotation, identity-wide revocation and browser integration remain. | in progress |
 | FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
 | FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
-| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. The core and PostgreSQL adapter cover reservation, delivery orchestration, durable shared budgets and atomic consumption/session creation; production delivery and HTTP integration remain. | in progress |
-| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. PostgreSQL resolves unique identities and denies disabled ones transactionally; invitation policy remains pending. | in progress |
+| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. Redis is the v1 production authority for challenges, budgets and redemption; the local core exists and the Redis adapter, production delivery and HTTP integration remain. | in progress |
+| FR-AUTH-6 | Framework-owned PostgreSQL identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. The current adapter resolves unique identities and denies disabled ones; its Redis split and invitation policy remain. | in progress |
 | FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. | planned |
 
 ## FR-ADMIN — the admin site (F5)
@@ -139,7 +139,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | INV-7 | `/healthz` never consults a dependency; `/readyz` always fails closed. | done |
 | INV-8 | Canonical specialist charters live in `docs/agents`; Claude Code, Codex, and Cursor adapters are generated and parity-checked. | done |
 
-## FR-DATA — generated data access (v1)
+## FR-DATA — generated data access (post-v1 expansion)
 
 | ID | Requirement | Status |
 |----|-------------|--------|

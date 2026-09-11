@@ -87,5 +87,5 @@ someone opens it to answer.
 | [0004](0004-module-factories-select-before-construction.md) | Named module factories select before construction | Accepted |
 | [0005](0005-admin-crud-seam-remains-private.md) | The first admin CRUD seam remains private | Proposed |
 | [0006](0006-field-constraint-semantics.md) | Field constraint semantics — NOT NULL by default, named constraints | Proposed |
-
 | [0007](0007-generate-postgres-data-access-from-go-schemas.md) | Generate typed PostgreSQL access from explicit Go schemas | Proposed |
+| [0008](0008-redis-owns-ephemeral-auth-state.md) | Redis owns ephemeral authentication state; PostgreSQL owns durable identity and authorization | Accepted |
