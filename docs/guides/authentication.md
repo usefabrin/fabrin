@@ -1,39 +1,88 @@
-# Authentication availability
+# Email OTP core preview
 
-**Built-in login is not available yet.** Do not expose the private OTP proof as
-an authentication endpoint or use it to issue production sessions. There is no
-public `auth.New`, login route, identity store, session middleware or admin login
-to configure in this revision.
+Fabrin now exposes the first email-code authentication core. It reserves an
+eight-digit, five-minute challenge, sends it through an explicit `auth.Sender`,
+and atomically consumes it through an `auth.Store`. The included
+`auth.MemoryStore` and `mail.Capture` make this flow runnable in tests and local
+development.
 
-The maintainer has approved the [email OTP contract](../AUTH_CONTRACT.md) for
-implementation. It commits to code-based signup/login, framework-owned minimal
-identities extended through application profiles, browser cookie sessions and
-native bearer sessions. Approval does not mean these capabilities have shipped.
+This is not a login endpoint or a production authentication stack. Browser and
+native HTTP routes, pre-auth CSRF state, durable PostgreSQL storage, invitations,
+disabled-identity policy, sessions, production mail and authorization remain to
+be implemented. `auth.WithProduction` rejects the included memory and capture
+backends so they cannot be selected directly as production defaults.
 
-## Implemented foundations
+## Run the local flow
 
-- [Generated PostgreSQL data](generated-data.md) provides typed create/get stores
-  and schema metadata. Stores do not authorize requests.
-- [Capture email](testing-email.md) provides a bounded in-memory test inbox. It
-  does not deliver real email or expose an HTTP inbox.
-- The private challenge state machine verifies HMAC-bound credentials, canonical
-  email, expiry, attempt exhaustion and one-time consumption under concurrent
-  calls. This has no exported user API and is not a complete authentication store.
+```go
+key := configuredAuthKey // at least 32 random bytes, loaded outside source control
+store, err := auth.NewMemoryStore(1_000)
+if err != nil {
+    return err
+}
+inbox, err := mail.NewCapture(100)
+if err != nil {
+    return err
+}
+service, err := auth.New(store, inbox, "local-1", key)
+if err != nil {
+    return err
+}
 
-From the framework checkout, `go test -race ./auth` runs the primitive tests.
-It does not need a database or email provider. Passing it does not establish the
-transactional and distributed properties required for a working login system.
+challenge, err := service.Request(ctx, "Alice@EXAMPLE.COM", auth.PurposeNative, sourceKey)
+if err != nil {
+    return err
+}
+message := inbox.Messages()[0]
+// Test code extracts the eight digits from message.Text.
+identity, err := service.Verify(ctx, challenge.ID, "Alice@EXAMPLE.COM", code, auth.PurposeNative, sourceKey)
+```
 
-## Work still required
+The example assumes imports for `fabrin/auth` and `fabrin/mail`. Use a stable,
+nonempty source key derived from trusted server configuration and connection
+metadata. Request headers alone are not a trusted source identity. Keep the HMAC
+key outside the database and supply at least 32 random bytes. The key ID is stored
+with reservations for explicit rotation; this slice accepts the active key only.
 
-Production OTP needs shared address/source abuse budgets, atomic reservation and
-resend replacement, deadline-bounded delivery and cleanup, then identity and
-session creation in the same transaction as successful verification. Transport
-must add CSRF, Origin checks, browser pre-auth state, native-purpose separation,
-revocation and authorization. These must not be assembled ad hoc from the private
-primitive: consuming a code and separately creating a session is not atomic.
+`mail.Capture` satisfies `auth.Sender` directly. Production adapters implement
+the same single-method interface with a deadline-aware `Send` method. The service
+adds a ten-second delivery deadline, stores only the HMAC verifier, invalidates an
+exact challenge after a known provider rejection, and leaves an ambiguously timed
+out delivery verifiable until it expires.
 
-The [v1 progress record](../V1_PLAN.md) tracks these dependencies. The September 10
-preview target is incomplete, and no production auth or stable-v1 release is
-claimed. Public setup instructions will be added with the tested integration,
-rather than documenting configuration calls that do not exist.
+## Memory-store behavior
+
+The memory store is concurrency-safe and bounded by the capacity passed to
+`NewMemoryStore`. It enforces the approved local defaults: one send per address
+per minute, five sends per address per rolling hour, twenty sends per source per
+rolling hour, five attempts per challenge, twenty failed verifications per
+address per rolling hour, and one hundred verification attempts per source per
+rolling hour. Address budgets span browser and native purposes. A resend replaces
+the active challenge for that address and purpose without clearing budgets.
+
+Unknown challenge IDs consume source verification budget. Replaced, expired,
+spent, malformed, wrong-purpose and wrong-code attempts all return
+`auth.ErrAuthentication`; callers cannot distinguish them. Store failures become
+`auth.ErrUnavailable`, delivery failures become `auth.ErrDelivery`, and raw
+provider/store errors are not returned.
+
+The capacity is a bound for each internal collection rather than a user count.
+When a new challenge or budget key cannot be represented, the store fails closed.
+State is local to one process and disappears on restart, so its limits are not
+shared across replicas. Use it only for tests or an explicitly local tool.
+
+## Store contract and remaining transaction
+
+Applications may implement `auth.Store` using durable storage. `Reserve` must
+atomically consume address/source send budgets and replace the prior active
+challenge. `Verify` must atomically consume source/address attempt budgets,
+compare the protected verifier, allow one successful consumer, and resolve one
+stable identity for the canonical email. `Invalidate` must affect only its named
+challenge so cleanup cannot revoke a newer resend.
+
+The approved [authentication contract](../AUTH_CONTRACT.md) additionally requires
+identity eligibility and session creation in the same transaction as challenge
+consumption. This preview stops before sessions, so it is not enough to implement
+a production store or expose `Request`/`Verify` directly as public HTTP handlers.
+The next integration slice supplies that complete transaction and the transport's
+generic public response rules.

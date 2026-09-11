@@ -96,8 +96,8 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | FR-AUTH-2 | Server-side sessions with a pluggable store. | planned |
 | FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
 | FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
-| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. Private primitives are proven; orchestration remains pending. | in progress |
-| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. | planned |
+| FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. The public local core covers reservation, delivery, bounded process-local budgets and atomic consumption; shared durable storage and session integration remain pending. | in progress |
+| FR-AUTH-6 | Framework-owned minimal identities allow related application profiles; unique canonical emails, invitation policy and disabled-user checks are transactional. The local core resolves stable identities, while eligibility and session integration remain pending. | in progress |
 | FR-AUTH-7 | Auth transport and sessions enforce cookie/native separation, CSRF, rotation/revocation, bounded input and secret-free audit behavior. | planned |
 
 ## FR-ADMIN — the admin site (F5)

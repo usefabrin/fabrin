@@ -22,7 +22,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
-├── auth/                private OTP challenge proof; no user-facing API yet
+├── auth/                email OTP core + bounded local store; transport-free
 ├── admin/               private CRUD seam proof — exports nothing yet
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
@@ -79,16 +79,19 @@ promise. See [ADR 0005](docs/adr/0005-admin-crud-seam-remains-private.md).
 ### Email capture and the approved auth contract
 
 `mail` defines plain-text message values and a bounded concurrent-safe `Capture`.
-It is standalone; consumers declare their own sender interface. It performs no
+It is standalone; consumers declare their own sender interface. `auth.Sender`
+uses that message value, so `Capture` satisfies the port directly. Mail performs no
 network delivery, logging, persistence or HTTP registration. See
 [testing email](docs/guides/testing-email.md) for wiring and limits.
 
 [AUTH_CONTRACT.md](docs/AUTH_CONTRACT.md) records the approved OTP, identity,
-session and authorization behavior. A private `auth` state machine now proves HMAC-bound verification, canonical email,
-five-minute expiry, five attempts and single successful consumption under concurrent
-calls. It exports nothing and holds neither plaintext code nor signing key. It is
-not wired to a server or persistence. The remaining authentication capabilities are
-not implemented. Contract approval is not production-readiness evidence.
+session and authorization behavior. The public `auth` core reuses its private
+challenge proof, adds atomic store and sender ports, and includes a bounded
+process-local store for tests. It generates eight decimal digits, stores only an
+HMAC verifier, preserves rolling abuse budgets across resends, and resolves one
+stable identity after one successful concurrent consumption. HTTP transport,
+durable shared storage, eligibility policy and sessions are still absent, so this
+is a runnable local core rather than production login.
 
 ### Generated PostgreSQL data access (preview)
 

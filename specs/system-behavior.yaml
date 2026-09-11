@@ -944,3 +944,38 @@ behaviours:
     requirement: FR-AUTH-5
     status: implemented
     test: auth/challenge_test.go::TestChallenge_RejectsInvalidInputsAndCanonicalizesEmail
+
+  - id: OTP-004
+    what: Public local OTP orchestration reuses the protected challenge proof and mail capture, then resolves a stable identity only after atomic verification.
+    why: The runnable core must not create an account before mailbox possession is proven or duplicate identities across logins.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/auth_test.go::TestService_ConcurrentConsumeAndIdentityResolution
+
+  - id: OTP-005
+    what: Local address and source send budgets survive challenge replacement.
+    why: Resending must not reset the development implementation's abuse controls.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/auth_test.go::TestService_ResendReplacesChallengeWithoutResettingBudgets
+
+  - id: OTP-006
+    what: Unknown challenge IDs consume source verification budget.
+    why: Invalid identifiers must not bypass source abuse controls.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/auth_test.go::TestService_UnknownChallengesConsumeSourceBudget
+
+  - id: OTP-007
+    what: The bounded development store fails closed when it cannot represent another active challenge or budget key.
+    why: A memory cap must not silently disable authentication abuse controls.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity
+
+  - id: OTP-008
+    what: Known delivery rejection invalidates its reservation, while an ambiguous timeout leaves a possibly delivered challenge verifiable until expiry.
+    why: Delivery cleanup must follow the approved uncertainty model without revoking a newer resend.
+    requirement: FR-AUTH-5
+    status: implemented
+    test: auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures

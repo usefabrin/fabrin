@@ -241,7 +241,9 @@ Fabrin is pre-1.0. See the [v1 scope and progress](docs/V1_PLAN.md) and
 [generated PostgreSQL data guide](docs/guides/generated-data.md). Email OTP,
 REST CRUD, and the usable admin are planned; they are not available yet.
 
-For email tests, see [bounded capture mail](docs/guides/testing-email.md).
-It performs no network delivery. The [OTP security contract](docs/AUTH_CONTRACT.md)
-is approved for implementation; login is not available yet. See
-[authentication status](docs/guides/authentication.md) for the exact boundary.
+For a runnable local email-code core, see the
+[authentication preview](docs/guides/authentication.md). It combines the bounded
+capture inbox with atomic challenge and identity transitions, but still has no
+HTTP login, durable production store, sessions, eligibility policy, or production
+delivery. The [OTP security contract](docs/AUTH_CONTRACT.md) governs the remaining
+work.

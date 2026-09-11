@@ -279,10 +279,12 @@ versions.
 V1 uses email OTP first and a stable identity with related application profiles;
 the password and replaceable-user entries below are historical, superseded v1
 scope. The [approved auth contract](AUTH_CONTRACT.md) defines the implementation
-and security acceptance matrix. A private challenge proof covers credential
-binding, expiry, attempts and one-time use; it exposes no auth API. No login
-endpoint ships yet. Capture-only mail
-is available and documented in [testing email](guides/testing-email.md).
+and security acceptance matrix. The public OTP core now reserves protected
+challenges, enforces bounded local abuse budgets, delivers through `mail.Capture`
+or another sender port, and atomically resolves a stable identity after one
+successful consumption. It remains a local preview: no login endpoint, durable
+shared store, eligibility policy or session ships yet. See
+[authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
 - [ ] Server-side sessions, pluggable store. (FR-AUTH-2)

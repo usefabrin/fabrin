@@ -23,9 +23,9 @@ is a reference, not a feature checklist or API constraint.
 
 | Milestone | Acceptance | Current evidence |
 |---|---|---|
-| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator and bounded capture mail implemented. Not yet a runnable auth preview. |
+| September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator, bounded capture mail, and local OTP/identity core implemented. No integrated PostgreSQL auth preview yet. |
 | Data foundation (#104) | Typed CRUD, keys/defaults/nulls/relations/indexes, transactions, pagination, safe PostgreSQL migrations and upgrade concurrency | Scalar create/get generator implemented; ADR 0007 remains proposed. Existing migrations continue separately. |
-| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; private OTP challenge proof implemented. No login API shipped. |
+| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; public local OTP core implements bounded process-local budgets, delivery cleanup and atomic identity resolution. No HTTP login, durable auth store, sessions or authorization yet. |
 | REST and admin (#106) | Explicit enablement, field/operation policies, scoped list and record access, bounded queries, embedded admin | Existing private admin proof only. |
 | Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Capture-only test mail implemented; production adapters remain planned. |
 | Release candidate (#108) | Deployed reference backend, security/API review, upgrade/recovery evidence, gates/races, measured overhead, accurate support docs | Planned; no stable-v1 claim. |
@@ -96,14 +96,15 @@ This is generator evidence, not evidence that the complete preview or v1 ships.
 
 ## September 10 status
 
-The preview target has arrived with the generator and bounded capture email
-available. OTP login and the runnable PostgreSQL auth example are **not complete**;
+The preview target has arrived with the generator, bounded capture email, and a
+local OTP/identity core available. HTTP login and the runnable PostgreSQL auth example are **not complete**;
 no preview release or stable release is claimed. [AUTH_CONTRACT.md](AUTH_CONTRACT.md)
 has been approved for implementation; its nine end-to-end behavior rows remain planned. It replaces
 password-first assumptions with email OTP and minimal identity plus profiles.
 [Testing email](guides/testing-email.md) documents the implemented capture API.
-Next work remains #110 OTP core, then #111 integrated preview; passing mail tests
-does not satisfy either issue's complete acceptance criteria.
+Issue #110 now has a reconciled implementation candidate; #111 still needs the
+durable integrated preview. Passing the local memory-store tests does not satisfy
+the shared-storage, session, transport or production-delivery requirements.
 
 Mail validation on September 10: `just check` and `just race` passed. Tests cover
 bounded insertion, cancellation/invalid input, independent snapshots, and
@@ -113,20 +114,20 @@ passed. Read-only review findings were resolved in tests and the proposed auth
 contract. The maintainer subsequently approved the contract for implementation;
 passing capture tests is not auth security evidence.
 
-## Approved contract and private OTP proof
+## Approved contract and OTP core
 
 The maintainer approved `AUTH_CONTRACT.md` on September 10. The private challenge
-state machine now uses cryptographic IDs/eight-digit codes, length-prefixed HMAC
+state machine uses cryptographic IDs/eight-digit codes, length-prefixed HMAC
 binding, constant-time verifier comparison, exclusive five-minute expiry and five
-attempts with one concurrent winner. ASCII email canonicalization preserves the
-local part and lowercases the domain. The API snapshot remains unchanged because
-`auth` exports no symbols. No process-global auth state or incomplete public store
-interface has been introduced.
+attempts with one concurrent winner. The public core reuses that proof and adds
+reviewable `Store` and `Sender` ports, purpose separation, exact delivery cleanup,
+bounded rolling abuse budgets, and atomic stable-identity resolution. `mail.Capture`
+satisfies the sender port directly.
 
-Next: transactional shared abuse budgets, challenge reservation and delivery
-cleanup, then atomic identity/session creation. The private proof cannot grant
-sessions or enforce those distributed guarantees. See
-[authentication status](guides/authentication.md).
+Next: a PostgreSQL store must share budgets and combine eligibility, challenge
+consumption, identity and session creation in one transaction. Browser/native
+transport, production mail and authorization remain separate reviewed slices.
+See the [authentication preview](guides/authentication.md).
 
 Validation for the private OTP proof: `just check` and `just race` passed. Two
 independent static reviews identified test-evidence gaps; tests now exercise
@@ -143,8 +144,9 @@ Bash 3.2 empty migration set), #123 (#58, interactive rename detection) and #124
 (#122, `orm.Type*` constants) landed by cherry-pick with authorship preserved and
 conflicts resolved against main. #101 was already resolved by the cumulative
 sidecar fix, so #119 is superseded; #125 and #126 are superseded by the schema
-generator (ADR 0007, still proposed) and the approved `AUTH_CONTRACT.md`. #127
-remains open as an alternative #110 OTP core pending a rebase onto main.
+generator (ADR 0007, still proposed) and the approved `AUTH_CONTRACT.md`. The
+#110 implementation was reconciled directly on `main` with that contract, the
+private proof and `mail.Capture`; the earlier stacked #127 is superseded.
 
 Porting #124 exposed that `schema.Generate` wrote `orm.<Kind>` into generated
 metadata as text, so generated projects stopped compiling. A cached passing test

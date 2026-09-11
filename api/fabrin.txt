@@ -66,6 +66,57 @@ pkg github.com/usefabrin/fabrin, var ErrDuplicateModule error
 pkg github.com/usefabrin/fabrin, var ErrNoModules error
 pkg github.com/usefabrin/fabrin, var ErrUnknownModule error
 
+pkg github.com/usefabrin/fabrin/auth, const PurposeBrowser Purpose = "browser"
+pkg github.com/usefabrin/fabrin/auth, const PurposeNative Purpose = "native"
+pkg github.com/usefabrin/fabrin/auth, func New(store Store, sender Sender, keyID string, key []byte, options ...Option) (*Service, error)
+pkg github.com/usefabrin/fabrin/auth, func NewMemoryStore(capacity int) (*MemoryStore, error)
+pkg github.com/usefabrin/fabrin/auth, func WithProduction() Option
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Invalidate(ctx context.Context, id string) error
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Reserve(ctx context.Context, reservation Reservation) error
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Verify(ctx context.Context, attempt Verification) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*Service) Request(ctx context.Context, email string, purpose Purpose, source string) (Challenge, error)
+pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Context, id string, email string, code string, purpose Purpose, source string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type Identity struct
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, CreatedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type MemoryStore struct
+pkg github.com/usefabrin/fabrin/auth, type Option func(*settings)
+pkg github.com/usefabrin/fabrin/auth, type Purpose string
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, IssuedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, KeyID string
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Purpose Purpose
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Source string
+pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Verifier [32]byte
+pkg github.com/usefabrin/fabrin/auth, type Sender interface
+pkg github.com/usefabrin/fabrin/auth, type Sender interface, Send(context.Context, github.com/usefabrin/fabrin/mail.Message) error
+pkg github.com/usefabrin/fabrin/auth, type Service struct
+pkg github.com/usefabrin/fabrin/auth, type Store interface
+pkg github.com/usefabrin/fabrin/auth, type Store interface, Invalidate(context.Context, string) error
+pkg github.com/usefabrin/fabrin/auth, type Store interface, Reserve(context.Context, Reservation) error
+pkg github.com/usefabrin/fabrin/auth, type Store interface, Verify(context.Context, Verification) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, type Verification struct
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, IdentityID string
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, KeyID string
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Now time.Time
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Purpose Purpose
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Source string
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Verifier [32]byte
+pkg github.com/usefabrin/fabrin/auth, var ErrAuthentication error
+pkg github.com/usefabrin/fabrin/auth, var ErrDelivery error
+pkg github.com/usefabrin/fabrin/auth, var ErrRateLimited error
+pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
+pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
+
 pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string) error
 pkg github.com/usefabrin/fabrin/cli, type Command struct
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Flags func(*flag.FlagSet)

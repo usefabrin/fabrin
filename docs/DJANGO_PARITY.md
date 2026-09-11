@@ -45,13 +45,14 @@ still checks the module and every dependency; jump-to-definition still works.
 
 V1 prioritizes backend APIs, code-defined schemas with generated PostgreSQL
 access, email OTP, and embedded admin. This deliberately departs from Django's
-password-first auth and runtime model machinery. Schema create/get and bounded capture-only mail are
-implemented; auth and the usable admin remain planned. Email capture offers the
-testability of an in-memory outbox through an explicitly passed Go dependency,
-with bounded capacity and no global mailbox. A private OTP proof now covers
-cryptographic verification and local single-use state; it is not a usable auth
-backend and does not mirror Django password authentication. See
-[V1_PLAN.md](V1_PLAN.md) and the [data guide](guides/generated-data.md).
+password-first auth and runtime model machinery. Schema create/get, bounded
+capture mail, and a local OTP core are implemented; HTTP login and the usable
+admin remain planned. The OTP core makes dependencies explicit through Go
+`Store` and `Sender` interfaces, keeps budgets in a bounded test store, and
+resolves a stable identity only after verification. Django's integrated user,
+session and request middleware remain future Fabrin slices. See
+[V1_PLAN.md](V1_PLAN.md), the [data guide](guides/generated-data.md), and the
+[authentication preview](guides/authentication.md).
 
 ## Models and the database
 

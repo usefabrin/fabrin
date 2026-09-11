@@ -3,9 +3,11 @@
 Status: **approved by the maintainer for implementation**, September 10, 2026. Tracking: #80,
 #105, #110, #112, #113. This document specifies intended behavior; it does not
 claim production readiness. Approval was given after review of commit `a19c4d7`
-under the direct-main workflow. Capture mail and a private challenge primitive are
-implemented. Transactional OTP orchestration, identities, transport, sessions and
-authorization remain planned.
+under the direct-main workflow. Capture mail, the private challenge primitive,
+and a public local OTP core are implemented. The local core reserves challenges,
+enforces bounded process-local budgets, cleans up known delivery failures and
+atomically resolves stable identities. Durable shared storage, eligibility policy,
+transport, sessions and authorization remain planned.
 
 ## Goal, trust boundaries and limits
 
@@ -207,7 +209,9 @@ an attempt to verify with a default key. Session digests need no signing key,
 but store compromise requires revocation and incident handling. Background
 cleanup deletes expired challenge/session rows and old budgets; correctness must
 not depend on cleanup having run. Capture inboxes contain secrets and are
-accessible only to test code or an explicitly local development tool.
+accessible only to test code or an explicitly local development tool. The OTP
+service's production option rejects the included memory store and capture sender;
+wrapping either does not make it production-safe.
 
 ## Threat-to-test acceptance matrix
 
@@ -249,6 +253,9 @@ failed-invalidation behavior, and browser pre-auth bootstrap. No auth implementa
 was tested by that static review. The maintainer subsequently explicitly approved
 the contract for implementation on September 10, satisfying #80's pre-implementation
 review requirement. This does not accept implementation defects or waive production
-security review. Private challenge tests now prove the cryptographic, attempt,
-expiry and single-use primitives; they do not prove transactional signup/session
-creation or shared abuse limits.
+security review. Private challenge tests prove the cryptographic, attempt, expiry
+and single-use primitives. Public core tests additionally prove local
+reservation/replacement, bounded budgets, sanitized delivery/store failures and
+atomic identity resolution. They do not prove transactional eligibility/session
+creation, shared multi-instance limits, PostgreSQL behavior, or HTTP enumeration
+resistance.

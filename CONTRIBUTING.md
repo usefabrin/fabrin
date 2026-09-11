@@ -139,10 +139,12 @@ suite could not have caught: a package in the manifest with nothing recorded.
   compiled fine and this rule was the only thing rejecting it. `migrate` is in
   exactly that window now — nothing imports it until `Migrator` lands — so for it
   the rule carries **both** directions rather than just the sibling one.
-- `fabrin/auth` currently contains a private OTP challenge proof with no exports.
-  It cannot import Fabrin packages, `net/http`, or `database/sql`; persistence and
-  transport boundaries must be reviewed when those layers land. Unit tests prove
-  local cryptographic/state behavior, not production authentication.
+- `fabrin/auth` must not import Gin, `net/http`, `database/sql`, the root package,
+  or any sibling except `fabrin/mail`. It uses mail's plain-text value so
+  `mail.Capture` satisfies its consumer-owned `Sender` port directly. Security
+  transitions sit behind `Store`, so tests and workers can use the core without
+  constructing an HTTP or database stack. Production adapters live in
+  applications or later dedicated packages.
 - `fabrin/mail` is standalone and cannot import another Fabrin package.
   Consumers declare the `Send` interface they need. Capture tests require no
   network. The boundary is tested with root/sibling violations and a stdlib

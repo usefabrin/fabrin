@@ -37,12 +37,24 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
-- **Private OTP challenge proof (#110).** `auth` has no exported API. Cryptographic
-  challenge IDs and eight-digit codes, canonical email handling, HMAC-SHA-256
-  binding, exact expiry, five-attempt limits and concurrent single-use verification
-  are tested. The proof holds no plaintext code/key and performs no delivery,
-  persistence, signup, session creation or HTTP authentication. Shared abuse
-  budgets and transactional orchestration remain unimplemented.
+- **Email OTP core (#110).** Public `auth.Service`, consumer-owned `Store` and
+  `Sender` ports, protected reservation/verification values, stable `Identity`,
+  browser/native purposes, and sanitized sentinel errors turn the reviewed
+  private challenge primitive into a runnable local flow. `mail.Capture`
+  satisfies the sender port directly. The bounded concurrency-safe `MemoryStore`
+  enforces the approved five-minute/five-attempt challenge rules, rolling
+  address/source budgets, resend replacement, source accounting for unknown IDs,
+  single successful consumption and unique identity resolution. Known delivery
+  failures invalidate the exact reservation; ambiguous timeouts retain it until
+  expiry. `WithProduction` rejects the included local backends. The API snapshot
+  moves intentionally; HTTP transport, durable shared storage, eligibility,
+  sessions, production delivery and authorization remain planned.
+- **Private OTP challenge proof (#110).** The unexported primitive beneath the
+  public core generates cryptographic challenge IDs and eight-digit codes,
+  canonicalizes email, binds credentials with HMAC-SHA-256, and enforces exact
+  expiry, five attempts and concurrent single use. It holds no plaintext code/key;
+  delivery, persistence and identity orchestration live around this reviewed
+  state machine.
 - Recorded the maintainer's approval of the OTP contract after review of
   `a19c4d7`. The contract is approved for implementation, not a production-readiness
   declaration. User-facing authentication availability is documented explicitly.

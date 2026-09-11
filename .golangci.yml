@@ -50,8 +50,9 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
-      # boundary: auth — private challenge proof; standalone, no application
-      #     lifecycle, HTTP transport or SQL imports. No public API yet.
+      # boundary: auth — transport-free authentication core. It imports only
+      #     mail's value/sender contract inside Fabrin; no application lifecycle,
+      #     other sibling, HTTP transport or SQL imports.
       #
       # boundary: mail — standalone capture/value package. No other Fabrin
       #     package imports; delivery consumers declare their own sender port.
@@ -276,17 +277,22 @@ linters:
         # differ to the framework it exists to stay describable beside. orm is
         # ALLOWED here — reading model metadata is this package's entire job,
         # and that is exactly why it lives at the root rather than internal/.
-        auth-is-private-core:
+        auth-is-transport-free:
           files:
             - "**/auth/**"
             - "!**/*_test.go"
+          list-mode: lax
+          allow:
+            - "github.com/usefabrin/fabrin/mail$"
           deny:
             - pkg: "github.com/usefabrin/fabrin"
-              desc: "auth proof must remain independent of application lifecycle"
+              desc: "auth may import only the standalone mail value package inside Fabrin"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "auth core defines no Gin transport"
             - pkg: "net/http"
-              desc: "auth proof defines no HTTP transport"
+              desc: "auth core defines no HTTP transport"
             - pkg: "database/sql"
-              desc: "auth proof defines no persistence adapter"
+              desc: "auth core declares a Store port; applications own database adapters"
 
         mail-is-standalone:
           files:
