@@ -61,15 +61,20 @@ while IFS= read -r dir; do
 done < <(find "$root" -type d -name migrations -not -path '*/node_modules/*' 2>/dev/null | sort)
 
 width=""
-for v in "${seen_versions[@]}"; do
-  if [[ -z "$width" ]]; then
-    width="${#v}"
-  elif [[ "${#v}" -ne "$width" ]]; then
-    echo "✗ mixed version widths across migrations (${width} vs ${#v} chars): ordering is lexicographic, and a mixed set applies in an order nobody wrote" >&2
-    status=1
-    break
-  fi
-done
+# Bash 3.2 treats an empty array expansion as an unset variable under `set -u`,
+# even when the array was explicitly declared above. Guard the expansion so an
+# empty repository remains the valid negative control it is on newer Bash.
+if (( ${#seen_versions[@]} > 0 )); then
+  for v in "${seen_versions[@]}"; do
+    if [[ -z "$width" ]]; then
+      width="${#v}"
+    elif [[ "${#v}" -ne "$width" ]]; then
+      echo "✗ mixed version widths across migrations (${width} vs ${#v} chars): ordering is lexicographic, and a mixed set applies in an order nobody wrote" >&2
+      status=1
+      break
+    fi
+  done
+fi
 
 if (( status == 0 )); then
   n="${#seen_versions[@]}"

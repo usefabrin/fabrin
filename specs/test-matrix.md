@@ -272,7 +272,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-005 | Rollback runs `Down` newest-first, to an exclusive target | `migrate/migrate_test.go::TestRollback_UndoesInReverseOrder` |
 | MIG-006 | The engine imports no driver, no Gin, no `net/http` | `.golangci.yml` — `migrate-is-standalone` (gate; see below) |
 | MIG-007 | Two migrations claiming one version are rejected | `migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet` |
-| MIG-008 | A pre-merge gate rejects two migration *files* at one version | `scripts/gates/check-migration-versions.sh` (gate) |
+| MIG-008 | A pre-merge gate rejects duplicate migration files; an empty set passes portably | `scripts/gates/check-migration-versions.sh` (gate) |
 | MIG-009 | Versions that do not sort as written are rejected | `migrate/migrate_test.go::TestRun_RejectsVersionsThatDoNotSortAsWritten` |
 | MIG-010 | `Up`/`Down` take a `Handle` — four frozen methods, satisfied unmodified by `*sql.Tx`, `*sql.DB`, `*sql.Conn` | `migrate/handle_test.go::TestHandle_MethodSetIsFrozenAtFourAndSatisfiedUnmodifiedByTxDBAndConn` |
 | MIG-011 | Recorded state round-trips — tables, modules, declared field order intact | `orm/state_test.go::TestSnapshot_RoundTripsThroughEncodeAndParse` |
