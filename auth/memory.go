@@ -193,6 +193,25 @@ func (s *MemoryStore) RevokeSession(ctx context.Context, proof SessionProof) err
 	return nil
 }
 
+// RevokeAllSessions implements SessionStore.
+func (s *MemoryStore) RevokeAllSessions(ctx context.Context, proof SessionProof) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessions[proof.ID]
+	if session == nil || !session.active || proof.Now.Before(session.record.CreatedAt) || !proof.Now.Before(session.record.ExpiresAt) || !proof.Now.Before(session.record.LastSeenAt.Add(sessionIdleTTL)) || !hmac.Equal(session.record.Digest[:], proof.Digest[:]) {
+		return ErrSession
+	}
+	for _, candidate := range s.sessions {
+		if candidate.identity.ID == session.identity.ID {
+			candidate.active = false
+		}
+	}
+	return nil
+}
+
 // Invalidate implements Store and cannot invalidate a newer replacement.
 func (s *MemoryStore) Invalidate(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {

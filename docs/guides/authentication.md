@@ -78,6 +78,7 @@ r.POST("/auth/native/request", native.RequestCode)
 r.POST("/auth/native/verify", native.VerifyCode)
 r.GET("/auth/native/current", native.Current)
 r.POST("/auth/native/logout", native.Logout)
+r.POST("/auth/native/logout-all", native.LogoutAll)
 ```
 
 Request and verification bodies are strict JSON capped at 4 KiB. Every response
@@ -86,6 +87,8 @@ challenges and returns the bearer token once in JSON; the handlers never read or
 set authentication cookies and never accept query-string tokens. `Current` and
 `Logout` require exactly one `Authorization: Bearer <credential>` header, and
 logout revokes the server record before returning 204.
+`LogoutAll` verifies the presented session and atomically revokes every session
+indexed to the same identity.
 
 Known delivery failures and send-budget suppression return the same 202 shape as
 an accepted request, using a non-verifiable random challenge ID. Store outages

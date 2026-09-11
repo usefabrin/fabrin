@@ -147,6 +147,7 @@ func (s *Store) Verify(ctx context.Context, attempt auth.Verification) (auth.Ide
 		s.prefix + "challenge:" + attempt.ID,
 		s.prefix + "complete:" + lease,
 		s.prefix + "session:" + attempt.Session.ID,
+		s.identitySessionsKey(identity.ID),
 	}, lease, attempt.Session.ID, hex.EncodeToString(attempt.Session.Digest[:]), identity.ID, identity.Email, identity.CreatedAt.UnixNano(), duration.Milliseconds()).Int64()
 	if err != nil {
 		// Retrying the idempotent completion distinguishes an ambiguous response
@@ -157,6 +158,7 @@ func (s *Store) Verify(ctx context.Context, attempt auth.Verification) (auth.Ide
 			s.prefix + "challenge:" + attempt.ID,
 			s.prefix + "complete:" + lease,
 			s.prefix + "session:" + attempt.Session.ID,
+			s.identitySessionsKey(identity.ID),
 		}, lease, attempt.Session.ID, hex.EncodeToString(attempt.Session.Digest[:]), identity.ID, identity.Email, identity.CreatedAt.UnixNano(), duration.Milliseconds()).Int64()
 	}
 	if err != nil {
@@ -195,7 +197,7 @@ func (s *Store) AuthenticateSession(ctx context.Context, proof auth.SessionProof
 
 // RevokeSession removes a session only when its secret digest matches.
 func (s *Store) RevokeSession(ctx context.Context, proof auth.SessionProof) error {
-	result, err := revokeScript.Run(ctx, s.client, []string{s.prefix + "session:" + proof.ID}, hex.EncodeToString(proof.Digest[:])).Int64()
+	result, err := revokeScript.Run(ctx, s.client, []string{s.prefix + "session:" + proof.ID}, hex.EncodeToString(proof.Digest[:]), s.prefix+"session:").Int64()
 	if err != nil {
 		return err
 	}
@@ -203,6 +205,23 @@ func (s *Store) RevokeSession(ctx context.Context, proof auth.SessionProof) erro
 		return auth.ErrSession
 	}
 	return nil
+}
+
+// RevokeAllSessions authenticates one session and removes every session indexed
+// for the same identity in one Redis transition.
+func (s *Store) RevokeAllSessions(ctx context.Context, proof auth.SessionProof) error {
+	result, err := revokeAllScript.Run(ctx, s.client, []string{s.prefix + "session:" + proof.ID}, hex.EncodeToString(proof.Digest[:]), s.prefix+"session:").Int64()
+	if err != nil {
+		return err
+	}
+	if result != 1 {
+		return auth.ErrSession
+	}
+	return nil
+}
+
+func (s *Store) identitySessionsKey(identityID string) string {
+	return s.prefix + "identity-sessions:" + digest(identityID)
 }
 
 func validPrefix(value string) bool {
@@ -283,8 +302,9 @@ local already=redis.call('GET',KEYS[2])
 if already == ARGV[1] then return 1 end
 if redis.call('HGET',KEYS[1],'lease') ~= ARGV[1] then return 0 end
 local now=redis.call('TIME'); local ms=now[1]*1000 + math.floor(now[2]/1000); local duration=tonumber(ARGV[7])
-redis.call('HSET',KEYS[3],'digest',ARGV[3],'identity_id',ARGV[4],'email',ARGV[5],'identity_created',ARGV[6],'created',ms,'last_seen',ms,'expires',ms+duration)
-redis.call('PEXPIRE',KEYS[3],duration); redis.call('SET',KEYS[2],ARGV[1],'PX',300000); redis.call('DEL',KEYS[1]); return 1`)
+redis.call('HSET',KEYS[3],'digest',ARGV[3],'identity_id',ARGV[4],'email',ARGV[5],'identity_created',ARGV[6],'created',ms,'last_seen',ms,'expires',ms+duration,'identity_sessions',KEYS[4])
+redis.call('PEXPIRE',KEYS[3],duration); redis.call('SADD',KEYS[4],ARGV[2]); redis.call('PEXPIRE',KEYS[4],duration)
+redis.call('SET',KEYS[2],ARGV[1],'PX',300000); redis.call('DEL',KEYS[1]); return 1`)
 
 var sessionScript = redis.NewScript(`
 local function equal(a,b)
@@ -292,16 +312,32 @@ local function equal(a,b)
   local different=0; for i=1,string.len(a) do if string.byte(a,i) ~= string.byte(b,i) then different=1 end end
   return different == 0
 end
-local v=redis.call('HMGET',KEYS[1],'digest','identity_id','email','identity_created','created','last_seen','expires')
+local v=redis.call('HMGET',KEYS[1],'digest','identity_id','email','identity_created','created','last_seen','expires','identity_sessions')
 if not v[1] or not equal(v[1],ARGV[1]) then return {} end
 local now=redis.call('TIME'); local ms=now[1]*1000 + math.floor(now[2]/1000)
 if ms >= tonumber(v[7]) or ms >= tonumber(v[6])+86400000 then redis.call('DEL',KEYS[1]); return {} end
 redis.call('HSET',KEYS[1],'last_seen',ms); redis.call('PEXPIREAT',KEYS[1],tonumber(v[7])); return {v[2],v[3],v[4]}`)
 
 var revokeScript = redis.NewScript(`
-local value=redis.call('HGET',KEYS[1],'digest'); if not value or string.len(value) ~= string.len(ARGV[1]) then return 0 end
+local values=redis.call('HMGET',KEYS[1],'digest','identity_sessions'); local value=values[1]; if not value or string.len(value) ~= string.len(ARGV[1]) then return 0 end
 local different=0; for i=1,string.len(value) do if string.byte(value,i) ~= string.byte(ARGV[1],i) then different=1 end end
-if different ~= 0 then return 0 end; redis.call('DEL',KEYS[1]); return 1`)
+if different ~= 0 then return 0 end
+if values[2] then redis.call('SREM',values[2],string.sub(KEYS[1],string.len(ARGV[2])+1)) end
+redis.call('DEL',KEYS[1]); return 1`)
+
+var revokeAllScript = redis.NewScript(`
+local function equal(a,b)
+  if not a or not b or string.len(a) ~= string.len(b) then return false end
+  local different=0; for i=1,string.len(a) do if string.byte(a,i) ~= string.byte(b,i) then different=1 end end
+  return different == 0
+end
+local v=redis.call('HMGET',KEYS[1],'digest','identity_sessions','created','last_seen','expires')
+if not v[1] or not v[2] or not equal(v[1],ARGV[1]) then return 0 end
+local now=redis.call('TIME'); local ms=now[1]*1000 + math.floor(now[2]/1000)
+if ms >= tonumber(v[5]) or ms >= tonumber(v[4])+86400000 then redis.call('DEL',KEYS[1]); return 0 end
+local sessions=redis.call('SMEMBERS',v[2])
+for _,id in ipairs(sessions) do redis.call('DEL',ARGV[2]..id) end
+redis.call('DEL',v[2]); return 1`)
 
 var (
 	_ auth.Store        = (*Store)(nil)

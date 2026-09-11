@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/usefabrin/fabrin/auth"
 	"github.com/usefabrin/fabrin/authredis"
 	"github.com/usefabrin/fabrin/mail"
@@ -150,6 +155,65 @@ func TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner(t *testing.T) {
 	if _, err := secondService.Request(t.Context(), "budget-over@example.com", auth.PurposeNative, "shared-source"); !errors.Is(err, auth.ErrRateLimited) {
 		t.Fatalf("shared source budget: %v", err)
 	}
+}
+
+func TestStore_RedisLogoutAllRevokesIdentityIndex(t *testing.T) {
+	redisURL := os.Getenv("FABRINTEST_REDIS_URL")
+	if redisURL == "" {
+		t.Skip("FABRINTEST_REDIS_URL not set; skipping live Redis auth test")
+	}
+	prefix := "fabrin:test:" + randomToken(t) + ":"
+	store, err := authredis.New(redisURL, newIdentityStore(), authredis.WithPrefix(prefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	options, err := redis.ParseURL(redisURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := redis.NewClient(options)
+	t.Cleanup(func() { _ = client.Close() })
+
+	identityID := "identity-a"
+	identityIndex := prefix + "identity-sessions:" + sha256Hex(identityID)
+	now := time.Now().UTC()
+	credentials := make([]string, 0, 2)
+	for i := byte(1); i <= 2; i++ {
+		idBytes := bytes.Repeat([]byte{i}, 32)
+		secret := bytes.Repeat([]byte{i + 10}, 32)
+		id := base64.RawURLEncoding.EncodeToString(idBytes)
+		credential := id + "." + base64.RawURLEncoding.EncodeToString(secret)
+		credentials = append(credentials, credential)
+		digest := sha256.Sum256(secret)
+		key := prefix + "session:" + id
+		if err := client.HSet(t.Context(), key, map[string]any{
+			"digest": hex.EncodeToString(digest[:]), "identity_id": identityID,
+			"email": "a@example.com", "identity_created": now.UnixNano(),
+			"created": now.UnixMilli(), "last_seen": now.UnixMilli(),
+			"expires": now.Add(7 * 24 * time.Hour).UnixMilli(), "identity_sessions": identityIndex,
+		}).Err(); err != nil {
+			t.Fatal(err)
+		}
+		if err := client.SAdd(t.Context(), identityIndex, id).Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manager, err := auth.NewSessionManager(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.LogoutAll(t.Context(), credentials[0]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Current(t.Context(), credentials[1]); !errors.Is(err, auth.ErrSession) {
+		t.Fatalf("second session remained active: %v", err)
+	}
+}
+
+func sha256Hex(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 func messageCode(t *testing.T, messages []mail.Message) string {

@@ -113,6 +113,7 @@ func (s *Store) ResolveVerified(ctx context.Context, resolution auth.IdentityRes
 		if disabled {
 			return auth.Identity{}, auth.ErrAuthentication
 		}
+		identity.CreatedAt = identity.CreatedAt.UTC()
 		if err := tx.Commit(); err != nil {
 			return auth.Identity{}, err
 		}
@@ -131,7 +132,7 @@ func (s *Store) ResolveVerified(ctx context.Context, resolution auth.IdentityRes
 			return auth.Identity{}, err
 		}
 	}
-	identity = auth.Identity{ID: resolution.ProposedID, Email: resolution.Email, CreatedAt: resolution.VerifiedAt}
+	identity = auth.Identity{ID: resolution.ProposedID, Email: resolution.Email, CreatedAt: resolution.VerifiedAt.UTC()}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO fabrin_auth_identities (id,email,created_at) VALUES ($1,$2,$3)`, identity.ID, identity.Email, identity.CreatedAt); err != nil {
 		return auth.Identity{}, err
 	}

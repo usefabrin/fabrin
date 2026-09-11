@@ -1042,3 +1042,10 @@ behaviours:
     requirement: FR-AUTH-2
     status: implemented
     test: auth/session_test.go::TestSessionManager_AuthenticatesIdleExpiresAndRevokes
+
+  - id: SES-003
+    what: Identity-wide logout authenticates one current session and atomically revokes every session for that identity in memory and Redis.
+    why: A user responding to credential loss or shared-device exposure must be able to invalidate every server-side credential without leaving another indexed session active.
+    requirement: FR-AUTH-2
+    status: implemented
+    test: auth/session_test.go::TestSessionManager_LogoutAllRevokesEveryIdentitySession

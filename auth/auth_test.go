@@ -370,6 +370,9 @@ func (errorStore) AuthenticateSession(context.Context, SessionProof) (Identity, 
 func (errorStore) RevokeSession(context.Context, SessionProof) error {
 	return errors.New("database secret")
 }
+func (errorStore) RevokeAllSessions(context.Context, SessionProof) error {
+	return errors.New("database secret")
+}
 
 func lastChallengeID(store *MemoryStore) string {
 	store.mu.Lock()

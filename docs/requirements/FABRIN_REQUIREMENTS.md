@@ -93,7 +93,7 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |---|---|---|
 | FR-AUTH-1 | Password-first user model and memory-hard password hashing; superseded for v1 by FR-AUTH-5. Password login is deferred. | superseded |
-| FR-AUTH-2 | Server-side browser and native sessions use Redis in production and a bounded memory store in tests. Initial opaque sessions, Redis persistence, idle/absolute expiry and single-session logout exist; rotation, identity-wide revocation and browser integration remain. | in progress |
+| FR-AUTH-2 | Server-side browser and native sessions use Redis in production and a bounded memory store in tests. Initial opaque sessions, Redis persistence, idle/absolute expiry, single-session and identity-wide logout exist; rotation, privilege-change revocation and browser integration remain. | in progress |
 | FR-AUTH-3 | Permissions and groups, checkable in a handler and in a template. | planned |
 | FR-AUTH-4 | Replaceable auth user model; superseded for v1 by FR-AUTH-6 (stable identity plus application profiles). | superseded |
 | FR-AUTH-5 | Email OTP verifies mailbox possession before signup/login; single-use protected codes, bounded lifetime and shared abuse budgets follow AUTH_CONTRACT.md. Redis is the implemented v1 authority for challenges, budgets and redemption; production delivery and HTTP integration remain. | in progress |

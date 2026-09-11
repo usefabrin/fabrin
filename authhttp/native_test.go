@@ -73,6 +73,22 @@ func TestNative_LoginCurrentAndLogout(t *testing.T) {
 	if revoked.Code != http.StatusUnauthorized {
 		t.Fatalf("revoked session accepted: %d", revoked.Code)
 	}
+
+	allRequest := perform(t, router, http.MethodPost, "/request", `{"email":"all@example.com"}`, "")
+	var allChallenge struct {
+		ID string `json:"challenge_id"`
+	}
+	decodeResponse(t, allRequest, &allChallenge)
+	allCode := messageCode(t, inbox.Drain())
+	allVerify := perform(t, router, http.MethodPost, "/verify", `{"challenge_id":"`+allChallenge.ID+`","email":"all@example.com","code":"`+allCode+`"}`, "")
+	var allLogin struct {
+		Token string `json:"token"`
+	}
+	decodeResponse(t, allVerify, &allLogin)
+	logoutAll := perform(t, router, http.MethodPost, "/logout-all", "", "Bearer "+allLogin.Token)
+	if logoutAll.Code != http.StatusNoContent {
+		t.Fatalf("logout all: status=%d body=%s", logoutAll.Code, logoutAll.Body.String())
+	}
 }
 
 func TestNative_StrictBodiesAndNeutralDeliveryResponse(t *testing.T) {
@@ -157,6 +173,7 @@ func nativeRouter(t *testing.T, sender auth.Sender) (*gin.Engine, *mail.Capture,
 	router.POST("/verify", native.VerifyCode)
 	router.GET("/current", native.Current)
 	router.POST("/logout", native.Logout)
+	router.POST("/logout-all", native.LogoutAll)
 	return router, inbox, service
 }
 

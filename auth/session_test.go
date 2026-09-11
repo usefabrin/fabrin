@@ -116,6 +116,44 @@ func TestSessionManager_RejectsMalformedCredentials(t *testing.T) {
 	}
 }
 
+func TestSessionManager_LogoutAllRevokesEveryIdentitySession(t *testing.T) {
+	service, inbox := newService(t, 16)
+	base := time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)
+	login := func(at time.Time) Authentication {
+		t.Helper()
+		service.now = func() time.Time { return at }
+		challenge, err := service.Request(t.Context(), "a@example.com", PurposeNative, "source")
+		if err != nil {
+			t.Fatal(err)
+		}
+		messages := inbox.Drain()
+		code := strings.TrimPrefix(messages[0].Text, "Your Fabrin sign-in code is: ")
+		result, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeNative, "source")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	first := login(base)
+	second := login(base.Add(time.Minute))
+	if first.Identity.ID != second.Identity.ID {
+		t.Fatal("logins did not resolve the same identity")
+	}
+	manager, err := NewSessionManager(service.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.now = func() time.Time { return base.Add(2 * time.Minute) }
+	if err := manager.LogoutAll(t.Context(), first.Session.Credential); err != nil {
+		t.Fatal(err)
+	}
+	for _, credential := range []string{first.Session.Credential, second.Session.Credential} {
+		if _, err := manager.Current(t.Context(), credential); !errors.Is(err, ErrSession) {
+			t.Fatalf("session remained active after logout-all: %v", err)
+		}
+	}
+}
+
 func TestService_SessionStoreFailureDoesNotConsumeChallenge(t *testing.T) {
 	store, err := NewMemoryStore(1)
 	if err != nil {

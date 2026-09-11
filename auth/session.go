@@ -56,6 +56,7 @@ type SessionProof struct {
 type SessionStore interface {
 	AuthenticateSession(context.Context, SessionProof) (Identity, error)
 	RevokeSession(context.Context, SessionProof) error
+	RevokeAllSessions(context.Context, SessionProof) error
 }
 
 // SessionManager authenticates and revokes opaque server-side sessions.
@@ -101,6 +102,25 @@ func (m *SessionManager) Logout(ctx context.Context, credential string) error {
 		return ErrSession
 	}
 	if err := m.store.RevokeSession(ctx, proof); err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		return ErrSession
+	}
+	return nil
+}
+
+// LogoutAll authenticates one session and atomically revokes every session for
+// the same identity before reporting success.
+func (m *SessionManager) LogoutAll(ctx context.Context, credential string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	proof, err := sessionProof(credential, m.now().UTC())
+	if err != nil {
+		return ErrSession
+	}
+	if err := m.store.RevokeAllSessions(ctx, proof); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}

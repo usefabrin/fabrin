@@ -151,6 +151,22 @@ func (n *Native) Logout(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// LogoutAll authenticates the Authorization bearer credential and revokes all
+// sessions for its identity before returning success.
+func (n *Native) LogoutAll(c *gin.Context) {
+	noStore(c)
+	credential, ok := bearerCredential(c.Request)
+	if !ok {
+		writeError(c, http.StatusUnauthorized, "authentication_failed")
+		return
+	}
+	if err := n.sessions.LogoutAll(c.Request.Context(), credential); err != nil {
+		writeAuthError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func decodeJSON(c *gin.Context, target any) error {
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || mediaType != "application/json" {

@@ -7,7 +7,8 @@ under the direct-main workflow. Capture mail, the private challenge primitive,
 and a public OTP core are implemented. Redis now provides shared challenges,
 budgets, verification leases and sessions; PostgreSQL provides durable identity
 resolution, invitation consumption and disabled-identity policy. Strict native
-bearer handlers now cover request, verification, current-session and logout.
+bearer handlers now cover request, verification, current-session, logout and
+logout-all.
 Browser transport, broader session revocation, production delivery and
 authorization remain planned. This is approved architecture, not approval of
 the incomplete browser or production stack.

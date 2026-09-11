@@ -117,7 +117,9 @@ idempotently. Redis server time controls all ephemeral boundaries.
 `authhttp.Native` provides the native bearer transport over those ports. Its
 handlers strictly decode JSON bodies capped at 4 KiB, use native-purpose
 challenges, set `Cache-Control: no-store`, return credentials only in verification
-JSON, ignore cookies and query tokens, and revoke before logout succeeds. The
+JSON, ignore cookies and query tokens, and revoke one or every identity session
+before logout succeeds. Redis maintains a TTL-bounded identity session index so
+logout-all is one atomic transition. The
 default abuse source is the direct peer address and ignores forwarded headers;
 applications may explicitly supply a trusted source function after configuring
 their proxy boundary. Browser-cookie and CSRF transport remains separate and

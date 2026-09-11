@@ -37,6 +37,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Identity-wide session logout.** `auth.SessionStore` now includes atomic
+  `RevokeAllSessions`, `SessionManager.LogoutAll` exposes it to callers, and the
+  native HTTP transport provides a logout-all handler. Memory and Redis stores
+  authenticate the presented session before revoking every session for its
+  identity; Redis maintains a TTL-bounded identity session index. The API
+  snapshot changes intentionally.
+
 - **Native bearer authentication handlers.** New public `authhttp.Native`,
   `NewNative`, and `WithSource` expose request-code, verify-code, current-session
   and logout Gin handlers. They cap strict JSON bodies at 4 KiB, use only native
@@ -935,6 +942,8 @@ with their milestone rather than split into sections. Cutting a version is
 - **PostgreSQL 17 identity lock key.** Durable identity resolution now uses a
   valid text namespace for its transaction advisory lock. The prior NUL
   separator was rejected by PostgreSQL before invitation or identity lookup.
+  Resolved identity timestamps are also normalized to UTC so the creator and
+  concurrent readers receive the same value representation.
 
 - Generated state sidecars now record the cumulative full-application schema at
   their exact migration version. In a multi-module run, the first migration no
