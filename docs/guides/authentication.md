@@ -6,11 +6,13 @@ and atomically consumes it through an `auth.Store`. The included
 `auth.MemoryStore` and `mail.Capture` make this flow runnable in tests and local
 development.
 
-This is not a login endpoint or a production authentication stack. Browser and
-native HTTP routes, pre-auth CSRF state, durable PostgreSQL storage, invitations,
-disabled-identity policy, sessions, production mail and authorization remain to
-be implemented. `auth.WithProduction` rejects the included memory and capture
-backends so they cannot be selected directly as production defaults.
+This is not a login endpoint or a production authentication stack. Successful
+verification atomically creates a minimal opaque server-side session, but browser
+and native HTTP routes, pre-auth CSRF state, durable PostgreSQL storage,
+invitations, disabled-identity policy, rotation, identity-wide revocation,
+production mail and authorization remain to be implemented. `auth.WithProduction`
+rejects the included memory and capture backends so they cannot be selected
+directly as production defaults.
 
 ## Run the local flow
 
@@ -35,7 +37,12 @@ if err != nil {
 }
 message := inbox.Messages()[0]
 // Test code extracts the eight digits from message.Text.
-identity, err := service.Verify(ctx, challenge.ID, "Alice@EXAMPLE.COM", code, auth.PurposeNative, sourceKey)
+authentication, err := service.Verify(ctx, challenge.ID, "Alice@EXAMPLE.COM", code, auth.PurposeNative, sourceKey)
+if err != nil {
+    return err
+}
+identity := authentication.Identity
+session := authentication.Session.Credential // return once over a no-store native response
 ```
 
 The example assumes imports for `fabrin/auth` and `fabrin/mail`. Use a stable,
@@ -49,6 +56,15 @@ the same single-method interface with a deadline-aware `Send` method. The servic
 adds a ten-second delivery deadline, stores only the HMAC verifier, invalidates an
 exact challenge after a known provider rejection, and leaves an ambiguously timed
 out delivery verifiable until it expires.
+
+The session credential contains independent 32-byte random ID and secret parts.
+The store sees only the ID and SHA-256 digest. `auth.SessionManager.Current`
+checks and atomically refreshes the 24-hour idle window without extending the
+seven-day absolute expiry. `Logout` revokes the stored credential before success.
+All malformed, unknown, expired and revoked credentials return `auth.ErrSession`.
+This slice has no cookie mode or HTTP middleware; a native preview must accept it
+only in an `Authorization: Bearer` header and return it only with `Cache-Control:
+no-store`.
 
 ## Memory-store behavior
 
@@ -76,13 +92,14 @@ shared across replicas. Use it only for tests or an explicitly local tool.
 Applications may implement `auth.Store` using durable storage. `Reserve` must
 atomically consume address/source send budgets and replace the prior active
 challenge. `Verify` must atomically consume source/address attempt budgets,
-compare the protected verifier, allow one successful consumer, and resolve one
-stable identity for the canonical email. `Invalidate` must affect only its named
+compare the protected verifier, allow one successful consumer, resolve one stable
+identity for the canonical email, and persist `Verification.Session` for that
+identity. `Invalidate` must affect only its named
 challenge so cleanup cannot revoke a newer resend.
 
 The approved [authentication contract](../AUTH_CONTRACT.md) additionally requires
-identity eligibility and session creation in the same transaction as challenge
-consumption. This preview stops before sessions, so it is not enough to implement
-a production store or expose `Request`/`Verify` directly as public HTTP handlers.
-The next integration slice supplies that complete transaction and the transport's
-generic public response rules.
+identity eligibility in that transaction plus privilege-change revocation and
+browser/native transport separation. This preview is therefore not enough to
+implement a production store or expose `Request`/`Verify` directly as public HTTP
+handlers. The next integration slice supplies PostgreSQL persistence and the
+transport's generic public response rules.

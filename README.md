@@ -243,7 +243,7 @@ REST CRUD, and the usable admin are planned; they are not available yet.
 
 For a runnable local email-code core, see the
 [authentication preview](docs/guides/authentication.md). It combines the bounded
-capture inbox with atomic challenge and identity transitions, but still has no
-HTTP login, durable production store, sessions, eligibility policy, or production
-delivery. The [OTP security contract](docs/AUTH_CONTRACT.md) governs the remaining
-work.
+capture inbox with atomic challenge, identity, and initial native-session
+transitions. It still has no HTTP login, durable production store, browser
+session, broad revocation, eligibility policy, or production delivery. The
+[OTP security contract](docs/AUTH_CONTRACT.md) governs the remaining work.

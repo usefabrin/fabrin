@@ -49,8 +49,9 @@ password-first auth and runtime model machinery. Schema create/get, bounded
 capture mail, and a local OTP core are implemented; HTTP login and the usable
 admin remain planned. The OTP core makes dependencies explicit through Go
 `Store` and `Sender` interfaces, keeps budgets in a bounded test store, and
-resolves a stable identity only after verification. Django's integrated user,
-session and request middleware remain future Fabrin slices. See
+resolves a stable identity plus an initial opaque native session only after
+verification. Unlike Django's database session and middleware integration, the
+current manager has no cookie/CSRF transport or broad revocation policy. See
 [V1_PLAN.md](V1_PLAN.md), the [data guide](guides/generated-data.md), and the
 [authentication preview](guides/authentication.md).
 

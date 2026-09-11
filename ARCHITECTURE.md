@@ -89,9 +89,11 @@ session and authorization behavior. The public `auth` core reuses its private
 challenge proof, adds atomic store and sender ports, and includes a bounded
 process-local store for tests. It generates eight decimal digits, stores only an
 HMAC verifier, preserves rolling abuse budgets across resends, and resolves one
-stable identity after one successful concurrent consumption. HTTP transport,
-durable shared storage, eligibility policy and sessions are still absent, so this
-is a runnable local core rather than production login.
+stable identity plus its first opaque session after one successful concurrent
+consumption. The memory store authenticates, idle-refreshes and revokes that
+native preview session. HTTP transport, durable shared storage, eligibility
+policy, browser sessions and broad revocation are still absent, so this is a
+runnable local core rather than production login.
 
 ### Generated PostgreSQL data access (preview)
 

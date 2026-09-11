@@ -37,6 +37,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Atomic initial sessions (#111).** Successful OTP verification now persists
+  an independent 32-byte opaque session in the same store operation as challenge
+  consumption and identity resolution, returning its secret once. Stores receive
+  only the SHA-256 digest. `SessionManager` authenticates and atomically refreshes
+  a 24-hour idle window within the fixed seven-day absolute lifetime; logout
+  revokes before success. Every malformed, unknown, expired, idle and revoked
+  credential returns `ErrSession`. The bounded memory store implements this native
+  preview seam; browser cookies/CSRF, rotation, identity-wide revocation and
+  durable persistence remain planned. The API snapshot changes intentionally.
 - **Email OTP core (#110).** Public `auth.Service`, consumer-owned `Store` and
   `Sender` ports, protected reservation/verification values, stable `Identity`,
   browser/native purposes, and sanitized sentinel errors turn the reviewed

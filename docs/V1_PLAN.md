@@ -25,7 +25,7 @@ is a reference, not a feature checklist or API constraint.
 |---|---|---|
 | September 10, 2026 preview (#103) | Runnable generated PostgreSQL create/get backend, email-code verification before signup, authenticated owned resource, capture-only test mail, reproducible guide | In progress; generator, bounded capture mail, and local OTP/identity core implemented. No integrated PostgreSQL auth preview yet. |
 | Data foundation (#104) | Typed CRUD, keys/defaults/nulls/relations/indexes, transactions, pagination, safe PostgreSQL migrations and upgrade concurrency | Scalar create/get generator implemented; ADR 0007 remains proposed. Existing migrations continue separately. |
-| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; public local OTP core implements bounded process-local budgets, delivery cleanup and atomic identity resolution. No HTTP login, durable auth store, sessions or authorization yet. |
+| Auth (#105, #80) | OTP, delivery/attempt limits, atomic consumption, cookie/native sessions, revocation, invitation policy, groups and ownership authorization | Contract approved; public local OTP core implements bounded process-local budgets, delivery cleanup, atomic identity plus initial native-session creation, idle/absolute expiry and logout. No HTTP login, durable auth store, browser session, broad revocation or authorization yet. |
 | REST and admin (#106) | Explicit enablement, field/operation policies, scoped list and record access, bounded queries, embedded admin | Existing private admin proof only. |
 | Operations (#107) | Production email, private R2 access, PostgreSQL jobs/scheduling, memory/Redis cache, distributed rate limits, local signals, tracing/metrics | Capture-only test mail implemented; production adapters remain planned. |
 | Release candidate (#108) | Deployed reference backend, security/API review, upgrade/recovery evidence, gates/races, measured overhead, accurate support docs | Planned; no stable-v1 claim. |
@@ -121,12 +121,12 @@ state machine uses cryptographic IDs/eight-digit codes, length-prefixed HMAC
 binding, constant-time verifier comparison, exclusive five-minute expiry and five
 attempts with one concurrent winner. The public core reuses that proof and adds
 reviewable `Store` and `Sender` ports, purpose separation, exact delivery cleanup,
-bounded rolling abuse budgets, and atomic stable-identity resolution. `mail.Capture`
-satisfies the sender port directly.
+bounded rolling abuse budgets, and atomic stable-identity plus initial-session
+creation. `mail.Capture` satisfies the sender port directly.
 
-Next: a PostgreSQL store must share budgets and combine eligibility, challenge
-consumption, identity and session creation in one transaction. Browser/native
-transport, production mail and authorization remain separate reviewed slices.
+Next: a PostgreSQL store must share budgets and apply eligibility inside that
+atomic verification transaction. Browser/native transport, production mail and
+authorization remain separate reviewed slices.
 See the [authentication preview](guides/authentication.md).
 
 Validation for the private OTP proof: `just check` and `just race` passed. Two
@@ -146,7 +146,10 @@ conflicts resolved against main. #101 was already resolved by the cumulative
 sidecar fix, so #119 is superseded; #125 and #126 are superseded by the schema
 generator (ADR 0007, still proposed) and the approved `AUTH_CONTRACT.md`. The
 #110 implementation was reconciled directly on `main` with that contract, the
-private proof and `mail.Capture`; the earlier stacked #127 is superseded.
+private proof and `mail.Capture`; the earlier stacked #127 is superseded. The
+follow-up atomic-session seam now creates the first opaque credential inside the
+same store transition, closing the split-transaction gap before #111's PostgreSQL
+adapter and HTTP preview are wired.
 
 Porting #124 exposed that `schema.Generate` wrote `orm.<Kind>` into generated
 metadata as text, so generated projects stopped compiling. A cached passing test

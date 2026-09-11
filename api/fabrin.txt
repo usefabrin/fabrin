@@ -70,12 +70,20 @@ pkg github.com/usefabrin/fabrin/auth, const PurposeBrowser Purpose = "browser"
 pkg github.com/usefabrin/fabrin/auth, const PurposeNative Purpose = "native"
 pkg github.com/usefabrin/fabrin/auth, func New(store Store, sender Sender, keyID string, key []byte, options ...Option) (*Service, error)
 pkg github.com/usefabrin/fabrin/auth, func NewMemoryStore(capacity int) (*MemoryStore, error)
+pkg github.com/usefabrin/fabrin/auth, func NewSessionManager(store SessionStore) (*SessionManager, error)
 pkg github.com/usefabrin/fabrin/auth, func WithProduction() Option
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) AuthenticateSession(ctx context.Context, proof SessionProof) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Invalidate(ctx context.Context, id string) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Reserve(ctx context.Context, reservation Reservation) error
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeSession(ctx context.Context, proof SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Verify(ctx context.Context, attempt Verification) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, method (*Service) Request(ctx context.Context, email string, purpose Purpose, source string) (Challenge, error)
-pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Context, id string, email string, code string, purpose Purpose, source string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Context, id string, email string, code string, purpose Purpose, source string) (Authentication, error)
+pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Current(ctx context.Context, credential string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Logout(ctx context.Context, credential string) error
+pkg github.com/usefabrin/fabrin/auth, type Authentication struct
+pkg github.com/usefabrin/fabrin/auth, type Authentication struct, Identity Identity
+pkg github.com/usefabrin/fabrin/auth, type Authentication struct, Session Session
 pkg github.com/usefabrin/fabrin/auth, type Challenge struct
 pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ExpiresAt time.Time
 pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ID string
@@ -98,9 +106,29 @@ pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Verifier [32]byte
 pkg github.com/usefabrin/fabrin/auth, type Sender interface
 pkg github.com/usefabrin/fabrin/auth, type Sender interface, Send(context.Context, github.com/usefabrin/fabrin/mail.Message) error
 pkg github.com/usefabrin/fabrin/auth, type Service struct
+pkg github.com/usefabrin/fabrin/auth, type Session struct
+pkg github.com/usefabrin/fabrin/auth, type Session struct, Credential string
+pkg github.com/usefabrin/fabrin/auth, type Session struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type SessionManager struct
+pkg github.com/usefabrin/fabrin/auth, type SessionProof struct
+pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, Digest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, Now time.Time
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, CreatedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, Digest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, IdentityID string
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, LastSeenAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type SessionStore interface
+pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, AuthenticateSession(context.Context, SessionProof) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, RevokeSession(context.Context, SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface
+pkg github.com/usefabrin/fabrin/auth, type Store interface, AuthenticateSession(context.Context, SessionProof) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Invalidate(context.Context, string) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Reserve(context.Context, Reservation) error
+pkg github.com/usefabrin/fabrin/auth, type Store interface, RevokeSession(context.Context, SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Verify(context.Context, Verification) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type Verification struct
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Email string
@@ -109,11 +137,13 @@ pkg github.com/usefabrin/fabrin/auth, type Verification struct, IdentityID strin
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, KeyID string
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Now time.Time
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Purpose Purpose
+pkg github.com/usefabrin/fabrin/auth, type Verification struct, Session SessionRecord
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Source string
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Verifier [32]byte
 pkg github.com/usefabrin/fabrin/auth, var ErrAuthentication error
 pkg github.com/usefabrin/fabrin/auth, var ErrDelivery error
 pkg github.com/usefabrin/fabrin/auth, var ErrRateLimited error
+pkg github.com/usefabrin/fabrin/auth, var ErrSession error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
 

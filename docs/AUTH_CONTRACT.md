@@ -5,9 +5,10 @@ Status: **approved by the maintainer for implementation**, September 10, 2026. T
 claim production readiness. Approval was given after review of commit `a19c4d7`
 under the direct-main workflow. Capture mail, the private challenge primitive,
 and a public local OTP core are implemented. The local core reserves challenges,
-enforces bounded process-local budgets, cleans up known delivery failures and
-atomically resolves stable identities. Durable shared storage, eligibility policy,
-transport, sessions and authorization remain planned.
+enforces bounded process-local budgets, cleans up known delivery failures, and
+atomically resolves stable identities plus initial opaque sessions. Durable shared
+storage, eligibility policy, browser/native transport, broader session revocation,
+and authorization remain planned.
 
 ## Goal, trust boundaries and limits
 
@@ -255,7 +256,8 @@ the contract for implementation on September 10, satisfying #80's pre-implementa
 review requirement. This does not accept implementation defects or waive production
 security review. Private challenge tests prove the cryptographic, attempt, expiry
 and single-use primitives. Public core tests additionally prove local
-reservation/replacement, bounded budgets, sanitized delivery/store failures and
-atomic identity resolution. They do not prove transactional eligibility/session
-creation, shared multi-instance limits, PostgreSQL behavior, or HTTP enumeration
-resistance.
+reservation/replacement, bounded budgets, sanitized delivery/store failures,
+atomic identity/session creation, idle/absolute session expiry and logout
+revocation. They do not prove transactional eligibility, identity-wide or
+privilege-change revocation, shared multi-instance limits, PostgreSQL behavior,
+browser CSRF, or HTTP enumeration resistance.

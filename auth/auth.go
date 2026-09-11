@@ -63,14 +63,17 @@ type Verification struct {
 	Now              time.Time
 	Source           string
 	IdentityID       string
+	Session          SessionRecord
 }
 
 // Store owns challenge replacement, abuse budgets, attempt accounting,
-// one-time consumption and unique identity resolution as atomic operations.
+// one-time consumption, unique identity resolution and initial session creation
+// as atomic operations.
 // Reserve must keep address/source budgets across replacement. Verify must make
 // one concurrent attempt the sole winner and return ErrAuthentication for every
 // credential failure. Invalidate must affect only the named challenge.
 type Store interface {
+	SessionStore
 	Reserve(context.Context, Reservation) error
 	Verify(context.Context, Verification) (Identity, error)
 	Invalidate(context.Context, string) error
@@ -169,13 +172,14 @@ func (s *Service) Request(ctx context.Context, email string, purpose Purpose, so
 	return Challenge{ID: c.id, ExpiresAt: c.expires}, nil
 }
 
-// Verify atomically consumes one attempt and resolves a stable identity.
-func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Purpose, source string) (Identity, error) {
+// Verify atomically consumes one attempt, resolves a stable identity and
+// persists its first opaque session before returning the secret once.
+func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Purpose, source string) (Authentication, error) {
 	if err := ctx.Err(); err != nil {
-		return Identity{}, err
+		return Authentication{}, err
 	}
 	if source == "" || len(source) > 256 {
-		return Identity{}, ErrRateLimited
+		return Authentication{}, ErrRateLimited
 	}
 	canonical, err := canonicalEmail(email)
 	if err != nil {
@@ -185,14 +189,19 @@ func (s *Service) Verify(ctx context.Context, id, email, code string, purpose Pu
 	}
 	identityID, err := randomHex(32)
 	if err != nil {
-		return Identity{}, fmt.Errorf("auth: generate identity ID: %w", err)
+		return Authentication{}, fmt.Errorf("auth: generate identity ID: %w", err)
 	}
-	request := Verification{ID: id, Email: canonical, KeyID: s.keyID, Purpose: purpose, Verifier: verifier(s.key, string(purpose), id, canonical, code), Now: s.now().UTC(), Source: source, IdentityID: identityID}
+	now := s.now().UTC()
+	session, record, err := newSession(now)
+	if err != nil {
+		return Authentication{}, fmt.Errorf("auth: generate session: %w", err)
+	}
+	request := Verification{ID: id, Email: canonical, KeyID: s.keyID, Purpose: purpose, Verifier: verifier(s.key, string(purpose), id, canonical, code), Now: now, Source: source, IdentityID: identityID, Session: record}
 	identity, err := s.store.Verify(ctx, request)
 	if err != nil {
-		return Identity{}, storeError(err)
+		return Authentication{}, storeError(err)
 	}
-	return identity, nil
+	return Authentication{Identity: identity, Session: session}, nil
 }
 
 func storeError(err error) error {

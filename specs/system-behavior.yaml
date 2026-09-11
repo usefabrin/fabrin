@@ -979,3 +979,17 @@ behaviours:
     requirement: FR-AUTH-5
     status: implemented
     test: auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures
+
+  - id: SES-001
+    what: Initial sessions use independent 32-byte opaque secrets, persist only SHA-256 digests, and are created atomically with OTP consumption.
+    why: Losing the verification response must not make a spent code replayable, and database reads must not reveal bearer credentials.
+    requirement: FR-AUTH-2
+    status: implemented
+    test: auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession
+
+  - id: SES-002
+    what: Native preview sessions enforce exclusive seven-day absolute and 24-hour idle expiry, refresh idle activity server-side, and revoke before logout succeeds.
+    why: A copied or abandoned credential must have bounded usefulness and server-side revocation must take effect on the next request.
+    requirement: FR-AUTH-2
+    status: implemented
+    test: auth/session_test.go::TestSessionManager_AuthenticatesIdleExpiresAndRevokes

@@ -624,4 +624,11 @@ the version.
 | OTP-007 | The bounded development store fails closed when it cannot represent another active challenge or budget key. | `auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity` |
 | OTP-008 | Known delivery rejection invalidates its reservation, while an ambiguous timeout leaves a possibly delivered challenge verifiable until expiry. | `auth/auth_test.go::TestService_DeliveryFailureInvalidatesOnlyKnownFailures` |
 
+## Preview sessions
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| SES-001 | Initial sessions use independent 32-byte opaque secrets, persist only SHA-256 digests, and are created atomically with OTP consumption. | `auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession` |
+| SES-002 | Native preview sessions enforce exclusive seven-day absolute and 24-hour idle expiry, refresh idle activity server-side, and revoke before logout succeeds. | `auth/session_test.go::TestSessionManager_AuthenticatesIdleExpiresAndRevokes` |
+
 Expiry and attempt boundaries also run in `auth/challenge_test.go::TestChallenge_ExpiryAndAttemptBoundary`; verifier encoding is covered by `auth/challenge_test.go::TestChallenge_VerifierUsesUnambiguousFieldEncoding`. Replacement-budget and fail-closed capacity details run in `auth/auth_test.go::TestService_ResendReplacesChallengeWithoutResettingBudgets` and `auth/auth_test.go::TestMemoryStore_FailsClosedAtCapacity`; exact cleanup isolation runs in `auth/auth_test.go::TestMemoryStore_InvalidateDoesNotRevokeReplacement`. These local tests do not complete the planned end-to-end AUTH rows.

@@ -24,6 +24,12 @@ type storedChallenge struct {
 	active      bool
 }
 
+type storedSession struct {
+	record   SessionRecord
+	identity Identity
+	active   bool
+}
+
 // MemoryStore is a bounded, concurrency-safe Store for tests and explicitly
 // local development. Its limits are process-local and disappear on restart.
 type MemoryStore struct {
@@ -32,6 +38,7 @@ type MemoryStore struct {
 	challenges                           map[string]*storedChallenge
 	active                               map[string]string
 	identities                           map[string]Identity
+	sessions                             map[string]*storedSession
 	addressSends, sourceSends            map[string][]time.Time
 	addressFailures, sourceVerifications map[string][]time.Time
 }
@@ -47,6 +54,7 @@ func NewMemoryStore(capacity int) (*MemoryStore, error) {
 		challenges:          make(map[string]*storedChallenge),
 		active:              make(map[string]string),
 		identities:          make(map[string]Identity),
+		sessions:            make(map[string]*storedSession),
 		addressSends:        make(map[string][]time.Time),
 		sourceSends:         make(map[string][]time.Time),
 		addressFailures:     make(map[string][]time.Time),
@@ -134,19 +142,55 @@ func (s *MemoryStore) Verify(ctx context.Context, attempt Verification) (Identit
 		return Identity{}, ErrAuthentication
 	}
 
-	if identity := s.identities[stored.reservation.Email]; identity.ID != "" {
-		stored.active = false
-		delete(s.active, activeKey)
-		return identity, nil
-	}
-	if len(s.identities) >= s.capacity {
+	if attempt.Session.ID == "" || attempt.Session.CreatedAt != attempt.Now || attempt.Session.LastSeenAt != attempt.Now || !attempt.Session.ExpiresAt.After(attempt.Now) {
 		return Identity{}, ErrUnavailable
 	}
-	identity := Identity{ID: attempt.IdentityID, Email: stored.reservation.Email, CreatedAt: attempt.Now}
-	s.identities[identity.Email] = identity
+	if _, exists := s.sessions[attempt.Session.ID]; exists || (len(s.sessions) >= s.capacity && !s.reclaimSession(attempt.Now)) {
+		return Identity{}, ErrUnavailable
+	}
+	identity := s.identities[stored.reservation.Email]
+	if identity.ID == "" {
+		if len(s.identities) >= s.capacity {
+			return Identity{}, ErrUnavailable
+		}
+		identity = Identity{ID: attempt.IdentityID, Email: stored.reservation.Email, CreatedAt: attempt.Now}
+		s.identities[identity.Email] = identity
+	}
+	attempt.Session.IdentityID = identity.ID
+	s.sessions[attempt.Session.ID] = &storedSession{record: attempt.Session, identity: identity, active: true}
 	stored.active = false
 	delete(s.active, activeKey)
 	return identity, nil
+}
+
+// AuthenticateSession implements SessionStore.
+func (s *MemoryStore) AuthenticateSession(ctx context.Context, proof SessionProof) (Identity, error) {
+	if err := ctx.Err(); err != nil {
+		return Identity{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessions[proof.ID]
+	if session == nil || !session.active || proof.Now.Before(session.record.CreatedAt) || !proof.Now.Before(session.record.ExpiresAt) || !proof.Now.Before(session.record.LastSeenAt.Add(sessionIdleTTL)) || !hmac.Equal(session.record.Digest[:], proof.Digest[:]) {
+		return Identity{}, ErrSession
+	}
+	session.record.LastSeenAt = proof.Now
+	return session.identity, nil
+}
+
+// RevokeSession implements SessionStore.
+func (s *MemoryStore) RevokeSession(ctx context.Context, proof SessionProof) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessions[proof.ID]
+	if session == nil || !session.active || !hmac.Equal(session.record.Digest[:], proof.Digest[:]) {
+		return ErrSession
+	}
+	session.active = false
+	return nil
 }
 
 // Invalidate implements Store and cannot invalidate a newer replacement.
@@ -218,4 +262,15 @@ func (s *MemoryStore) reclaimChallenge(now time.Time) bool {
 	return false
 }
 
+func (s *MemoryStore) reclaimSession(now time.Time) bool {
+	for id, session := range s.sessions {
+		if !session.active || !now.Before(session.record.ExpiresAt) || !now.Before(session.record.LastSeenAt.Add(sessionIdleTTL)) {
+			delete(s.sessions, id)
+			return true
+		}
+	}
+	return false
+}
+
 var _ Store = (*MemoryStore)(nil)
+var _ SessionStore = (*MemoryStore)(nil)

@@ -48,12 +48,12 @@ func TestService_RequestAndVerifyWithMailCapture(t *testing.T) {
 		}
 	}
 
-	identity, err := service.Verify(t.Context(), challenge.ID, "Alice+tag@EXAMPLE.COM", code, PurposeNative, "source-a")
+	authentication, err := service.Verify(t.Context(), challenge.ID, "Alice+tag@EXAMPLE.COM", code, PurposeNative, "source-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if identity.ID == "" || identity.Email != "Alice+tag@example.com" {
-		t.Fatalf("identity: %+v", identity)
+	if authentication.Identity.ID == "" || authentication.Identity.Email != "Alice+tag@example.com" {
+		t.Fatalf("authentication: %+v", authentication)
 	}
 	if _, err := service.Verify(t.Context(), challenge.ID, "Alice+tag@EXAMPLE.COM", code, PurposeNative, "source-a"); !errors.Is(err, ErrAuthentication) {
 		t.Fatalf("replay: %v", err)
@@ -131,9 +131,9 @@ func TestService_ConcurrentConsumeAndIdentityResolution(t *testing.T) {
 	for range 32 {
 		wg.Go(func() {
 			<-start
-			if identity, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeNative, "source-a"); err == nil {
+			if authentication, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeNative, "source-a"); err == nil {
 				wins.Add(1)
-				identities <- identity
+				identities <- authentication.Identity
 			}
 		})
 	}
@@ -150,15 +150,15 @@ func TestService_ConcurrentConsumeAndIdentityResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	nextCode := strings.TrimPrefix(inbox.Messages()[1].Text, "Your Fabrin sign-in code is: ")
-	identity, err := service.Verify(t.Context(), next.ID, "a@example.com", nextCode, PurposeNative, "source-a")
+	authentication, err := service.Verify(t.Context(), next.ID, "a@example.com", nextCode, PurposeNative, "source-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if identity.Email != "a@example.com" {
-		t.Fatalf("identity: %+v", identity)
+	if authentication.Identity.Email != "a@example.com" {
+		t.Fatalf("authentication: %+v", authentication)
 	}
-	if identity.ID != firstIdentity.ID {
-		t.Fatalf("identity changed: %q then %q", firstIdentity.ID, identity.ID)
+	if authentication.Identity.ID != firstIdentity.ID {
+		t.Fatalf("identity changed: %q then %q", firstIdentity.ID, authentication.Identity.ID)
 	}
 }
 
@@ -224,7 +224,11 @@ func TestMemoryStore_InvalidateDoesNotRevokeReplacement(t *testing.T) {
 	if err := store.Invalidate(t.Context(), first.ID); err != nil {
 		t.Fatal(err)
 	}
-	identity, err := store.Verify(t.Context(), Verification{ID: second.ID, Email: second.Email, KeyID: second.KeyID, Purpose: second.Purpose, Verifier: second.Verifier, Now: second.IssuedAt, Source: "verify-source", IdentityID: "identity"})
+	_, record, sessionErr := newSession(second.IssuedAt)
+	if sessionErr != nil {
+		t.Fatal(sessionErr)
+	}
+	identity, err := store.Verify(t.Context(), Verification{ID: second.ID, Email: second.Email, KeyID: second.KeyID, Purpose: second.Purpose, Verifier: second.Verifier, Now: second.IssuedAt, Source: "verify-source", IdentityID: "identity", Session: record})
 	if err != nil || identity.ID != "identity" {
 		t.Fatalf("newer challenge: identity=%+v err=%v", identity, err)
 	}
@@ -360,6 +364,12 @@ func (errorStore) Verify(context.Context, Verification) (Identity, error) {
 	return Identity{}, errors.New("database secret")
 }
 func (errorStore) Invalidate(context.Context, string) error { return errors.New("database secret") }
+func (errorStore) AuthenticateSession(context.Context, SessionProof) (Identity, error) {
+	return Identity{}, errors.New("database secret")
+}
+func (errorStore) RevokeSession(context.Context, SessionProof) error {
+	return errors.New("database secret")
+}
 
 func lastChallengeID(store *MemoryStore) string {
 	store.mu.Lock()
