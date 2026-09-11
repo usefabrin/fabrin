@@ -223,6 +223,50 @@ func TestStore_RedisLogoutAllRevokesIdentityIndex(t *testing.T) {
 	}
 }
 
+func TestStore_RedisSharesPreAuthAndBootstrapBudget(t *testing.T) {
+	redisURL := os.Getenv("FABRINTEST_REDIS_URL")
+	if redisURL == "" {
+		t.Skip("FABRINTEST_REDIS_URL not set; skipping live Redis auth test")
+	}
+	prefix := "fabrin:test:" + randomToken(t) + ":"
+	first, err := authredis.New(redisURL, newIdentityStore(), authredis.WithPrefix(prefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = first.Close() })
+	second, err := authredis.New(redisURL, newIdentityStore(), authredis.WithPrefix(prefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = second.Close() })
+	firstManager, _ := auth.NewPreAuthManager(first)
+	secondManager, _ := auth.NewPreAuthManager(second)
+	state, err := firstManager.Bootstrap(t.Context(), "browser-source")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := secondManager.Authenticate(t.Context(), state.Credential, "wrong"); !errors.Is(err, auth.ErrPreAuth) {
+		t.Fatalf("wrong csrf: %v", err)
+	}
+	if err := secondManager.Authenticate(t.Context(), state.Credential, state.CSRFToken); err != nil {
+		t.Fatal(err)
+	}
+	if err := secondManager.Consume(t.Context(), state.Credential, state.CSRFToken); err != nil {
+		t.Fatal(err)
+	}
+	if err := firstManager.Authenticate(t.Context(), state.Credential, state.CSRFToken); !errors.Is(err, auth.ErrPreAuth) {
+		t.Fatalf("consumed state: %v", err)
+	}
+	for range 20 {
+		if _, err := firstManager.Bootstrap(t.Context(), "shared-bootstrap-source"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := secondManager.Bootstrap(t.Context(), "shared-bootstrap-source"); !errors.Is(err, auth.ErrRateLimited) {
+		t.Fatalf("shared bootstrap limit: %v", err)
+	}
+}
+
 func sha256Hex(value string) string {
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:])

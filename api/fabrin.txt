@@ -70,15 +70,22 @@ pkg github.com/usefabrin/fabrin/auth, const PurposeBrowser Purpose = "browser"
 pkg github.com/usefabrin/fabrin/auth, const PurposeNative Purpose = "native"
 pkg github.com/usefabrin/fabrin/auth, func New(store Store, sender Sender, keyID string, key []byte, options ...Option) (*Service, error)
 pkg github.com/usefabrin/fabrin/auth, func NewMemoryStore(capacity int) (*MemoryStore, error)
+pkg github.com/usefabrin/fabrin/auth, func NewPreAuthManager(store PreAuthStore) (*PreAuthManager, error)
 pkg github.com/usefabrin/fabrin/auth, func NewSessionManager(store SessionStore) (*SessionManager, error)
 pkg github.com/usefabrin/fabrin/auth, func WithBinding(value string) ChallengeOption
 pkg github.com/usefabrin/fabrin/auth, func WithProduction() Option
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) AuthenticatePreAuth(ctx context.Context, proof PreAuthProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) AuthenticateSession(ctx context.Context, proof SessionProof) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) ConsumePreAuth(ctx context.Context, proof PreAuthProof) error
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) CreatePreAuth(ctx context.Context, record PreAuthRecord) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Invalidate(ctx context.Context, id string) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Reserve(ctx context.Context, reservation Reservation) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeAllSessions(ctx context.Context, proof SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeSession(ctx context.Context, proof SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Verify(ctx context.Context, attempt Verification) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*PreAuthManager) Authenticate(ctx context.Context, credential string, csrf string) error
+pkg github.com/usefabrin/fabrin/auth, method (*PreAuthManager) Bootstrap(ctx context.Context, source string) (PreAuth, error)
+pkg github.com/usefabrin/fabrin/auth, method (*PreAuthManager) Consume(ctx context.Context, credential string, csrf string) error
 pkg github.com/usefabrin/fabrin/auth, method (*Service) Request(ctx context.Context, email string, purpose Purpose, source string, options ...ChallengeOption) (Challenge, error)
 pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Context, id string, email string, code string, purpose Purpose, source string, options ...ChallengeOption) (Authentication, error)
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Current(ctx context.Context, credential string) (Identity, error)
@@ -103,6 +110,27 @@ pkg github.com/usefabrin/fabrin/auth, type IdentityStore interface
 pkg github.com/usefabrin/fabrin/auth, type IdentityStore interface, ResolveVerified(context.Context, IdentityResolution) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type MemoryStore struct
 pkg github.com/usefabrin/fabrin/auth, type Option func(*settings)
+pkg github.com/usefabrin/fabrin/auth, type PreAuth struct
+pkg github.com/usefabrin/fabrin/auth, type PreAuth struct, CSRFToken string
+pkg github.com/usefabrin/fabrin/auth, type PreAuth struct, Credential string
+pkg github.com/usefabrin/fabrin/auth, type PreAuth struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type PreAuthManager struct
+pkg github.com/usefabrin/fabrin/auth, type PreAuthProof struct
+pkg github.com/usefabrin/fabrin/auth, type PreAuthProof struct, CSRFDigest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type PreAuthProof struct, Digest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type PreAuthProof struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type PreAuthProof struct, Now time.Time
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, CSRFDigest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, Digest [32]byte
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, IssuedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type PreAuthRecord struct, Source string
+pkg github.com/usefabrin/fabrin/auth, type PreAuthStore interface
+pkg github.com/usefabrin/fabrin/auth, type PreAuthStore interface, AuthenticatePreAuth(context.Context, PreAuthProof) error
+pkg github.com/usefabrin/fabrin/auth, type PreAuthStore interface, ConsumePreAuth(context.Context, PreAuthProof) error
+pkg github.com/usefabrin/fabrin/auth, type PreAuthStore interface, CreatePreAuth(context.Context, PreAuthRecord) error
 pkg github.com/usefabrin/fabrin/auth, type Purpose string
 pkg github.com/usefabrin/fabrin/auth, type Reservation struct
 pkg github.com/usefabrin/fabrin/auth, type Reservation struct, Binding [32]byte
@@ -156,6 +184,7 @@ pkg github.com/usefabrin/fabrin/auth, type Verification struct, Source string
 pkg github.com/usefabrin/fabrin/auth, type Verification struct, Verifier [32]byte
 pkg github.com/usefabrin/fabrin/auth, var ErrAuthentication error
 pkg github.com/usefabrin/fabrin/auth, var ErrDelivery error
+pkg github.com/usefabrin/fabrin/auth, var ErrPreAuth error
 pkg github.com/usefabrin/fabrin/auth, var ErrRateLimited error
 pkg github.com/usefabrin/fabrin/auth, var ErrSession error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
@@ -180,8 +209,11 @@ pkg github.com/usefabrin/fabrin/authpg, type Store struct
 
 pkg github.com/usefabrin/fabrin/authredis, func New(redisURL string, identities github.com/usefabrin/fabrin/auth.IdentityStore, options ...Option) (*Store, error)
 pkg github.com/usefabrin/fabrin/authredis, func WithPrefix(prefix string) Option
+pkg github.com/usefabrin/fabrin/authredis, method (*Store) AuthenticatePreAuth(ctx context.Context, proof github.com/usefabrin/fabrin/auth.PreAuthProof) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) AuthenticateSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) (github.com/usefabrin/fabrin/auth.Identity, error)
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Close() error
+pkg github.com/usefabrin/fabrin/authredis, method (*Store) ConsumePreAuth(ctx context.Context, proof github.com/usefabrin/fabrin/auth.PreAuthProof) error
+pkg github.com/usefabrin/fabrin/authredis, method (*Store) CreatePreAuth(ctx context.Context, record github.com/usefabrin/fabrin/auth.PreAuthRecord) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Invalidate(ctx context.Context, id string) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Ping(ctx context.Context) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Reserve(ctx context.Context, reservation github.com/usefabrin/fabrin/auth.Reservation) error

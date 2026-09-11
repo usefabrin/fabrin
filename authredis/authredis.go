@@ -5,6 +5,7 @@ package authredis
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -76,6 +77,59 @@ func (s *Store) Ping(ctx context.Context) error {
 
 // Close releases the owned Redis client and its connection pool.
 func (s *Store) Close() error { return s.client.Close() }
+
+// CreatePreAuth atomically consumes a shared source bootstrap budget and
+// stores digest-only pre-authentication state for ten minutes.
+func (s *Store) CreatePreAuth(ctx context.Context, record auth.PreAuthRecord) error {
+	if !validBrowserStateRecord(record) {
+		return errors.New("authredis: invalid browser state record")
+	}
+	result, err := createBrowserStateScript.Run(ctx, s.client, []string{
+		s.prefix + "browser-state:" + record.ID,
+		s.prefix + "browser-bootstrap:" + digest(record.Source),
+	}, hex.EncodeToString(record.Digest[:]), hex.EncodeToString(record.CSRFDigest[:]), record.ID).Int64()
+	if err != nil {
+		return err
+	}
+	if result == 2 {
+		return auth.ErrRateLimited
+	}
+	if result != 1 {
+		return errors.New("authredis: browser state collision")
+	}
+	return nil
+}
+
+// AuthenticatePreAuth validates a pre-authentication cookie and CSRF
+// digest without consuming them.
+func (s *Store) AuthenticatePreAuth(ctx context.Context, proof auth.PreAuthProof) error {
+	if !validEncodedID(proof.ID) {
+		return auth.ErrPreAuth
+	}
+	result, err := authenticateBrowserStateScript.Run(ctx, s.client, []string{s.prefix + "browser-state:" + proof.ID}, hex.EncodeToString(proof.Digest[:]), hex.EncodeToString(proof.CSRFDigest[:])).Int64()
+	if err != nil {
+		return err
+	}
+	if result != 1 {
+		return auth.ErrPreAuth
+	}
+	return nil
+}
+
+// ConsumePreAuth validates and deletes pre-authentication state atomically.
+func (s *Store) ConsumePreAuth(ctx context.Context, proof auth.PreAuthProof) error {
+	if !validEncodedID(proof.ID) {
+		return auth.ErrPreAuth
+	}
+	result, err := consumeBrowserStateScript.Run(ctx, s.client, []string{s.prefix + "browser-state:" + proof.ID}, hex.EncodeToString(proof.Digest[:]), hex.EncodeToString(proof.CSRFDigest[:])).Int64()
+	if err != nil {
+		return err
+	}
+	if result != 1 {
+		return auth.ErrPreAuth
+	}
+	return nil
+}
 
 // Reserve atomically consumes send budgets and replaces the active challenge.
 func (s *Store) Reserve(ctx context.Context, reservation auth.Reservation) error {
@@ -245,6 +299,15 @@ func validSession(record auth.SessionRecord) bool {
 	return record.ID != "" && !record.CreatedAt.IsZero() && record.LastSeenAt.Equal(record.CreatedAt) && record.ExpiresAt.After(record.CreatedAt)
 }
 
+func validBrowserStateRecord(record auth.PreAuthRecord) bool {
+	return validEncodedID(record.ID) && record.Source != "" && len(record.Source) <= 256 && !record.IssuedAt.IsZero() && record.ExpiresAt.Sub(record.IssuedAt) == 10*time.Minute
+}
+
+func validEncodedID(value string) bool {
+	decoded, err := base64.RawURLEncoding.DecodeString(value)
+	return err == nil && len(value) == 43 && len(decoded) == 32
+}
+
 func cleanupContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 }
@@ -266,6 +329,35 @@ redis.call('SET', KEYS[3], ARGV[2], 'PX', 300000)
 redis.call('HSET', KEYS[4], 'email', ARGV[3], 'address', ARGV[4], 'key_id', ARGV[5], 'purpose', ARGV[6], 'verifier', ARGV[7], 'binding', ARGV[8], 'attempts', '0', 'active', '1')
 redis.call('PEXPIRE', KEYS[4], 300000)
 return 1`)
+
+var createBrowserStateScript = redis.NewScript(`
+if redis.call('EXISTS',KEYS[1]) == 1 then return 0 end
+local now=redis.call('TIME'); local ms=now[1]*1000 + math.floor(now[2]/1000); local window=3600000
+redis.call('ZREMRANGEBYSCORE',KEYS[2],'-inf',ms-window)
+if redis.call('ZCARD',KEYS[2]) >= 20 then return 2 end
+redis.call('ZADD',KEYS[2],ms,tostring(ms)..':'..ARGV[3]); redis.call('PEXPIRE',KEYS[2],window+60000)
+redis.call('HSET',KEYS[1],'digest',ARGV[1],'csrf',ARGV[2]); redis.call('PEXPIRE',KEYS[1],600000)
+return 1`)
+
+var authenticateBrowserStateScript = redis.NewScript(`
+local function equal(a,b)
+  if not a or not b or string.len(a) ~= string.len(b) then return false end
+  local different=0; for i=1,string.len(a) do if string.byte(a,i) ~= string.byte(b,i) then different=1 end end
+  return different == 0
+end
+local values=redis.call('HMGET',KEYS[1],'digest','csrf')
+if equal(values[1],ARGV[1]) and equal(values[2],ARGV[2]) then return 1 end
+return 0`)
+
+var consumeBrowserStateScript = redis.NewScript(`
+local function equal(a,b)
+  if not a or not b or string.len(a) ~= string.len(b) then return false end
+  local different=0; for i=1,string.len(a) do if string.byte(a,i) ~= string.byte(b,i) then different=1 end end
+  return different == 0
+end
+local values=redis.call('HMGET',KEYS[1],'digest','csrf')
+if not (equal(values[1],ARGV[1]) and equal(values[2],ARGV[2])) then return 0 end
+redis.call('DEL',KEYS[1]); return 1`)
 
 var verifyScript = redis.NewScript(`
 local function equal(a,b)
@@ -342,4 +434,5 @@ redis.call('DEL',v[2]); return 1`)
 var (
 	_ auth.Store        = (*Store)(nil)
 	_ auth.SessionStore = (*Store)(nil)
+	_ auth.PreAuthStore = (*Store)(nil)
 )

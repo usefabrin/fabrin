@@ -647,6 +647,13 @@ the version.
 | AUTHHTTP-002 | Bodies are strict and bounded, and delivery outcomes retain a neutral accepted shape | `authhttp/native_test.go::TestNative_StrictBodiesAndNeutralDeliveryResponse` |
 | AUTHHTTP-003 | Forwarded headers do not bypass the default direct-peer source budget | `authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders` |
 
+## Browser pre-authentication
+
+| ID | Behaviour | Test |
+|----|-----------|------|
+| BROWSER-001 | Bootstrap secrets are independent and digest-only, expire at ten minutes, validate CSRF, and consume once | `auth/browser_test.go::TestPreAuthManager_BootstrapAuthenticateConsumeAndExpire` |
+| BROWSER-002 | Memory fails closed at capacity and source budgets are bounded; Redis shares the budget across clients | `auth/browser_test.go::TestPreAuthManager_BoundsStateAndSourceBudget`, `authredis/authredis_test.go::TestStore_RedisSharesPreAuthAndBootstrapBudget` |
+
 ## Preview sessions
 
 | ID | Behaviour | Test |

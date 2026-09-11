@@ -30,6 +30,8 @@ type storedSession struct {
 	active   bool
 }
 
+type storedBrowserState struct{ record PreAuthRecord }
+
 // MemoryStore is a bounded, concurrency-safe Store for tests and explicitly
 // local development. Its limits are process-local and disappear on restart.
 type MemoryStore struct {
@@ -39,7 +41,9 @@ type MemoryStore struct {
 	active                               map[string]string
 	identities                           map[string]Identity
 	sessions                             map[string]*storedSession
+	browserStates                        map[string]*storedBrowserState
 	addressSends, sourceSends            map[string][]time.Time
+	browserBootstraps                    map[string][]time.Time
 	addressFailures, sourceVerifications map[string][]time.Time
 }
 
@@ -55,11 +59,71 @@ func NewMemoryStore(capacity int) (*MemoryStore, error) {
 		active:              make(map[string]string),
 		identities:          make(map[string]Identity),
 		sessions:            make(map[string]*storedSession),
+		browserStates:       make(map[string]*storedBrowserState),
 		addressSends:        make(map[string][]time.Time),
 		sourceSends:         make(map[string][]time.Time),
+		browserBootstraps:   make(map[string][]time.Time),
 		addressFailures:     make(map[string][]time.Time),
 		sourceVerifications: make(map[string][]time.Time),
 	}, nil
+}
+
+// CreatePreAuth implements PreAuthStore.
+func (s *MemoryStore) CreatePreAuth(ctx context.Context, record PreAuthRecord) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if record.ID == "" || record.Source == "" || len(record.Source) > 256 || record.IssuedAt.IsZero() || record.ExpiresAt.Sub(record.IssuedAt) != preAuthTTL {
+		return ErrUnavailable
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.prune(record.IssuedAt)
+	budget := s.browserBootstraps[record.Source]
+	if len(budget) >= 20 {
+		return ErrRateLimited
+	}
+	if _, exists := s.browserBootstraps[record.Source]; !exists && len(s.browserBootstraps) >= s.capacity {
+		return ErrUnavailable
+	}
+	if _, exists := s.browserStates[record.ID]; exists || (len(s.browserStates) >= s.capacity && !s.reclaimBrowserState(record.IssuedAt)) {
+		return ErrUnavailable
+	}
+	s.browserBootstraps[record.Source] = append(budget, record.IssuedAt)
+	s.browserStates[record.ID] = &storedBrowserState{record: record}
+	return nil
+}
+
+// AuthenticatePreAuth implements PreAuthStore.
+func (s *MemoryStore) AuthenticatePreAuth(ctx context.Context, proof PreAuthProof) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.authenticateBrowserState(proof)
+}
+
+// ConsumePreAuth implements PreAuthStore.
+func (s *MemoryStore) ConsumePreAuth(ctx context.Context, proof PreAuthProof) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.authenticateBrowserState(proof); err != nil {
+		return err
+	}
+	delete(s.browserStates, proof.ID)
+	return nil
+}
+
+func (s *MemoryStore) authenticateBrowserState(proof PreAuthProof) error {
+	state := s.browserStates[proof.ID]
+	if state == nil || proof.Now.Before(state.record.IssuedAt) || !proof.Now.Before(state.record.ExpiresAt) || !hmac.Equal(state.record.Digest[:], proof.Digest[:]) || !hmac.Equal(state.record.CSRFDigest[:], proof.CSRFDigest[:]) {
+		return ErrPreAuth
+	}
+	return nil
 }
 
 // Reserve implements Store.
@@ -256,6 +320,22 @@ func (s *MemoryStore) prune(now time.Time) {
 			delete(s.sourceVerifications, key)
 		}
 	}
+	for key, values := range s.browserBootstraps {
+		s.browserBootstraps[key] = recent(values, now)
+		if len(s.browserBootstraps[key]) == 0 {
+			delete(s.browserBootstraps, key)
+		}
+	}
+}
+
+func (s *MemoryStore) reclaimBrowserState(now time.Time) bool {
+	for id, state := range s.browserStates {
+		if !now.Before(state.record.ExpiresAt) {
+			delete(s.browserStates, id)
+			return true
+		}
+	}
+	return false
 }
 
 func recent(values []time.Time, now time.Time) []time.Time {
@@ -293,3 +373,4 @@ func (s *MemoryStore) reclaimSession(now time.Time) bool {
 
 var _ Store = (*MemoryStore)(nil)
 var _ SessionStore = (*MemoryStore)(nil)
+var _ PreAuthStore = (*MemoryStore)(nil)

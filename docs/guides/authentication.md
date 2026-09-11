@@ -165,6 +165,15 @@ or different binding as the same authentication failure. Fabrin's built-in
 browser handlers will manage this option with their pre-auth cookie and CSRF
 state; callers should not use a user identifier or other guessable value.
 
+`auth.NewPreAuthManager(store)` creates the built-in pre-authentication
+state used before a browser session exists. `Bootstrap` returns an opaque
+credential and independent CSRF token with a ten-minute expiry. Persist only the
+record passed through `auth.PreAuthStore`: both secrets are already SHA-256
+digests. `Authenticate` validates a cookie/token pair without consuming it so
+request-code and verify-code can share one state; `Consume` validates and removes
+it once login succeeds. Redis shares a twenty-per-source rolling-hour bootstrap
+budget, while the memory store also fails closed at its configured capacity.
+
 `authpg.New(db)` now supplies `auth.IdentityStore` for PostgreSQL without
 connecting or changing schema. Register `authpg.Migration()` with the
 application's migrations and run `./yourapp migrate` as a separate deploy step

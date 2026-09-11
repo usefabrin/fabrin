@@ -125,6 +125,14 @@ applications may explicitly supply a trusted source function after configuring
 their proxy boundary. Browser-cookie and CSRF transport remains separate and
 planned.
 
+Browser bootstrap state is transport-independent in `auth.PreAuthManager`.
+It returns an opaque cookie credential and independent CSRF token once, while
+stores receive only SHA-256 digests. Memory bounds state and budget maps; Redis
+uses ten-minute state TTLs and a shared rolling source budget. Authentication is
+non-consuming for multi-step request/verify flows, and successful transition can
+consume the state exactly once. Secure cookie and exact-origin handlers build on
+this contract.
+
 ### Generated PostgreSQL data access (preview)
 
 `schema` is an offline code declaration and source generator. It emits typed

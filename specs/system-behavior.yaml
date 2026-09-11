@@ -980,6 +980,20 @@ behaviours:
     status: implemented
     test: authhttp/native_test.go::TestNative_DefaultSourceIgnoresForwardingHeaders
 
+  - id: BROWSER-001
+    what: Browser bootstrap returns independent opaque pre-authentication and CSRF secrets, persists only their digests, expires exclusively after ten minutes, and consumes once.
+    why: CSRF protection must exist before login without placing reusable plaintext state in storage or allowing an expired bootstrap to start a session.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: auth/browser_test.go::TestPreAuthManager_BootstrapAuthenticateConsumeAndExpire
+
+  - id: BROWSER-002
+    what: Browser bootstrap state and per-source budgets are bounded in memory, while Redis shares the rolling source budget across clients and expires state server-side.
+    why: An unauthenticated bootstrap endpoint must not provide an unbounded memory or distributed abuse surface.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: auth/browser_test.go::TestPreAuthManager_BoundsStateAndSourceBudget
+
   - id: OTP-002
     what: Private challenge consumption allows at most five attempts and one concurrent successful use.
     why: Prove the private OTP primitive before a public transactional authentication API is exposed.

@@ -220,7 +220,7 @@ your binary.
 | `django.contrib.auth` | `fabrin/auth` + Redis ephemeral state + PostgreSQL identities | 🚧 v1 |
 | `User` model, swappable | Replaceable user model | 📋 F4 |
 | Permissions and groups | Same | 📋 F4 |
-| Sessions | Server-side memory and standalone Redis stores with single/identity-wide logout; browser integration pending | 🚧 v1 |
+| Sessions | Server-side memory/Redis sessions and bounded pre-auth state with single/identity-wide logout; browser handlers pending | 🚧 v1 |
 | `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
 | Django template language | `html/template`, or `templ` if you prefer | 📋 F3 |
 | `{% csrf_token %}` | CSRF middleware + template helper | 📋 F3 |

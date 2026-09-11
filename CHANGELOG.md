@@ -37,6 +37,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Bounded browser pre-authentication state.** New public
+  `auth.PreAuthManager` and `PreAuthStore` contracts create an opaque
+  cookie credential plus independent CSRF token, persist only SHA-256 digests,
+  enforce exclusive ten-minute expiry, and support validate-then-consume flows.
+  Memory storage is capacity-bounded; Redis shares a twenty-per-source rolling
+  bootstrap budget and uses key expiry. The API snapshot changes intentionally.
+
 - **Browser challenge context binding.** `auth.WithBinding` now binds challenge
   reservation and verification to the SHA-256 digest of a high-entropy client
   context. Memory and Redis stores include the digest in their constant-time

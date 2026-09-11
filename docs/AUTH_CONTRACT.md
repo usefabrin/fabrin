@@ -9,8 +9,8 @@ budgets, verification leases and sessions; PostgreSQL provides durable identity
 resolution, invitation consumption and disabled-identity policy. Strict native
 bearer handlers now cover request, verification, current-session, logout and
 logout-all. Core and Redis verification bind browser-purpose challenges to a
-single high-entropy client context; server-side pre-authentication and CSRF
-handlers remain.
+single high-entropy client context. Bounded server-side pre-authentication and
+CSRF state now exists in memory and Redis; secure cookie/origin handlers remain.
 Browser transport, broader session revocation, production delivery and
 authorization remain planned. This is approved architecture, not approval of
 the incomplete browser or production stack.
