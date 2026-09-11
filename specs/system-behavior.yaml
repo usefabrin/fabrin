@@ -576,6 +576,13 @@ behaviours:
     status: implemented
     test: makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond
 
+  - id: MIG-052
+    what: When one makemigrations run emits migrations for several modules, each state sidecar records the cumulative full schema produced after that version, and replay reaches the declared final schema.
+    why: Writing the run's final snapshot beside every migration lets an earlier version claim changes owned by a later one. Recorded state must describe the schema that actually exists at that point in the ordered chain or every later diff starts from fiction.
+    requirement: FR-ORM-4
+    status: implemented
+    test: makemigrations_test.go::TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration
+
   - id: MIG-014
     what: Unreadable recorded state is an error wrapping ErrBadState and naming the source it came from.
     why: A state record nobody can parse must never become a silently empty "before" - which would make the next makemigrations emit a create-everything migration against a live schema. "Unparseable" without a file name sends the reader grepping a directory.

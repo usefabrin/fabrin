@@ -819,6 +819,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- **Each generated migration records the schema its own version produces.** A
+  multi-module `makemigrations` run previously wrote the run's final snapshot
+  beside every generated migration, so the first version claimed tables and
+  fields belonging to later versions. Sidecars now advance cumulatively after
+  each ordered module migration, and replaying the emitted chain reaches the
+  declared final schema. ([#101](https://github.com/usefabrin/fabrin/issues/101))
+
 - `makemigrations` now recognizes pgx from its driver package path (the concrete
   type is only `stdlib.Driver`), advances past a migration generated in the same
   clock second, preserves every statement inside an operation, and reverses

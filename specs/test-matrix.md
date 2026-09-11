@@ -327,6 +327,7 @@ handing out `*orm.Registry` would hand out `Register` with it.
 | MIG-049 | SQLite creates supported constraints/indexes and refuses rebuild-only additions | `migratediff/migratediff_test.go::TestSQLite_RendersInitialConstraintsAndRefusesUnsupportedAdditions` |
 | MIG-050 | pgx generation preserves multi-statement Up groups and reverses Down groups | `makemigrations_test.go::TestExecute_MakemigrationsRendersIndependentPostgresChangesAndReversesGroups` |
 | MIG-051 | Same-second migration generation advances beyond the recorded version | `makemigrations_internal_test.go::TestNextVersionAdvancesPastARecordedVersionFromTheCurrentSecond` |
+| MIG-052 | Each module migration records its own cumulative state; replay reaches final schema | `makemigrations_test.go::TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration` |
 
 MIG-027…032 land the command half of #59's first slice: the `Migrator`
 interface (the counterpart of `Modeler` — models say what the schema IS,

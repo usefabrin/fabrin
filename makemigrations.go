@@ -103,6 +103,7 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	cumulative := before
 
 	for _, module := range order {
 		moduleOps := byModule[module]
@@ -147,7 +148,11 @@ func (a *App) runMakemigrations(ctx context.Context, out io.Writer) error {
 		dir := filepath.Join(module, "migrations")
 		varName := "M" + version + "_" + slugIdent(name)
 
-		stateBytes, err := encodeSnapshotBytes(after)
+		cumulative, err = stateAfterOperations(cumulative, after, moduleOps)
+		if err != nil {
+			return fmt.Errorf("fabrin: record cumulative state for module %q: %w", module, err)
+		}
+		stateBytes, err := encodeSnapshotBytes(cumulative)
 		if err != nil {
 			return err
 		}
@@ -331,6 +336,36 @@ func operationTable(op migratediff.Operation) string {
 	default:
 		return ""
 	}
+}
+
+// stateAfterOperations advances recorded state by exactly one generated
+// migration. Each sidecar describes the schema that its own version leaves
+// behind; recording the run's final state beside every module would let an
+// earlier version claim changes that have not run yet.
+func stateAfterOperations(current, final orm.Snapshot, ops []migratediff.Operation) (orm.Snapshot, error) {
+	models := make(map[string]orm.Registered)
+	for _, reg := range current.Models() {
+		models[reg.Model.Table] = reg
+	}
+	finalModels := make(map[string]orm.Registered)
+	for _, reg := range final.Models() {
+		finalModels[reg.Model.Table] = reg
+	}
+
+	for _, op := range ops {
+		table := operationTable(op)
+		if reg, exists := finalModels[table]; exists {
+			models[table] = reg
+		} else {
+			delete(models, table)
+		}
+	}
+
+	next := make([]orm.Registered, 0, len(models))
+	for _, reg := range models {
+		next = append(next, reg)
+	}
+	return orm.NewSnapshot(next)
 }
 
 // invert builds the schema-level inverse of an operation: creates become drops,

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -370,6 +371,72 @@ func TestExecute_MakemigrationsGivesEachOwningModuleItsOwnMigration(t *testing.T
 	}
 }
 
+func TestExecute_MakemigrationsRecordsCumulativeStatePerModuleMigration(t *testing.T) {
+	projectChdir(t)
+
+	db := memoryDB(t)
+	billingBefore := orm.Model{
+		Table:  "invoices",
+		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+	}
+	shopBefore := orm.Model{
+		Table:  "orders",
+		Fields: []orm.Field{{Name: "id", Type: orm.Int64, PrimaryKey: true}},
+	}
+	app, err := fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("billing", billingBefore),
+		ownerWith("shop", shopBefore),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := app.Execute(context.Background(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("record initial state: %v", err)
+	}
+
+	billingAfter := billingBefore
+	billingAfter.Fields = append(billingAfter.Fields, orm.Field{Name: "number", Type: orm.String, Nullable: true})
+	shopAfter := shopBefore
+	shopAfter.Fields = append(shopAfter.Fields, orm.Field{Name: "reference", Type: orm.String, MaxLen: 32, Nullable: true})
+	app, err = fabrin.New(
+		fabrin.Options{Addr: "127.0.0.1:0", DB: db},
+		ownerWith("billing", billingAfter),
+		ownerWith("shop", shopAfter),
+	)
+	if err != nil {
+		t.Fatalf("New changed schema: %v", err)
+	}
+	if err := app.Execute(context.Background(), io.Discard, []string{"makemigrations"}); err != nil {
+		t.Fatalf("record changed state: %v", err)
+	}
+
+	billingVersions := generatedVersions(t, filepath.Join("billing", "migrations"))
+	shopVersions := generatedVersions(t, filepath.Join("shop", "migrations"))
+	billingVersion := billingVersions[len(billingVersions)-1]
+	shopVersion := shopVersions[len(shopVersions)-1]
+	billingState := generatedState(t, filepath.Join("billing", "migrations"), billingVersion)
+	shopState := generatedState(t, filepath.Join("shop", "migrations"), shopVersion)
+
+	if got := snapshotFieldCounts(billingState); len(got) != 2 || got["invoices"] != 2 || got["orders"] != 1 {
+		t.Errorf("first sidecar fields = %v, want updated invoices and prior orders", got)
+	}
+	if got := snapshotFieldCounts(shopState); len(got) != 2 || got["invoices"] != 2 || got["orders"] != 2 {
+		t.Errorf("second sidecar fields = %v, want cumulative final schema", got)
+	}
+
+	replayed, err := orm.ReplayState([]orm.StateStep{
+		{Version: billingVersion, State: &billingState},
+		{Version: shopVersion, State: &shopState},
+	})
+	if err != nil {
+		t.Fatalf("ReplayState: %v", err)
+	}
+	if got := snapshotTables(replayed); !slices.Equal(got, []string{"invoices", "orders"}) {
+		t.Errorf("replayed tables = %v, want declared final schema", got)
+	}
+}
+
 func TestExecute_MakemigrationsRefusesWhenTheProcessIsSliced(t *testing.T) {
 	projectChdir(t)
 
@@ -522,4 +589,45 @@ func generatedSource(t *testing.T, dir, version string) string {
 	}
 	t.Fatalf("no generated migration for version %s in %s", version, dir)
 	return ""
+}
+
+func generatedState(t *testing.T, dir, version string) orm.Snapshot {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, version+"_") && strings.HasSuffix(name, ".state.json") {
+			raw, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatalf("read generated state %s: %v", name, err)
+			}
+			state, err := orm.ParseSnapshot(raw, name)
+			if err != nil {
+				t.Fatalf("parse generated state %s: %v", name, err)
+			}
+			return state
+		}
+	}
+	t.Fatalf("no generated state for version %s in %s", version, dir)
+	return orm.Snapshot{}
+}
+
+func snapshotTables(state orm.Snapshot) []string {
+	models := state.Models()
+	tables := make([]string, 0, len(models))
+	for _, reg := range models {
+		tables = append(tables, reg.Model.Table)
+	}
+	return tables
+}
+
+func snapshotFieldCounts(state orm.Snapshot) map[string]int {
+	counts := make(map[string]int)
+	for _, reg := range state.Models() {
+		counts[reg.Model.Table] = len(reg.Model.Fields)
+	}
+	return counts
 }
