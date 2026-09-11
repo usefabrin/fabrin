@@ -653,12 +653,16 @@ the version.
 |----|-----------|------|
 | BROWSER-001 | Bootstrap secrets are independent and digest-only, expire at ten minutes, validate CSRF, and consume once | `auth/browser_test.go::TestPreAuthManager_BootstrapAuthenticateConsumeAndExpire` |
 | BROWSER-002 | Memory fails closed at capacity and source budgets are bounded; Redis shares the budget across clients | `auth/browser_test.go::TestPreAuthManager_BoundsStateAndSourceBudget`, `authredis/authredis_test.go::TestStore_RedisSharesPreAuthAndBootstrapBudget` |
+| BROWSER-003 | Browser login replaces pre-auth state with a secure cookie session and fresh digest-only CSRF token without serializing the credential; logout requires session CSRF | `authhttp/browser_test.go::TestBrowser_LoginCurrentAndLogout`, `auth/session_test.go::TestSessionManager_ValidatesSessionCSRF` |
+| BROWSER-004 | Credentialed CORS accepts only exact configured HTTPS origins, rejects untrusted/null origins, and challenge verification stays bound to its browser context | `authhttp/browser_test.go::TestBrowser_RejectsUntrustedOriginsAndCrossBrowserVerification` |
+| BROWSER-005 | Browser bodies are strict and bounded and ambiguous duplicate pre-auth cookies fail closed | `authhttp/browser_test.go::TestBrowser_StrictInputAndAmbiguousCookiesFailClosed` |
+| BROWSER-006 | Production requires exact HTTPS origins; explicit insecure development accepts only HTTP loopback and uses distinct cookie names | `authhttp/browser_test.go::TestNewBrowser_RestrictsOriginsAndInsecureCookiesToLoopback` |
 
 ## Preview sessions
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| SES-001 | Initial sessions use independent 32-byte opaque secrets, persist only SHA-256 digests, and are created atomically with OTP consumption. | `auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession` |
+| SES-001 | Initial sessions use independent 32-byte opaque credential and CSRF secrets, persist only SHA-256 digests, and are created atomically with OTP consumption. | `auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession` |
 | SES-002 | Native preview sessions enforce exclusive seven-day absolute and 24-hour idle expiry, refresh idle activity server-side, and revoke before logout succeeds. | `auth/session_test.go::TestSessionManager_AuthenticatesIdleExpiresAndRevokes` |
 | SES-003 | Logout-all authenticates one session and atomically revokes every session for its identity; Redis uses the same identity index | `auth/session_test.go::TestSessionManager_LogoutAllRevokesEveryIdentitySession`, `authredis/authredis_test.go::TestStore_RedisLogoutAllRevokesIdentityIndex` |
 

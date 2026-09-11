@@ -127,6 +127,12 @@ func TestStore_RedisSharesBudgetsAndAllowsOneVerificationWinner(t *testing.T) {
 	if err != nil || identity.ID != authentication.Identity.ID {
 		t.Fatalf("current: identity=%+v err=%v", identity, err)
 	}
+	if err := manager.ValidateCSRF(t.Context(), authentication.Session.Credential, "wrong"); !errors.Is(err, auth.ErrSession) {
+		t.Fatalf("wrong session csrf: %v", err)
+	}
+	if err := manager.ValidateCSRF(t.Context(), authentication.Session.Credential, authentication.Session.CSRFToken); err != nil {
+		t.Fatalf("session csrf: %v", err)
+	}
 	if err := manager.Logout(t.Context(), authentication.Session.Credential); err != nil {
 		t.Fatal(err)
 	}

@@ -91,6 +91,7 @@ pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Conte
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Current(ctx context.Context, credential string) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Logout(ctx context.Context, credential string) error
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) LogoutAll(ctx context.Context, credential string) error
+pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) ValidateCSRF(ctx context.Context, credential string, csrf string) error
 pkg github.com/usefabrin/fabrin/auth, type Authentication struct
 pkg github.com/usefabrin/fabrin/auth, type Authentication struct, Identity Identity
 pkg github.com/usefabrin/fabrin/auth, type Authentication struct, Session Session
@@ -146,14 +147,17 @@ pkg github.com/usefabrin/fabrin/auth, type Sender interface
 pkg github.com/usefabrin/fabrin/auth, type Sender interface, Send(context.Context, github.com/usefabrin/fabrin/mail.Message) error
 pkg github.com/usefabrin/fabrin/auth, type Service struct
 pkg github.com/usefabrin/fabrin/auth, type Session struct
+pkg github.com/usefabrin/fabrin/auth, type Session struct, CSRFToken string
 pkg github.com/usefabrin/fabrin/auth, type Session struct, Credential string
 pkg github.com/usefabrin/fabrin/auth, type Session struct, ExpiresAt time.Time
 pkg github.com/usefabrin/fabrin/auth, type SessionManager struct
 pkg github.com/usefabrin/fabrin/auth, type SessionProof struct
+pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, CSRFDigest [32]byte
 pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, Digest [32]byte
 pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, ID string
 pkg github.com/usefabrin/fabrin/auth, type SessionProof struct, Now time.Time
 pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct
+pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, CSRFDigest [32]byte
 pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, CreatedAt time.Time
 pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, Digest [32]byte
 pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, ExpiresAt time.Time
@@ -190,13 +194,25 @@ pkg github.com/usefabrin/fabrin/auth, var ErrSession error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnavailable error
 pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
 
+pkg github.com/usefabrin/fabrin/authhttp, func NewBrowser(service *github.com/usefabrin/fabrin/auth.Service, sessions *github.com/usefabrin/fabrin/auth.SessionManager, preAuth *github.com/usefabrin/fabrin/auth.PreAuthManager, allowedOrigins []string, options ...BrowserOption) (*Browser, error)
 pkg github.com/usefabrin/fabrin/authhttp, func NewNative(service *github.com/usefabrin/fabrin/auth.Service, sessions *github.com/usefabrin/fabrin/auth.SessionManager, options ...NativeOption) (*Native, error)
+pkg github.com/usefabrin/fabrin/authhttp, func WithBrowserSource(source func(*github.com/gin-gonic/gin.Context) string) BrowserOption
+pkg github.com/usefabrin/fabrin/authhttp, func WithInsecureLoopback() BrowserOption
 pkg github.com/usefabrin/fabrin/authhttp, func WithSource(source func(*github.com/gin-gonic/gin.Context) string) NativeOption
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) Bootstrap(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) CORS() github.com/gin-gonic/gin.HandlerFunc
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) Current(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) Logout(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) LogoutAll(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) RequestCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, method (*Browser) VerifyCode(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Current(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) Logout(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) LogoutAll(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) RequestCode(c *github.com/gin-gonic/gin.Context)
 pkg github.com/usefabrin/fabrin/authhttp, method (*Native) VerifyCode(c *github.com/gin-gonic/gin.Context)
+pkg github.com/usefabrin/fabrin/authhttp, type Browser struct
+pkg github.com/usefabrin/fabrin/authhttp, type BrowserOption func(*browserSettings)
 pkg github.com/usefabrin/fabrin/authhttp, type Native struct
 pkg github.com/usefabrin/fabrin/authhttp, type NativeOption func(*nativeSettings)
 

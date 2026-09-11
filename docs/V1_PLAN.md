@@ -32,7 +32,7 @@ scope before v1. `admin` still exports no public API.
 |---|---|---|
 | Auth core (#105, #110) | Protected OTPs, neutral delivery behavior, bounded shared abuse controls and verified identity creation | Local core plus shared Redis challenge/budget tests implemented |
 | Redis and identity persistence (#111) | Redis OTP/session state plus PostgreSQL identities with retry-safe verification recovery | Both adapters implemented; live CI covers concurrency and lease recovery |
-| Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Native handlers, identity-wide logout, challenge binding and bounded browser pre-auth state implemented; secure browser transport and privilege revocation pending |
+| Sessions and transport (#112) | Native and browser login, CSRF, rotation, revocation, expiry, CORS and cleanup | Native/browser handlers, exact-origin CORS, CSRF, identity-wide logout and challenge binding implemented; privilege revocation and cleanup pending |
 | Authorization (#113) | Invitations, groups, deny-by-default operation/field policy, ownership and administrator bootstrap | Planned |
 | Production email (#116) | Replaceable SMTP with TLS, deadlines, sanitized errors and tested ambiguous delivery behavior | Capture backend implemented; SMTP pending |
 | Release candidate (#108) | Deployed auth reference, recovery evidence, whole-module API/security review, support docs and no blockers | Planned; no stable-v1 claim |
@@ -45,8 +45,9 @@ owned-resource preview in #111 is superseded by an auth reference application.
 
 1. Refactor `authpg` to durable identity/eligibility persistence and add the
    Redis verification/session adapter without exposing its client type. **Done.**
-2. Implement production native and browser transports, including pre-auth CSRF,
-   exact-origin CORS, rotation, revoke-all and dependency health checks.
+2. Complete transport operations with privilege-change revocation, cleanup and
+   dependency health checks; native/browser login, CSRF, exact CORS and
+   revoke-all are implemented.
 3. Add invitation, group, permission, ownership and field-policy APIs with an
    explicit administrator bootstrap and no implicit superuser signup.
 4. Add the TLS-required SMTP backend, secret-free audit events and bounded

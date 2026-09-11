@@ -37,6 +37,19 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Secure browser authentication handlers.** New public `authhttp.Browser`,
+  `NewBrowser`, `BrowserOption`, `WithBrowserSource` and
+  `WithInsecureLoopback` mount bootstrap,
+  request, verification, current-session, logout and logout-all handlers plus
+  exact-origin credentialed CORS. Browser credentials use Secure, HttpOnly,
+  host-only `__Host-` cookies with SameSite=Lax; unsafe requests require an
+  allowlisted non-null Origin and independent CSRF token. Verification replaces
+  pre-auth state with a fresh session without returning its credential in JSON.
+  Sessions now carry and persist a digest-only CSRF secret, exposed for custom
+  transports through `SessionManager.ValidateCSRF`; the API snapshot changes
+  intentionally. The insecure development option accepts only HTTP loopback
+  origins and switches to visibly development-only cookie names.
+
 - **Bounded browser pre-authentication state.** New public
   `auth.PreAuthManager` and `PreAuthStore` contracts create an opaque
   cookie credential plus independent CSRF token, persist only SHA-256 digests,

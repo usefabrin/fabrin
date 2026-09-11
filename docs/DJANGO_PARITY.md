@@ -46,12 +46,12 @@ still checks the module and every dependency; jump-to-definition still works.
 V1 prioritizes backend APIs, code-defined schemas with generated PostgreSQL
 access, email OTP, and embedded admin. This deliberately departs from Django's
 password-first auth and runtime model machinery. Schema create/get, bounded
-capture mail, and a local OTP core are implemented; HTTP login and the usable
-admin remain planned. The OTP core makes dependencies explicit through Go
+capture mail, OTP auth, and native/browser HTTP login are implemented; the
+usable admin remains planned. The OTP core makes dependencies explicit through Go
 `Store` and `Sender` interfaces, keeps budgets in a bounded test store, and
-resolves a stable identity plus an initial opaque native session only after
-verification. Unlike Django's database session and middleware integration, the
-current manager has no cookie/CSRF transport or broad revocation policy. See
+resolves a stable identity plus an initial opaque session only after
+verification. Unlike Django's implicit middleware stack, browser transport uses
+explicit exact-origin CORS and token checks; privilege-change revocation remains. See
 [V1_PLAN.md](V1_PLAN.md), the [data guide](guides/generated-data.md), and the
 [authentication preview](guides/authentication.md).
 
@@ -220,7 +220,7 @@ your binary.
 | `django.contrib.auth` | `fabrin/auth` + Redis ephemeral state + PostgreSQL identities | 🚧 v1 |
 | `User` model, swappable | Replaceable user model | 📋 F4 |
 | Permissions and groups | Same | 📋 F4 |
-| Sessions | Server-side memory/Redis sessions and bounded pre-auth state with single/identity-wide logout; browser handlers pending | 🚧 v1 |
+| Sessions | Server-side memory/Redis sessions, bounded pre-auth/session CSRF, secure cookies, and single/identity-wide logout | 🚧 v1 |
 | `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
 | Django template language | `html/template`, or `templ` if you prefer | 📋 F3 |
 | `{% csrf_token %}` | CSRF middleware + template helper | 📋 F3 |

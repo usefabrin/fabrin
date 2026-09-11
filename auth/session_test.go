@@ -31,7 +31,7 @@ func TestService_VerificationCreatesAnAtomicOpaqueSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if authentication.Identity.ID == "" || authentication.Session.Credential == "" {
+	if authentication.Identity.ID == "" || authentication.Session.Credential == "" || len(authentication.Session.CSRFToken) != 43 {
 		t.Fatalf("authentication: %+v", authentication)
 	}
 	if authentication.Session.ExpiresAt != base.Add(7*24*time.Hour) {
@@ -49,8 +49,41 @@ func TestService_VerificationCreatesAnAtomicOpaqueSession(t *testing.T) {
 	if stored == nil || stored.record.Digest != proof.Digest {
 		t.Fatal("session digest was not stored atomically")
 	}
+	csrfProof, err := sessionCSRFProof(authentication.Session.Credential, authentication.Session.CSRFToken, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.record.CSRFDigest != csrfProof.CSRFDigest {
+		t.Fatal("session csrf digest was not stored atomically")
+	}
 	if strings.Contains(string(stored.record.Digest[:]), parts[1]) {
 		t.Fatal("stored session contains plaintext credential")
+	}
+}
+
+func TestSessionManager_ValidatesSessionCSRF(t *testing.T) {
+	service, inbox := newService(t, 8)
+	base := time.Date(2026, 9, 11, 0, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return base }
+	challenge, err := service.Request(t.Context(), "a@example.com", PurposeBrowser, "source", WithBinding("browser"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := strings.TrimPrefix(inbox.Messages()[0].Text, "Your Fabrin sign-in code is: ")
+	authentication, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeBrowser, "source", WithBinding("browser"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewSessionManager(service.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.now = func() time.Time { return base }
+	if err := manager.ValidateCSRF(t.Context(), authentication.Session.Credential, "wrong"); !errors.Is(err, ErrSession) {
+		t.Fatalf("wrong csrf: %v", err)
+	}
+	if err := manager.ValidateCSRF(t.Context(), authentication.Session.Credential, authentication.Session.CSRFToken); err != nil {
+		t.Fatal(err)
 	}
 }
 

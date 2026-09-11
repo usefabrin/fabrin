@@ -235,7 +235,7 @@ func (s *MemoryStore) AuthenticateSession(ctx context.Context, proof SessionProo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session := s.sessions[proof.ID]
-	if session == nil || !session.active || proof.Now.Before(session.record.CreatedAt) || !proof.Now.Before(session.record.ExpiresAt) || !proof.Now.Before(session.record.LastSeenAt.Add(sessionIdleTTL)) || !hmac.Equal(session.record.Digest[:], proof.Digest[:]) {
+	if session == nil || !session.active || proof.Now.Before(session.record.CreatedAt) || !proof.Now.Before(session.record.ExpiresAt) || !proof.Now.Before(session.record.LastSeenAt.Add(sessionIdleTTL)) || !hmac.Equal(session.record.Digest[:], proof.Digest[:]) || (proof.CSRFDigest != [32]byte{} && !hmac.Equal(session.record.CSRFDigest[:], proof.CSRFDigest[:])) {
 		return Identity{}, ErrSession
 	}
 	session.record.LastSeenAt = proof.Now

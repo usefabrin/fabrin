@@ -1,4 +1,4 @@
-# Email OTP core preview
+# Email OTP authentication
 
 Fabrin now exposes the first email-code authentication core. It reserves an
 eight-digit, five-minute challenge, sends it through an explicit `auth.Sender`,
@@ -8,12 +8,12 @@ and atomically consumes it through an `auth.Store`. The included
 identity resolution to `authpg.Store`. `mail.Capture` remains test/local delivery
 only.
 
-This is not a login endpoint or a production authentication stack. Successful
-verification atomically creates a minimal opaque server-side session, but browser
-and native HTTP routes, pre-auth CSRF state, invitations, rotation, identity-wide revocation,
-production mail and authorization remain to be implemented. `auth.WithProduction`
-rejects the included memory and capture backends so they cannot be selected
-directly as production defaults.
+Successful verification atomically creates a minimal opaque server-side session.
+Native bearer and secure browser-cookie handlers now cover login, current
+identity, logout and logout-all. Production mail, privilege-change revocation,
+cleanup, authorization and deployment evidence remain to be implemented.
+`auth.WithProduction` rejects the included memory and capture backends so they
+cannot be selected directly as production defaults.
 
 ## Run the local flow
 
@@ -66,7 +66,7 @@ All malformed, unknown, expired and revoked credentials return `auth.ErrSession`
 
 ## Native bearer HTTP
 
-`authhttp.Native` provides four Gin handlers without choosing URL paths for the
+`authhttp.Native` provides five Gin handlers without choosing URL paths for the
 application:
 
 ```go
@@ -96,6 +96,50 @@ return a sanitized unavailable response. The default abuse-budget source is the
 direct TCP peer and ignores forwarding headers. After establishing a trusted
 proxy boundary, an application can opt into its own bounded key with
 `authhttp.WithSource`; request-controlled headers alone are unsafe.
+
+## Browser cookie HTTP
+
+`authhttp.Browser` provides the parallel browser flow without choosing URL
+paths. Configure exact HTTPS origins and mount its CORS middleware on the auth
+route group:
+
+```go
+browser, err := authhttp.NewBrowser(service, sessions, preAuth, []string{
+    "https://app.example.com",
+})
+if err != nil {
+    return err
+}
+web := r.Group("/auth/browser")
+web.Use(browser.CORS())
+web.GET("/bootstrap", browser.Bootstrap)
+web.POST("/request", browser.RequestCode)
+web.POST("/verify", browser.VerifyCode)
+web.GET("/current", browser.Current)
+web.POST("/logout", browser.Logout)
+web.POST("/logout-all", browser.LogoutAll)
+```
+
+Bootstrap sets `__Host-fabrin_preauth` with `Secure`, `HttpOnly`, `Path=/` and
+`SameSite=Lax`, then returns its independent CSRF token once in no-store JSON.
+Send that token in `X-CSRF-Token` on request and verification. Successful
+verification consumes pre-auth state, sets `__Host-fabrin_session` with the same
+cookie protections, and returns a fresh session CSRF token without returning the
+session credential. Use the fresh token for logout and logout-all.
+
+Every unsafe browser request requires one allowlisted non-null `Origin`, exactly
+one relevant cookie and exactly one CSRF header. CORS echoes only an exact
+configured origin, enables credentials, and rejects unlisted origins and
+unapproved preflight headers. Bodies are strict JSON capped at 4 KiB and all
+responses are no-store. The default budget source is the direct peer; after a
+trusted proxy boundary is configured, use `authhttp.WithBrowserSource` to supply
+a bounded application-controlled key.
+
+For an HTTP loopback development server only, pass
+`authhttp.WithInsecureLoopback()`. The constructor then rejects every
+non-loopback origin and switches to `fabrin_dev_preauth` and
+`fabrin_dev_session` cookies without `Secure`. Debug mode does not enable this
+behavior, and production origins remain HTTPS-only.
 
 ## Memory-store behavior
 
@@ -162,7 +206,7 @@ Custom browser transports must bind both request and verification to the same
 high-entropy pre-authentication credential with `auth.WithBinding`. The core
 hashes the value before passing it to a store; memory and Redis reject a missing
 or different binding as the same authentication failure. Fabrin's built-in
-browser handlers will manage this option with their pre-auth cookie and CSRF
+browser handlers manage this option with their pre-auth cookie and CSRF
 state; callers should not use a user identifier or other guessable value.
 
 `auth.NewPreAuthManager(store)` creates the built-in pre-authentication
@@ -197,6 +241,6 @@ an ambiguous client response cannot revive a consumed code. Identity-policy
 rejection consumes the challenge.
 
 Set `FABRINTEST_REDIS_URL` and `FABRINTEST_PG_DSN` to run the live adapter
-tests. Browser sessions, privilege-change and identity-wide revocation, HTTP
-request limits/no-store behavior, production mail and resource authorization
-remain required by the approved [authentication contract](../AUTH_CONTRACT.md).
+tests. Privilege-change revocation, cleanup, production mail and resource
+authorization remain required by the approved
+[authentication contract](../AUTH_CONTRACT.md).

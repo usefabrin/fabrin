@@ -994,6 +994,34 @@ behaviours:
     status: implemented
     test: auth/browser_test.go::TestPreAuthManager_BoundsStateAndSourceBudget
 
+  - id: BROWSER-003
+    what: Browser verification replaces pre-authentication with a secure host-only cookie session and fresh digest-only CSRF secret, returns no credential in JSON, and requires session CSRF before logout.
+    why: Browser credentials must stay unavailable to scripts while unsafe cookie-authenticated actions remain protected independently of SameSite behavior.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/browser_test.go::TestBrowser_LoginCurrentAndLogout
+
+  - id: BROWSER-004
+    what: Browser CORS permits only configured exact HTTPS origins, rejects untrusted and null origins, and browser-purpose verification remains bound to the requesting pre-auth context.
+    why: Credentialed wildcard CORS and cross-context OTP redemption would bypass the browser trust boundary.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/browser_test.go::TestBrowser_RejectsUntrustedOriginsAndCrossBrowserVerification
+
+  - id: BROWSER-005
+    what: Browser authentication strictly decodes bodies capped at four KiB and rejects ambiguous duplicate pre-authentication cookies.
+    why: Parser differentials and cookie ambiguity must fail before authentication transitions or delivery work.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/browser_test.go::TestBrowser_StrictInputAndAmbiguousCookiesFailClosed
+
+  - id: BROWSER-006
+    what: Production browser origins require exact HTTPS values, while the explicit insecure development option accepts only HTTP loopback origins and uses distinct development cookie names.
+    why: Debug configuration must not silently weaken production cookie transport, and an insecure cookie must never be permitted for a remote host.
+    requirement: FR-AUTH-7
+    status: implemented
+    test: authhttp/browser_test.go::TestNewBrowser_RestrictsOriginsAndInsecureCookiesToLoopback
+
   - id: OTP-002
     what: Private challenge consumption allows at most five attempts and one concurrent successful use.
     why: Prove the private OTP primitive before a public transactional authentication API is exposed.
@@ -1051,8 +1079,8 @@ behaviours:
     test: auth/auth_test.go::TestService_BindsBrowserChallengeToOneContext
 
   - id: SES-001
-    what: Initial sessions use independent 32-byte opaque secrets, persist only SHA-256 digests, and are created atomically with OTP consumption.
-    why: Losing the verification response must not make a spent code replayable, and database reads must not reveal bearer credentials.
+    what: Initial sessions use independent 32-byte opaque credential and CSRF secrets, persist only SHA-256 digests, and are created atomically with OTP consumption.
+    why: Losing the verification response must not make a spent code replayable, and storage reads must not reveal bearer or CSRF credentials.
     requirement: FR-AUTH-2
     status: implemented
     test: auth/session_test.go::TestService_VerificationCreatesAnAtomicOpaqueSession

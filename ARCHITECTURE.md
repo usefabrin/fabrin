@@ -122,16 +122,20 @@ before logout succeeds. Redis maintains a TTL-bounded identity session index so
 logout-all is one atomic transition. The
 default abuse source is the direct peer address and ignores forwarded headers;
 applications may explicitly supply a trusted source function after configuring
-their proxy boundary. Browser-cookie and CSRF transport remains separate and
-planned.
+their proxy boundary.
 
 Browser bootstrap state is transport-independent in `auth.PreAuthManager`.
 It returns an opaque cookie credential and independent CSRF token once, while
 stores receive only SHA-256 digests. Memory bounds state and budget maps; Redis
 uses ten-minute state TTLs and a shared rolling source budget. Authentication is
 non-consuming for multi-step request/verify flows, and successful transition can
-consume the state exactly once. Secure cookie and exact-origin handlers build on
-this contract.
+consume the state exactly once. `authhttp.Browser` builds on this contract with
+strict bounded bodies, exact-origin credentialed CORS, mandatory origin and CSRF
+checks on unsafe requests, secure host-only cookies, browser-purpose challenges,
+and cookie-only authenticated sessions. Session creation stores a fresh CSRF
+digest beside the credential digest; verification returns only the CSRF token
+and never serializes the session credential. An explicit development option is
+limited to HTTP loopback origins and uses separate non-`__Host-` cookie names.
 
 ### Generated PostgreSQL data access (preview)
 

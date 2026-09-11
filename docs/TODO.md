@@ -287,9 +287,10 @@ or another sender port, and atomically resolves a stable identity plus initial
 opaque session after one successful consumption. `authpg` now supplies durable
 unique identity resolution, transactional invitation consumption and disabled
 checks; `authredis` now owns shared budgets, verification leases and digest-only
-sessions. Native bearer login/current/logout handlers now ship; browser sessions
-have challenge-context binding and bounded pre-authentication/CSRF state, while
-secure cookie/origin handlers and privilege-change revocation remain. See
+sessions. Native bearer handlers and secure browser cookie handlers now cover
+login/current/logout. Browser flows add exact-origin CORS, challenge binding,
+and bounded pre-authentication/session CSRF state. Privilege-change revocation
+and cleanup remain. See
 [authentication](guides/authentication.md) and [testing email](guides/testing-email.md).
 
 - [ ] User model + memory-hard password hashing. (FR-AUTH-1)
@@ -299,8 +300,8 @@ secure cookie/origin handlers and privilege-change revocation remain. See
 - [ ] Permissions and groups, checkable in handler and template. (FR-AUTH-3)
 - [ ] Replaceable user model — an app with its own is not forced into Fabrin's.
       (FR-AUTH-4)
-- [~] Native login/current/logout handlers exist; browser login, `RequireAuth`
-      middleware and CSRF remain.
+- [~] Native and browser login/current/logout handlers exist with browser CSRF
+      and exact-origin CORS; shared `RequireAuth` middleware remains.
 - [ ] Threat model before API freeze: rotation and fixation, cookie defaults,
       enumeration, password upgrades, recovery, audit, and fail-closed authz.
       ([#80](https://github.com/usefabrin/fabrin/issues/80))

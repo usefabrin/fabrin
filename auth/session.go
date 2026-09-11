@@ -23,6 +23,7 @@ var ErrSession = errors.New("auth: invalid session")
 // Store only its digest; never log or place Credential in a URL.
 type Session struct {
 	Credential string
+	CSRFToken  string
 	ExpiresAt  time.Time
 }
 
@@ -38,6 +39,7 @@ type SessionRecord struct {
 	ID         string
 	IdentityID string
 	Digest     [32]byte
+	CSRFDigest [32]byte
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	ExpiresAt  time.Time
@@ -45,9 +47,29 @@ type SessionRecord struct {
 
 // SessionProof is the bounded lookup material for authentication and logout.
 type SessionProof struct {
-	ID     string
-	Digest [32]byte
-	Now    time.Time
+	ID         string
+	Digest     [32]byte
+	CSRFDigest [32]byte
+	Now        time.Time
+}
+
+// ValidateCSRF authenticates a session credential and its independent CSRF
+// token while refreshing idle activity.
+func (m *SessionManager) ValidateCSRF(ctx context.Context, credential, csrf string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	proof, err := sessionCSRFProof(credential, csrf, m.now().UTC())
+	if err != nil {
+		return ErrSession
+	}
+	if _, err := m.store.AuthenticateSession(ctx, proof); err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		return ErrSession
+	}
+	return nil
 }
 
 // SessionStore owns server-side session authentication, idle refresh and
@@ -132,16 +154,21 @@ func (m *SessionManager) LogoutAll(ctx context.Context, credential string) error
 func newSession(now time.Time) (Session, SessionRecord, error) {
 	id := make([]byte, 32)
 	secret := make([]byte, 32)
+	csrf := make([]byte, 32)
 	if _, err := rand.Read(id); err != nil {
 		return Session{}, SessionRecord{}, err
 	}
 	if _, err := rand.Read(secret); err != nil {
 		return Session{}, SessionRecord{}, err
 	}
+	if _, err := rand.Read(csrf); err != nil {
+		return Session{}, SessionRecord{}, err
+	}
 	encodedID := base64.RawURLEncoding.EncodeToString(id)
 	encodedSecret := base64.RawURLEncoding.EncodeToString(secret)
+	encodedCSRF := base64.RawURLEncoding.EncodeToString(csrf)
 	expires := now.Add(sessionAbsoluteTTL)
-	return Session{Credential: encodedID + "." + encodedSecret, ExpiresAt: expires}, SessionRecord{ID: encodedID, Digest: sha256.Sum256(secret), CreatedAt: now, LastSeenAt: now, ExpiresAt: expires}, nil
+	return Session{Credential: encodedID + "." + encodedSecret, CSRFToken: encodedCSRF, ExpiresAt: expires}, SessionRecord{ID: encodedID, Digest: sha256.Sum256(secret), CSRFDigest: sha256.Sum256(csrf), CreatedAt: now, LastSeenAt: now, ExpiresAt: expires}, nil
 }
 
 func sessionProof(credential string, now time.Time) (SessionProof, error) {
@@ -158,4 +185,17 @@ func sessionProof(credential string, now time.Time) (SessionProof, error) {
 		return SessionProof{}, ErrSession
 	}
 	return SessionProof{ID: id, Digest: sha256.Sum256(secret), Now: now}, nil
+}
+
+func sessionCSRFProof(credential, csrf string, now time.Time) (SessionProof, error) {
+	proof, err := sessionProof(credential, now)
+	if err != nil {
+		return SessionProof{}, err
+	}
+	value, err := base64.RawURLEncoding.DecodeString(csrf)
+	if err != nil || len(csrf) != 43 || len(value) != 32 {
+		return SessionProof{}, ErrSession
+	}
+	proof.CSRFDigest = sha256.Sum256(value)
+	return proof, nil
 }
