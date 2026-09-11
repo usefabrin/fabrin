@@ -65,6 +65,9 @@ new hygiene checks as a script in `scripts/gates/`, list it in
 prevents.** Gates may use only the baseline shell tools available before CI's
 pinned-tool installation step; a developer convenience such as `rg` is not a
 gate dependency. A check whose purpose nobody remembers is the first one deleted.
+The empty repository is a valid negative control: gates that collect files must
+also pass when their collection is empty under macOS's system Bash 3.2, whose
+`set -u` handling differs from newer CI shells.
 
 ### The gate scripts
 
@@ -72,7 +75,7 @@ gate dependency. A check whose purpose nobody remembers is the first one deleted
 |--------|----------|
 | `scripts/gates/check-action-pins.sh` | A mutable workflow or composite-action reference changing CI without a repository commit |
 | `scripts/gates/check-depguard-coverage.sh` | A new public package landing with nobody having decided whether it needs boundary rules |
-| `scripts/gates/check-migration-versions.sh` | Two branches each generating the same timestamped migration, colliding only when their modules meet in one binary |
+| `scripts/gates/check-migration-versions.sh` | Two branches generating the same timestamped migration; zero migrations remains a portable negative control |
 | `scripts/gates/check-docs-freshness-policy.sh` | Deletions, invalid ranges, and unrelated docs satisfying a governed-surface change |
 | `scripts/gates/check-hook-worktrees.sh` | A shared hook dispatcher resolving the wrong linked worktree or dangling after removal |
 | `scripts/install-hooks.sh` | A pre-commit hook that reports installed and enforces nothing, including across linked worktrees |

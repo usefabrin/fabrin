@@ -869,6 +869,11 @@ with their milestone rather than split into sections. Cutting a version is
   rollbacks. PostgreSQL primary-key removal resolves the actual key through the
   catalog so pre-ADR inline keys with server-assigned names remain reversible.
   (Part of [#79].)
+- The migration-version gate now passes its empty-set negative control under
+  macOS's baseline Bash 3.2. Newer Bash accepted the empty array expansion under
+  `set -u`, while Bash 3.2 treated it as unset and stopped `just gates` before
+  the remaining quality checks. Duplicate and malformed migration injections
+  still fail with their paths. ([#120](https://github.com/usefabrin/fabrin/issues/120))
 - `migratediff.Apply` now renders the complete operation list before executing
   its first statement. A supported operation followed by an unsupported SQLite
   drop or retype therefore returns `ErrUnsupported` without partially mutating

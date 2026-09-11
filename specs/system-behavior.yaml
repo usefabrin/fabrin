@@ -451,7 +451,7 @@ behaviours:
     test: migrate/migrate_test.go::TestRun_RejectsAnUnusableMigrationSet
 
   - id: MIG-008
-    what: A repo-level gate, hanging off an existing just recipe, rejects two migration files claiming one version and names both files and the version.
+    what: A repo-level gate, hanging off an existing just recipe, rejects two migration files claiming one version and names both files and the version; an empty migration set passes on the baseline Bash 3.2 shell.
     why: MIG-007 catches the collision at deploy time, against a database, which is the most expensive moment to find it. Two branches each generating an 0004 are both green in isolation, so the only cheap moment is before merge. The gate reads FILES rather than a registry built by running Go code, so a colliding migration on a branch that does not compile is still caught - it needs no compiler, only the filename-equals-version contract MIG-033 established. It also rejects mixed widths across the whole set and malformed prefixes, because lexicographic ordering on either applies migrations in an order nobody wrote.
     requirement: FR-ORM-5
     status: implemented
