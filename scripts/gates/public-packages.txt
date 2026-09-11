@@ -15,3 +15,4 @@ logging
 migratediff
 migrate
 orm
+ormgen

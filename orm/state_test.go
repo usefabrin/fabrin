@@ -8,6 +8,41 @@ import (
 	"github.com/usefabrin/fabrin/orm"
 )
 
+func TestSnapshot_LeavesGeneratorNamesOutOfMigrationState(t *testing.T) {
+	t.Parallel()
+
+	r := orm.NewRegistry()
+	if err := r.Register("shop", orm.Model{
+		GoName: "Order",
+		Table:  "orders",
+		Fields: []orm.Field{{
+			GoName: "ID", Name: "id", Type: orm.TypeInt64, PrimaryKey: true,
+		}},
+	}); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	registered := r.Models()
+	if registered[0].Model.GoName != "Order" || registered[0].Model.Fields[0].GoName != "ID" {
+		t.Fatalf("registry lost generator names: %#v", registered[0].Model)
+	}
+
+	snapshot, err := orm.NewSnapshot(registered)
+	if err != nil {
+		t.Fatalf("NewSnapshot: %v", err)
+	}
+	encoded, err := orm.EncodeSnapshot(snapshot)
+	if err != nil {
+		t.Fatalf("EncodeSnapshot: %v", err)
+	}
+	if strings.Contains(string(encoded), "Order") || strings.Contains(string(encoded), "ID") {
+		t.Errorf("migration state contains source-only Go names:\n%s", encoded)
+	}
+	got := snapshot.Models()[0].Model
+	if got.GoName != "" || got.Fields[0].GoName != "" {
+		t.Errorf("snapshot retained source-only Go names: %#v", got)
+	}
+}
+
 // shopRegistry builds a registry with two modules and three tables, registered
 // in an order that is deliberately not sorted by table.
 func shopRegistry() *orm.Registry {

@@ -37,6 +37,15 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Typed PostgreSQL Create/Get generation from the model declaration.** The new
+  `ormgen.Generate` validates the complete input before returning deterministic,
+  gofmt-formatted source containing row types and context-aware queries over a
+  generated interface satisfied by `*sql.DB`, `*sql.Tx`, and `*sql.Conn`.
+  Nullable values, all current ORM types, quoted identifiers, cancellation,
+  `sql.ErrNoRows`, and live PostgreSQL execution have exact tests. Generation
+  remains offline and modules retain ownership of their store ports, as proposed
+  by ADR 0007. ([#109](https://github.com/usefabrin/fabrin/issues/109))
+
 - **Interactive migration rename detection.** `makemigrations` now presents
   compatible drop/add pairs one at a time instead of guessing whether two field
   names share an identity. Confirming emits a reversible public
@@ -1146,6 +1155,12 @@ Added — package `fabrin`:
   readiness. Reported by `App.Capabilities` like `Lifecycle`.
 
 ### Changed
+
+- **Breaking:** `orm.Model` and `orm.Field` gain optional `GoName` fields so the
+  same declaration can drive generated source and database metadata. This can
+  break downstream unkeyed struct literals. Registry copies retain the names;
+  migration snapshots omit them because a Go-only rename is not a database
+  schema change. ([#109](https://github.com/usefabrin/fabrin/issues/109))
 
 - **Breaking:** `orm` column-type constants now carry the `Type` prefix:
   `TypeString`, `TypeInt`, `TypeInt64`, `TypeFloat`, `TypeBool`, `TypeTime`, and

@@ -111,8 +111,8 @@ pre-v0 decisions are provisional ORM constraints
 
       FR-ORM-1 stays *in progress* until the admin and forms read it, which is
       the clause its text actually promises.
-- [x] Consumer-owned data port pattern and worked example, **not** an exported
-      Fabrin query API or third-party handle.
+- [x] Consumer-owned data port pattern and worked example, with no ambient
+      framework database or third-party handle.
       ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md), FR-ORM-2)
 
       The **pattern and the worked example** landed as `examples/hello/orders`
@@ -123,9 +123,19 @@ pre-v0 decisions are provisional ORM constraints
       GORM — which is the seam ADR 0002 chose, so the pattern is the same
       whatever sits behind it.
 
-      Fabrin ships no GORM adapter today. Whether a default query adapter should
-      exist is a separate pre-v0 API decision; documentation must not call an
-      unwritten adapter the default.
+      Fabrin ships no GORM adapter. The v1 generated PostgreSQL adapter below
+      implements these ports over `database/sql`; it does not replace them.
+- [x] **First generated PostgreSQL data slice.** Optional Go names on the same
+      `orm.Model` declaration drive deterministic typed row structs and
+      context-aware Create/Get methods through `ormgen`. Generated `DBTX` is
+      satisfied by `*sql.DB`, `*sql.Tx`, and `*sql.Conn`; nullable values,
+      identifier quoting, cancellation, and not-found behavior have runtime
+      coverage, plus an opt-in live PostgreSQL test. Caller-supplied keys and
+      Create/Get are the deliberate first surface; relationships, pagination,
+      generated keys, and the remaining CRUD operations stay in the v1 data
+      epic. ([ADR 0007](adr/0007-generated-stores-implement-consumer-ports.md),
+      [#109](https://github.com/usefabrin/fabrin/issues/109), FR-ORM-6,
+      ORM-015…021)
 - [x] `Modeler` — modules declare their models; no package scanning. Collected
       from **mounted** modules only, so a sliced process is handed only the
       schema it owns, and two modules claiming one table fails at construction.

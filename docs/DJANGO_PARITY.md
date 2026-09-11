@@ -53,9 +53,9 @@ still checks the module and every dependency; jump-to-definition still works.
 | The migration autodetector (`django.db.migrations.autodetector`) | Public `migratediff` operations plus interactive rename confirmation — compatible drop/add pairs are asked, while noninteractive runs refuse rather than guess | ✅ F2 |
 | Database-specific SQL generation (`django.db.backends.*` SchemaEditor) | Public `migratediff.Dialect` with SQLite and PostgreSQL from day one — PostgreSQL renders the full current vocabulary; SQLite keeps CI hermetic and refuses rebuild-only alterations before mutation | 🚧 F2 (SQLite rebuild pending) |
 | `migrations.RunPython` / reversible `RunSQL` | `M.Up` / `M.Down`, both `func(ctx, migrate.Handle) error` — and `Down` is **required**, where Django's is optional | ✅ F2 |
-| `QuerySet` | GORM, or anything else, behind an interface **your module declares** — `database/sql` is Fabrin's seam ([ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)) | 📋 F2 |
+| `QuerySet` | Generated PostgreSQL `Queries` for typed Create/Get behind an interface **your module declares**; relationships, pagination, and the rest of CRUD remain in the v1 data epic ([ADR 0007](adr/0007-generated-stores-implement-consumer-ports.md)) | 🚧 v1 |
 | `DATABASES` | One config block, one place for pool limits | 📋 F2 |
-| `select_related` / `prefetch_related` | GORM preloading | 📋 F2 |
+| `select_related` / `prefetch_related` | Explicit generated relationship queries | 📋 v1 |
 | `Model.objects` manager | Explicit repository or store, passed in — the module declares the interface, `main` satisfies it | ✅ F2 |
 | Lazy querysets | ❌ | ❌ |
 
@@ -70,16 +70,17 @@ declares the two-method `Store` it needs, `main.go` is the only file that names
 SQL, and there are two implementations of that port — so the seam is
 demonstrated rather than asserted. [ADR 0002](adr/0002-database-sql-is-the-orm-seam.md)
 also forecloses anything further: there will be no `fabrin.DB()` and no manager
-type without a new ADR, so 📋 *planned* would name work nobody plans to do. The
-`QuerySet` row stays 📋 because its cell names GORM, and the GORM adapter
-genuinely is still ahead of us.
+type without a new ADR, so 📋 *planned* would name work nobody plans to do.
+The `QuerySet` row is now 🚧 because `ormgen` supplies typed Create/Get through
+the standard `database/sql` method set. It is not ✅ until the v1 data epic adds
+relationships, pagination, and the remaining operations applications need.
 
 A pattern counting as shipped is the unusual part, so it is worth being plain
 about the test applied: ✅ asks whether a Fabrin user has an answer to the
 problem Django solves, not whether Fabrin exports a type. Here they do, it is
 demonstrated in `examples/hello/orders` rather than described, and ADR 0002 says
-it is the final answer. Where that test is not met — the GORM adapter, which
-does not exist — the row stays 📋.
+it is the final answer. Generated queries implement the port; they do not move
+ownership of it from the module to the framework.
 
 **Lazy querysets are the one Django feature deliberately rejected.** They are
 elegant in Python and a trap in Go: an expression that looks like data but fires a

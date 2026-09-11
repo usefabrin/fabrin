@@ -162,6 +162,13 @@ that panic to name both modules is [#40](https://github.com/usefabrin/fabrin/iss
 | ORM-012 | A primary key marked `Nullable` is rejected at registration | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
 | ORM-013 | Redundant `Unique`/`Index` flags, including on a primary key, are rejected | `orm/orm_test.go::TestRegistry_RejectsAModelWithNothingToMigrate` |
 | ORM-014 | Column-type constants use `Type`-prefixed names while retaining their serialized values | `orm/orm_test.go::TestType_PrefixedConstantsAreValidAndKeepTheirWireValues` |
+| ORM-015 | Generator Go names survive registry collection but stay out of migration state | `orm/state_test.go::TestSnapshot_LeavesGeneratorNamesOutOfMigrationState` |
+| ORM-016 | Deterministic compiling typed PostgreSQL Create/Get generation | `ormgen/ormgen_test.go::TestGenerate_ProducesDeterministicCompilingPostgreSQLCreateAndGet` |
+| ORM-017 | Malformed, colliding, and unsupported declarations fail before output | `ormgen/ormgen_test.go::TestGenerate_RejectsInvalidOrCollidingNamesBeforeOutput` |
+| ORM-018 | Generated DB interface accepts `*sql.DB`, `*sql.Tx`, and `*sql.Conn` | `internal/ormgentest/orderdb/orderdb_test.go::TestDBTX_IsSatisfiedByDBTxAndConn` |
+| ORM-019 | Generated Create/Get preserves nulls, quoted identifiers, and `sql.ErrNoRows` | `internal/ormgentest/orderdb/orderdb_test.go::TestQueries_CreateAndGetPreserveNullsAndQuoteIdentifiers` |
+| ORM-020 | Generated calls retain context cancellation | `internal/ormgentest/orderdb/orderdb_test.go::TestQueries_HonorCancellation` |
+| ORM-021 | Generated Create/Get runs against live PostgreSQL when configured | `internal/ormgentest/orderdb/orderdb_test.go::TestQueries_CreateAndGetAgainstPostgreSQL` |
 
 ORM-001…006 and ORM-012…014 cite FR-ORM-1; ORM-007…009 cite FR-ORM-3;
 ORM-010…011 cite FR-ORM-2,
@@ -169,6 +176,11 @@ which [ADR 0002](../docs/adr/0002-database-sql-is-the-orm-seam.md) reads as *a
 documented adapter pattern and a worked example* rather than an exported Fabrin
 type. The example is `examples/hello/orders`
 ([#60](https://github.com/usefabrin/fabrin/issues/60)).
+
+ORM-015…021 cite FR-ORM-6 and cover the first v1 generated-data slice. The
+compiled fixture is byte-compared with fresh generator output before its runtime
+tests exercise the `database/sql` method set, so a hand edit cannot let the
+generator test and execution evidence describe different source.
 
 ORM-010 is the row a behavioural test cannot hold up, for the reason ORM-006 and
 MIG-006 give — except that here the reader is a Go test rather than depguard,

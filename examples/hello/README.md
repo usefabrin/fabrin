@@ -118,9 +118,12 @@ and the in-memory one in `orders/orders_test.go` — because an interface with
 exactly one implementation forever is a wrapper wearing a disguise.
 
 `orders` also implements `Modeler`, so `App.Models()` reports the table it owns
-and a migration generator has something real to diff. The migration itself is
-hand-written and says so in a comment: `fabrin makemigrations` does not exist
-yet, and the on-disk migration format is undecided.
+and migration generation has something real to diff. Its model and fields also
+carry `GoName` values, so that exact declaration can be passed to
+`ormgen.Generate` for typed PostgreSQL Create/Get code; source-only names are
+left out of migration state. This runnable example keeps the hand-written
+SQLite adapter to show the consumer-owned port remains replaceable rather than
+making generated PostgreSQL code a hidden module dependency.
 
 ## Every claim here is tested, not just described
 

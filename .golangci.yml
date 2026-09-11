@@ -97,6 +97,11 @@ linters:
       #     is database/sql or the user's own ORM, named in neither place; see
       #     docs/adr/0002-database-sql-is-the-orm-seam.md.
       #
+      # boundary: ormgen — may import orm because model metadata is its input,
+      #     but not the root package, transport, database/sql, or other Fabrin
+      #     packages. It writes database/sql code as text; importing a handle
+      #     itself would turn an offline generator into a runtime data layer.
+      #
       # boundary: migrate — must not import the root package or a sibling, Gin,
       #     net/http, or the SQLite driver its own tests use
       #     (migrate-is-standalone). Migrations run from a process that mounts no
@@ -281,6 +286,27 @@ linters:
               desc: "migratediff must stay transport-free: it renders DDL, not HTTP (see CONTRIBUTING.md)"
             - pkg: "net/http"
               desc: "migratediff must stay transport-free: it renders DDL, not HTTP (see CONTRIBUTING.md)"
+
+        # ormgen reads orm metadata and emits database/sql source without opening
+        # a database. Keep it usable from go:generate and schema tooling that has
+        # no application or transport stack running.
+        ormgen-is-offline:
+          files:
+            - "**/ormgen/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "$github.com/usefabrin/fabrin"
+              desc: "ormgen must not import the root package: it consumes orm metadata without constructing an App (see CONTRIBUTING.md)"
+            - pkg: "github.com/usefabrin/fabrin/migrate"
+              desc: "ormgen writes source offline; it does not run migrations (see CONTRIBUTING.md)"
+            - pkg: "github.com/usefabrin/fabrin/migratediff"
+              desc: "ormgen generates data access, not schema DDL (see CONTRIBUTING.md)"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "ormgen must stay transport-free: code generation runs without HTTP (see CONTRIBUTING.md)"
+            - pkg: "net/http"
+              desc: "ormgen must stay transport-free: code generation runs without HTTP (see CONTRIBUTING.md)"
+            - pkg: "database/sql"
+              desc: "ormgen emits database/sql-compatible code as text but must not open or retain a database handle itself (see CONTRIBUTING.md)"
 
         # internal/ is implementation detail for the public packages, so the
         # dependency runs public → internal. Reversing it makes the root package

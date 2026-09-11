@@ -83,10 +83,11 @@ func (m *Module) Name() string { return "orders" }
 // running anywhere.
 func (m *Module) Models() []orm.Model {
 	return []orm.Model{{
-		Table: "orders",
+		GoName: "Order",
+		Table:  "orders",
 		Fields: []orm.Field{
-			{Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
-			{Name: "item", Type: orm.TypeString, MaxLen: 200},
+			{GoName: "ID", Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+			{GoName: "Item", Name: "item", Type: orm.TypeString, MaxLen: 200},
 		},
 	}}
 }

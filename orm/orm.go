@@ -77,6 +77,10 @@ func (t Type) Valid() bool {
 // field can break unkeyed literals even though removing or retyping one is more
 // obviously breaking.
 type Field struct {
+	// GoName is the exported field name used by code generators. Metadata-only
+	// consumers may leave it empty; generators validate it before writing output.
+	GoName string
+
 	// Name is the column name, as it appears in SQL.
 	Name string
 
@@ -113,6 +117,10 @@ type Field struct {
 
 // Model is one table.
 type Model struct {
+	// GoName is the exported type name used by code generators. Metadata-only
+	// consumers may leave it empty; generators validate it before writing output.
+	GoName string
+
 	// Table is the table name, and the identity a schema conflict is reported
 	// against.
 	Table string
@@ -203,7 +211,7 @@ func (r *Registry) Models() []Registered {
 }
 
 func clone(m Model) Model {
-	return Model{Table: m.Table, Fields: slices.Clone(m.Fields)}
+	return Model{GoName: m.GoName, Table: m.Table, Fields: slices.Clone(m.Fields)}
 }
 
 func validate(m Model) error {

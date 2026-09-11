@@ -91,6 +91,36 @@ ecosystem work with no adapter and no ceremony. Blessing Gin publicly is a
 deliberate trade: Fabrin's compatibility is tied to Gin v1 (stable since 2015)
 in exchange for never standing between you and the router you chose.
 
+## One schema, typed PostgreSQL access
+
+The model declaration used by migrations and later admin generation can also
+produce typed PostgreSQL Create/Get code:
+
+```go
+models := []orm.Model{{
+    GoName: "Order",
+    Table:  "orders",
+    Fields: []orm.Field{
+        {GoName: "ID", Name: "id", Type: orm.TypeInt64, PrimaryKey: true},
+        {GoName: "Item", Name: "item", Type: orm.TypeString, MaxLen: 200},
+    },
+}}
+
+source, err := ormgen.Generate("ordersdb", models)
+```
+
+The deterministic, formatted source contains an `Order` row type and
+context-aware `CreateOrder`/`GetOrder` methods. Its generated database interface
+is satisfied by `*sql.DB`, `*sql.Tx`, and `*sql.Conn`; PostgreSQL identifiers are
+quoted, nullable scalar values use pointers, and wrapped errors preserve
+`sql.ErrNoRows` and context cancellation. The first slice uses caller-supplied
+primary keys. Relationships, pagination, generated keys, and the remaining CRUD
+operations remain in the v1 data epic.
+
+Modules still own their store interfaces. Generated queries satisfy those ports
+at application wiring, so tests can use memory and an extracted service can use
+a remote adapter without changing the module.
+
 ## Microservices, without a second framework
 
 Fabrin is a **modular monolith by default, extractable by design**. Three
@@ -163,7 +193,7 @@ Python?"* Fabrin should feel like Go that happens to come with batteries.
 | `LOGGING` | `fabrin/logging` — `log/slog`, JSON by default, request ids | ✅ F0 |
 | `django-admin startproject` / `startapp` | `fabrin new` / `fabrin startapp` | ✅ F1 |
 | Management commands | `Module.Commands()` | ✅ F1 |
-| Models + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, generated migration files, explicit rename confirmation, and the `fabrin/migrate` engine | 🚧 F2 |
+| Models + data access + `makemigrations` / `migrate` | `fabrin/orm` metadata + `Modeler`, `ormgen` typed PostgreSQL Create/Get, generated migration files, explicit rename confirmation, and the `fabrin/migrate` engine | 🚧 F2/v1 |
 | Templates, forms, static files | `fabrin/render`, `fabrin/forms` | F3 |
 | `django.contrib.auth` | `fabrin/auth` | F4 |
 | **`django.contrib.admin`** | `fabrin/admin` (html/template + htmx, embedded) | F5 |

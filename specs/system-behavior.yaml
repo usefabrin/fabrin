@@ -414,6 +414,55 @@ behaviours:
     status: implemented
     test: orm/orm_test.go::TestType_PrefixedConstantsAreValidAndKeepTheirWireValues
 
+  - id: ORM-015
+    what: Generator Go names survive registry collection but are omitted from migration state.
+    why: One declaration must feed both generated source and schema metadata, while a Go-only rename must not produce a database migration or change the state-file format.
+    requirement: FR-ORM-6
+    status: implemented
+    test: orm/state_test.go::TestSnapshot_LeavesGeneratorNamesOutOfMigrationState
+
+  - id: ORM-016
+    what: The same model declarations produce byte-identical, gofmt-formatted, compiling PostgreSQL Create/Get source with typed nullable fields and quoted identifiers.
+    why: Generated code is reviewed and checked in. Nondeterminism creates false diffs, uncompiled text moves failure into an application build, and unquoted metadata turns identifiers into SQL syntax.
+    requirement: FR-ORM-6
+    status: implemented
+    test: ormgen/ormgen_test.go::TestGenerate_ProducesDeterministicCompilingPostgreSQLCreateAndGet
+
+  - id: ORM-017
+    what: Invalid or colliding package, model, field, table, and column names plus unsupported primary-key shapes fail before generation returns any output.
+    why: A generator that writes a partial file before discovering an ambiguous declaration leaves the project broken and makes the real schema error harder to find.
+    requirement: FR-ORM-6
+    status: implemented
+    test: ormgen/ormgen_test.go::TestGenerate_RejectsInvalidOrCollidingNamesBeforeOutput
+
+  - id: ORM-018
+    what: Generated queries accept *sql.DB, *sql.Tx, and *sql.Conn without adapters.
+    why: Transactions and pinned connections must use the same generated methods as the pool; requiring a framework database wrapper would reverse ADR 0002 and widen the public seam.
+    requirement: FR-ORM-6
+    status: implemented
+    test: internal/ormgentest/orderdb/orderdb_test.go::TestDBTX_IsSatisfiedByDBTxAndConn
+
+  - id: ORM-019
+    what: Generated Create/Get methods round-trip typed rows and SQL NULL, quote every identifier, and preserve sql.ErrNoRows for errors.Is.
+    why: Null collapse corrupts data, unquoted names can change SQL meaning, and callers need to distinguish a missing row from a failed database without parsing error text.
+    requirement: FR-ORM-6
+    status: implemented
+    test: internal/ormgentest/orderdb/orderdb_test.go::TestQueries_CreateAndGetPreserveNullsAndQuoteIdentifiers
+
+  - id: ORM-020
+    what: Cancellation reaches generated database calls and remains discoverable as context.Canceled.
+    why: Request cancellation is a resource bound. Dropping or replacing it makes abandoned queries consume a shared pool after their caller is gone.
+    requirement: FR-ORM-6
+    status: implemented
+    test: internal/ormgentest/orderdb/orderdb_test.go::TestQueries_HonorCancellation
+
+  - id: ORM-021
+    what: Generated Create/Get code is exercised against a live PostgreSQL server when FABRIN_TEST_PG_DSN is set and otherwise skips with a visible notice.
+    why: Parsing SQL or accepting it in SQLite cannot prove PostgreSQL accepts its placeholders, BYTEA and TIMESTAMPTZ values, or scan behavior. The environment switch keeps the ordinary suite hermetic while preserving exact production-database evidence.
+    requirement: FR-ORM-6
+    status: implemented
+    test: internal/ormgentest/orderdb/orderdb_test.go::TestQueries_CreateAndGetAgainstPostgreSQL
+
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001
     what: A migration's body and the row recording it are written in one transaction, so a failure leaves both the schema and the applied-state table where they started.

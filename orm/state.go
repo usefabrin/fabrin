@@ -103,10 +103,15 @@ func EncodeSnapshot(s Snapshot) ([]byte, error) {
 	for _, reg := range s.models {
 		wm := wireModel{Module: reg.Module, Table: reg.Model.Table, Fields: make([]wireField, 0, len(reg.Model.Fields))}
 		for _, f := range reg.Model.Fields {
-			// Field and wireField are field-identical deliberately: if Field
-			// grows, this conversion stops compiling until the state format is
-			// considered in the same change.
-			wm.Fields = append(wm.Fields, wireField(f))
+			wm.Fields = append(wm.Fields, wireField{
+				Name:       f.Name,
+				Type:       f.Type,
+				MaxLen:     f.MaxLen,
+				Nullable:   f.Nullable,
+				PrimaryKey: f.PrimaryKey,
+				Unique:     f.Unique,
+				Index:      f.Index,
+			})
 		}
 		wire.Models = append(wire.Models, wm)
 	}
@@ -147,7 +152,15 @@ func ParseSnapshot(data []byte, src string) (Snapshot, error) {
 		m := Model{Table: wm.Table}
 		m.Fields = make([]Field, 0, len(wm.Fields))
 		for _, wf := range wm.Fields {
-			f := Field(wf)
+			f := Field{
+				Name:       wf.Name,
+				Type:       wf.Type,
+				MaxLen:     wf.MaxLen,
+				Nullable:   wf.Nullable,
+				PrimaryKey: wf.PrimaryKey,
+				Unique:     wf.Unique,
+				Index:      wf.Index,
+			}
 			if legacy && !f.PrimaryKey {
 				// Before ADR 0006, generated DDL made every non-primary column
 				// nullable and the state codec withheld all three flags. Decode
@@ -236,6 +249,9 @@ func snapshotRegistered(reg Registered) Registered {
 	fields := make([]Field, len(reg.Model.Fields))
 	for i, f := range reg.Model.Fields {
 		fields[i] = Field{
+			// Go names describe generated source rather than database state. A
+			// historical snapshot reconstructs the SQL schema and deliberately
+			// leaves them empty.
 			Name:       f.Name,
 			Type:       f.Type,
 			MaxLen:     f.MaxLen,

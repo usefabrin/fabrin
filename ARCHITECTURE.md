@@ -28,6 +28,7 @@ fabrin/                  package fabrin — App, Module, Router, Context/Handler
 ├── health/              liveness + readiness       (Django: system checks)
 ├── logging/             slog setup, request ids
 ├── orm/                 model metadata — no DB handle, no driver
+├── ormgen/              typed PostgreSQL Create/Get generation from orm metadata
 ├── migrate/             migration engine over *sql.DB
 ├── migratediff/         schema differ + DDL emitters (graduated public in #59)
 ├── cmd/fabrin/          the CLI — `new`, `startapp`, `version`
@@ -82,10 +83,38 @@ tables and columns; it opens nothing.
 That is what lets forms (F3) and the admin (F5) render a schema with no database
 running, and it is why this package's tests finish in microseconds instead of
 waiting on a container. It is also what keeps the ORM swappable — the admin reads
-**Fabrin** metadata, so it never becomes GORM-shaped. The query API is
-`database/sql` or whichever ORM the application chose, reached through an
-interface the module declares for itself; Fabrin names neither. See
-[ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md).
+**Fabrin** metadata, so it never becomes GORM-shaped. A module reaches data
+through an interface it declares for itself. `ormgen` can generate the default
+PostgreSQL implementation over the standard `database/sql` method set; an
+application may instead satisfy the same port with hand-written SQL, another
+ORM, memory, or a remote client. The metadata package still names and stores no
+handle. See [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) and
+[ADR 0007](docs/adr/0007-generated-stores-implement-consumer-ports.md).
+
+### Generated data path
+
+```
+orm.Model + Field GoName/SQL metadata
+        │
+        ▼
+ormgen.Generate(package, models)     offline, deterministic, returns Go source
+        │
+        ▼
+generated row types + Queries        PostgreSQL SQL over a generated DBTX
+        │                             (*sql.DB, *sql.Tx, *sql.Conn)
+        ▼
+module-owned Store interface         remains the extraction and test seam
+```
+
+Go names are source metadata. Registry collection retains them so the same
+declaration reaches `ormgen`; migration snapshots discard them so renaming a Go
+field cannot invent a database migration. Generated code uses PostgreSQL
+placeholders, quotes every identifier, and keeps `sql.ErrNoRows` and context
+cancellation visible through wrapped errors. The first surface has
+caller-supplied primary keys and Create/Get methods; [ADR 0007] records that
+boundary and the deferred shapes.
+
+[ADR 0007]: docs/adr/0007-generated-stores-implement-consumer-ports.md
 
 ## Request path
 

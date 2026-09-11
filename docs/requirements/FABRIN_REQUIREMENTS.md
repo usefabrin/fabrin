@@ -74,10 +74,11 @@ Status values: `planned` · `in progress` · `done` · `superseded`.
 | ID | Requirement | Status |
 |---|---|---|
 | FR-ORM-1 | Fabrin owns a model-metadata registry independent of the ORM. The admin, forms, and migrations read **Fabrin** metadata, so swapping the ORM does not rewrite them. | in progress |
-| FR-ORM-2 | Data access crosses a consumer-owned port. `examples/hello/orders` demonstrates the same module with an in-memory test store and a `database/sql` + SQLite application adapter. Fabrin currently ships no GORM adapter or default query API. See [ADR 0002](../adr/0002-database-sql-is-the-orm-seam.md). | done |
+| FR-ORM-2 | Data access crosses a consumer-owned port. `examples/hello/orders` demonstrates the same module with an in-memory test store and a `database/sql` + SQLite application adapter. Fabrin exposes no ambient database or GORM handle; generated adapters in FR-ORM-6 implement rather than replace module-owned ports. See [ADR 0002](../adr/0002-database-sql-is-the-orm-seam.md) and [ADR 0007](../adr/0007-generated-stores-implement-consumer-ports.md). | done |
 | FR-ORM-3 | A module declares its models via `Modeler`; Fabrin does not scan packages for them. | done |
 | FR-ORM-4 | Migrations are versioned, ordered files with an explicit down step. | in progress |
 | FR-ORM-5 | Two migrations may not claim the same version. With several branches in flight this is a matter of when, not if, and it surfaces at deploy time otherwise. | in progress |
+| FR-ORM-6 | One Go schema declaration produces independent ORM metadata plus deterministic typed PostgreSQL Create/Get code over `database/sql`; malformed, colliding, or unsupported definitions fail before output. | in progress |
 
 ## FR-RENDER — rendering, forms, and static foundation (F3)
 

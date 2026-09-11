@@ -269,6 +269,7 @@ pkg github.com/usefabrin/fabrin/orm, method (*Registry) Register(module string, 
 pkg github.com/usefabrin/fabrin/orm, method (Snapshot) Models() []Registered
 pkg github.com/usefabrin/fabrin/orm, method (Type) Valid() bool
 pkg github.com/usefabrin/fabrin/orm, type Field struct
+pkg github.com/usefabrin/fabrin/orm, type Field struct, GoName string
 pkg github.com/usefabrin/fabrin/orm, type Field struct, Index bool
 pkg github.com/usefabrin/fabrin/orm, type Field struct, MaxLen int
 pkg github.com/usefabrin/fabrin/orm, type Field struct, Name string
@@ -278,6 +279,7 @@ pkg github.com/usefabrin/fabrin/orm, type Field struct, Type Type
 pkg github.com/usefabrin/fabrin/orm, type Field struct, Unique bool
 pkg github.com/usefabrin/fabrin/orm, type Model struct
 pkg github.com/usefabrin/fabrin/orm, type Model struct, Fields []Field
+pkg github.com/usefabrin/fabrin/orm, type Model struct, GoName string
 pkg github.com/usefabrin/fabrin/orm, type Model struct, Table string
 pkg github.com/usefabrin/fabrin/orm, type Registered struct
 pkg github.com/usefabrin/fabrin/orm, type Registered struct, Model Model
@@ -293,3 +295,6 @@ pkg github.com/usefabrin/fabrin/orm, var ErrBadSteps error
 pkg github.com/usefabrin/fabrin/orm, var ErrDuplicateTable error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidField error
 pkg github.com/usefabrin/fabrin/orm, var ErrInvalidModel error
+
+pkg github.com/usefabrin/fabrin/ormgen, func Generate(packageName string, models []github.com/usefabrin/fabrin/orm.Model) ([]byte, error)
+pkg github.com/usefabrin/fabrin/ormgen, var ErrInvalidSchema error

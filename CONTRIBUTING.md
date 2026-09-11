@@ -135,9 +135,11 @@ suite could not have caught: a package in the manifest with nothing recorded.
   can be enforced instead of guessed.
 - `fabrin/orm` must not import `database/sql` either. It describes models and
   opens nothing: that is what lets the admin and forms read a schema with no
-  database running, and what keeps its tests in microseconds. The query API is
-  `database/sql` or the user's own ORM, named in neither place — see
-  [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md).
+  database running, and what keeps its tests in microseconds. Generated
+  PostgreSQL adapters live in `ormgen` and use `database/sql` only in their
+  returned source; metadata still names no handle. See
+  [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) and
+  [ADR 0007](docs/adr/0007-generated-stores-implement-consumer-ports.md).
 - `fabrin/migrate` must not import Gin, `net/http`, or a database driver.
   Migrations run from a process that mounts no routes. The engine takes a
   `*sql.DB` and the application supplies the driver; the SQLite driver in
@@ -155,6 +157,12 @@ suite could not have caught: a package in the manifest with nothing recorded.
   framework it exists to stay describable beside. (`pgx` reaches consumers'
   `go.sum` through this package's tests alone, measured in the CHANGELOG like
   its sqlite predecessor.)
+- `ormgen` may import `orm`, whose metadata is its input. It may not import the
+  root package, transport, migration packages, or `database/sql`: generation is
+  offline, and the database method set appears only in the source it returns.
+  The boundary was bite-proven with a throwaway `database/sql` import, then
+  checked again after removal; the public-package inventory likewise failed
+  when its exact `# boundary: ormgen` marker was removed and passed when restored.
 - `internal/**` must not import the root package.
 
 `fabrin/cli` is a leaf for a concrete reason: the root package imports it to
