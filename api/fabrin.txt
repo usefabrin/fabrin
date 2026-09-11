@@ -83,6 +83,7 @@ pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) CreatePreAuth(ctx co
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Invalidate(ctx context.Context, id string) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Reserve(ctx context.Context, reservation Reservation) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeAllSessions(ctx context.Context, proof SessionProof) error
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeIdentitySessions(ctx context.Context, identityID string) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) RevokeSession(ctx context.Context, proof SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Verify(ctx context.Context, attempt Verification) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, method (*PreAuthManager) Authenticate(ctx context.Context, credential string, csrf string) error
@@ -93,6 +94,7 @@ pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Conte
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Current(ctx context.Context, credential string) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) Logout(ctx context.Context, credential string) error
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) LogoutAll(ctx context.Context, credential string) error
+pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) RevokeIdentity(ctx context.Context, identityID string) error
 pkg github.com/usefabrin/fabrin/auth, method (*SessionManager) ValidateCSRF(ctx context.Context, credential string, csrf string) error
 pkg github.com/usefabrin/fabrin/auth, type Authentication struct
 pkg github.com/usefabrin/fabrin/auth, type Authentication struct, Identity Identity
@@ -169,12 +171,14 @@ pkg github.com/usefabrin/fabrin/auth, type SessionRecord struct, LastSeenAt time
 pkg github.com/usefabrin/fabrin/auth, type SessionStore interface
 pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, AuthenticateSession(context.Context, SessionProof) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, RevokeAllSessions(context.Context, SessionProof) error
+pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, RevokeIdentitySessions(context.Context, string) error
 pkg github.com/usefabrin/fabrin/auth, type SessionStore interface, RevokeSession(context.Context, SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface
 pkg github.com/usefabrin/fabrin/auth, type Store interface, AuthenticateSession(context.Context, SessionProof) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Invalidate(context.Context, string) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Reserve(context.Context, Reservation) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, RevokeAllSessions(context.Context, SessionProof) error
+pkg github.com/usefabrin/fabrin/auth, type Store interface, RevokeIdentitySessions(context.Context, string) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, RevokeSession(context.Context, SessionProof) error
 pkg github.com/usefabrin/fabrin/auth, type Store interface, Verify(context.Context, Verification) (Identity, error)
 pkg github.com/usefabrin/fabrin/auth, type Verification struct
@@ -239,6 +243,7 @@ pkg github.com/usefabrin/fabrin/authredis, method (*Store) Invalidate(ctx contex
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Ping(ctx context.Context) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Reserve(ctx context.Context, reservation github.com/usefabrin/fabrin/auth.Reservation) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) RevokeAllSessions(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) error
+pkg github.com/usefabrin/fabrin/authredis, method (*Store) RevokeIdentitySessions(ctx context.Context, identityID string) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) RevokeSession(ctx context.Context, proof github.com/usefabrin/fabrin/auth.SessionProof) error
 pkg github.com/usefabrin/fabrin/authredis, method (*Store) Verify(ctx context.Context, attempt github.com/usefabrin/fabrin/auth.Verification) (github.com/usefabrin/fabrin/auth.Identity, error)
 pkg github.com/usefabrin/fabrin/authredis, type Option func(*settings)

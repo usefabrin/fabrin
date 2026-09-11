@@ -229,6 +229,44 @@ func TestStore_RedisLogoutAllRevokesIdentityIndex(t *testing.T) {
 	}
 }
 
+func TestStore_RedisRevokesSessionsByIdentity(t *testing.T) {
+	redisURL := os.Getenv("FABRINTEST_REDIS_URL")
+	if redisURL == "" {
+		t.Skip("FABRINTEST_REDIS_URL not set; skipping live Redis auth test")
+	}
+	prefix := "fabrin:test:" + randomToken(t) + ":"
+	store, err := authredis.New(redisURL, newIdentityStore(), authredis.WithPrefix(prefix))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	options, err := redis.ParseURL(redisURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := redis.NewClient(options)
+	t.Cleanup(func() { _ = client.Close() })
+	identityID := "identity-for-revocation"
+	index := prefix + "identity-sessions:" + sha256Hex(identityID)
+	for _, id := range []string{"session-a", "session-b"} {
+		if err := client.HSet(t.Context(), prefix+"session:"+id, "digest", "secret").Err(); err != nil {
+			t.Fatal(err)
+		}
+		if err := client.SAdd(t.Context(), index, id).Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manager, _ := auth.NewSessionManager(store)
+	if err := manager.RevokeIdentity(t.Context(), identityID); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"session-a", "session-b"} {
+		if exists, err := client.Exists(t.Context(), prefix+"session:"+id).Result(); err != nil || exists != 0 {
+			t.Fatalf("session %s exists=%d err=%v", id, exists, err)
+		}
+	}
+}
+
 func TestStore_RedisSharesPreAuthAndBootstrapBudget(t *testing.T) {
 	redisURL := os.Getenv("FABRINTEST_REDIS_URL")
 	if redisURL == "" {

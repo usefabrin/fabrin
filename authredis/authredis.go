@@ -278,6 +278,15 @@ func (s *Store) RevokeAllSessions(ctx context.Context, proof auth.SessionProof) 
 	return nil
 }
 
+// RevokeIdentitySessions removes every indexed session for an identity in one
+// Redis transition. Missing indexes are already fully revoked and succeed.
+func (s *Store) RevokeIdentitySessions(ctx context.Context, identityID string) error {
+	if identityID == "" || len(identityID) > 128 {
+		return errors.New("authredis: invalid identity ID")
+	}
+	return revokeIdentityScript.Run(ctx, s.client, []string{s.identitySessionsKey(identityID)}, s.prefix+"session:").Err()
+}
+
 func (s *Store) identitySessionsKey(identityID string) string {
 	return s.prefix + "identity-sessions:" + digest(identityID)
 }
@@ -434,6 +443,11 @@ if ms >= tonumber(v[5]) or ms >= tonumber(v[4])+86400000 then redis.call('DEL',K
 local sessions=redis.call('SMEMBERS',v[2])
 for _,id in ipairs(sessions) do redis.call('DEL',ARGV[2]..id) end
 redis.call('DEL',v[2]); return 1`)
+
+var revokeIdentityScript = redis.NewScript(`
+local sessions=redis.call('SMEMBERS',KEYS[1])
+for _,id in ipairs(sessions) do redis.call('DEL',ARGV[1]..id) end
+redis.call('DEL',KEYS[1]); return 1`)
 
 var (
 	_ auth.Store        = (*Store)(nil)

@@ -282,5 +282,6 @@ challenge binding, strict bodies, ambiguous-cookie rejection and
 credential-free verification JSON. Native/browser middleware tests prove
 transport-specific credential extraction and request-context identity.
 Identity-wide logout is implemented;
-privilege-change revocation, scheduled cleanup, complete HTTP enumeration
+administrative identity-wide revocation is implemented for privilege writers;
+durable mutation wiring, scheduled cleanup, complete HTTP enumeration
 resistance, and production delivery remain unproved and unimplemented.

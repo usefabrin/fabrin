@@ -37,6 +37,13 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Administrative session revocation.** `SessionManager.RevokeIdentity` and
+  the extended `SessionStore` contract revoke every session for a durable
+  identity without requiring a presented credential. Memory and Redis implement
+  the operation; Redis deletes the identity index and all indexed sessions in
+  one script. This is the fail-closed primitive for disable and privilege
+  mutations. The API snapshot changes intentionally.
+
 - **Authenticated-route middleware.** `Native.RequireAuth` and
   `Browser.RequireAuth` validate their transport-specific credential and attach
   the stable identity to the request context for `auth.IdentityFromContext`.

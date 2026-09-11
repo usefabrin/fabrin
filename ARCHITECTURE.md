@@ -139,6 +139,8 @@ limited to HTTP loopback origins and uses separate non-`__Host-` cookie names.
 Native and browser `RequireAuth` middleware validates the appropriate transport
 and carries `auth.Identity` in the standard request context; browser unsafe
 routes can add the same origin/session-CSRF gate used by logout.
+`SessionManager.RevokeIdentity` lets durable identity and authorization writers
+invalidate all Redis sessions before committing a disabling or privilege change.
 
 ### Generated PostgreSQL data access (preview)
 

@@ -391,6 +391,9 @@ func (errorStore) RevokeSession(context.Context, SessionProof) error {
 func (errorStore) RevokeAllSessions(context.Context, SessionProof) error {
 	return errors.New("database secret")
 }
+func (errorStore) RevokeIdentitySessions(context.Context, string) error {
+	return errors.New("database secret")
+}
 
 func lastChallengeID(store *MemoryStore) string {
 	store.mu.Lock()

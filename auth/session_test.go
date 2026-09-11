@@ -214,6 +214,33 @@ func TestSessionManager_LogoutAllRevokesEveryIdentitySession(t *testing.T) {
 	}
 }
 
+func TestSessionManager_RevokeIdentityRejectsEverySession(t *testing.T) {
+	service, inbox := newService(t, 16)
+	base := time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)
+	login := func(at time.Time) Authentication {
+		service.now = func() time.Time { return at }
+		challenge, _ := service.Request(t.Context(), "a@example.com", PurposeNative, "source")
+		code := strings.TrimPrefix(inbox.Drain()[0].Text, "Your Fabrin sign-in code is: ")
+		result, err := service.Verify(t.Context(), challenge.ID, "a@example.com", code, PurposeNative, "source")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	first := login(base)
+	second := login(base.Add(time.Minute))
+	manager, _ := NewSessionManager(service.store)
+	manager.now = func() time.Time { return base.Add(2 * time.Minute) }
+	if err := manager.RevokeIdentity(t.Context(), first.Identity.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, credential := range []string{first.Session.Credential, second.Session.Credential} {
+		if _, err := manager.Current(t.Context(), credential); !errors.Is(err, ErrSession) {
+			t.Fatalf("session remained active: %v", err)
+		}
+	}
+}
+
 func TestService_SessionStoreFailureDoesNotConsumeChallenge(t *testing.T) {
 	store, err := NewMemoryStore(1)
 	if err != nil {

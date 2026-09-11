@@ -89,6 +89,9 @@ set authentication cookies and never accept query-string tokens. `Current` and
 logout revokes the server record before returning 204.
 `LogoutAll` verifies the presented session and atomically revokes every session
 indexed to the same identity.
+Trusted identity and authorization writers call `sessions.RevokeIdentity` before
+committing a disable or privilege change; Redis removes the complete identity
+session index atomically without requiring a user credential.
 
 Known delivery failures and send-budget suppression return the same 202 shape as
 an accepted request, using a non-verifiable random challenge ID. Store outages

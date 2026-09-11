@@ -276,6 +276,21 @@ func (s *MemoryStore) RevokeAllSessions(ctx context.Context, proof SessionProof)
 	return nil
 }
 
+// RevokeIdentitySessions implements SessionStore.
+func (s *MemoryStore) RevokeIdentitySessions(ctx context.Context, identityID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, candidate := range s.sessions {
+		if candidate.identity.ID == identityID {
+			candidate.active = false
+		}
+	}
+	return nil
+}
+
 // Invalidate implements Store and cannot invalidate a newer replacement.
 func (s *MemoryStore) Invalidate(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {

@@ -76,6 +76,7 @@ type SessionStore interface {
 	AuthenticateSession(context.Context, SessionProof) (Identity, error)
 	RevokeSession(context.Context, SessionProof) error
 	RevokeAllSessions(context.Context, SessionProof) error
+	RevokeIdentitySessions(context.Context, string) error
 }
 
 // SessionManager authenticates and revokes opaque server-side sessions.
@@ -139,8 +140,22 @@ func (m *SessionManager) LogoutAll(ctx context.Context, credential string) error
 	return nil
 }
 
+// RevokeIdentity revokes every session for an identity without requiring a
+// presented credential. Privilege and disabled-state mutations use this gate.
+func (m *SessionManager) RevokeIdentity(ctx context.Context, identityID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if identityID == "" || len(identityID) > 128 {
+		return ErrUnavailable
+	}
+	return sessionStoreError(m.store.RevokeIdentitySessions(ctx, identityID))
+}
+
 func sessionStoreError(err error) error {
 	switch {
+	case err == nil:
+		return nil
 	case errors.Is(err, ErrSession), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return err
 	default:
