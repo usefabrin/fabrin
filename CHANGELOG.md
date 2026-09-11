@@ -932,6 +932,10 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Fixed
 
+- **PostgreSQL 17 identity lock key.** Durable identity resolution now uses a
+  valid text namespace for its transaction advisory lock. The prior NUL
+  separator was rejected by PostgreSQL before invitation or identity lookup.
+
 - Generated state sidecars now record the cumulative full-application schema at
   their exact migration version. In a multi-module run, the first migration no
   longer claims changes that only a later module's migration creates; unchanged

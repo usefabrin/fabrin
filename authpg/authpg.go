@@ -102,7 +102,7 @@ func (s *Store) ResolveVerified(ctx context.Context, resolution auth.IdentityRes
 		return auth.Identity{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "identity\x00"+resolution.Email); err != nil {
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "identity:"+resolution.Email); err != nil {
 		return auth.Identity{}, err
 	}
 	var identity auth.Identity
