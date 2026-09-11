@@ -295,11 +295,11 @@ exercise.
 
 | ID | Behaviour | Test |
 |----|-----------|------|
-| AUTH-001 | Cryptographic OTP/session secrets; only keyed digests stored | `_planned_` |
-| AUTH-002 | Atomic expiry and verification-attempt lockout | `_planned_` |
-| AUTH-003 | Resend rotates the code without resetting abuse budgets | `_planned_` |
-| AUTH-004 | Concurrent verify consumes once; replay fails | `_planned_` |
-| AUTH-005 | Identity creation occurs only with successful atomic consume | `_planned_` |
+| AUTH-001 | Cryptographic OTP challenge secrets; only keyed digests stored | `auth/auth_test.go::TestService_ProtectsVerifierAndGeneratesHighEntropyCode` |
+| AUTH-002 | Atomic expiry and verification-attempt lockout | `auth/auth_test.go::TestService_ExpiryAttemptsAndResendShareOneBudget` |
+| AUTH-003 | Resend rotates the code without resetting abuse budgets | `auth/auth_test.go::TestService_ExpiryAttemptsAndResendShareOneBudget` |
+| AUTH-004 | Concurrent verify consumes once; replay fails | `auth/auth_test.go::TestService_ConcurrentVerificationHasOneWinner` |
+| AUTH-005 | Identity creation occurs only with successful atomic consume | `auth/auth_test.go::TestService_VerifiesOnceAndCreatesIdentityOnlyOnSuccess` |
 | AUTH-006 | Login, resend, and recovery resist account enumeration | `_planned_` |
 | AUTH-007 | Login and privilege change prevent session fixation | `_planned_` |
 | AUTH-008 | Browser cookie defaults and unsafe-production rejection | `_planned_` |
@@ -312,7 +312,7 @@ exercise.
 | AUTH-015 | Active/retiring key rotation and unknown-key denial | `_planned_` |
 | AUTH-016 | Future password KDF envelope is memory-hard, bounded, and upgradeable | `_planned_` |
 | AUTH-017 | Store/delivery failures stay distinct internally and generic externally | `_planned_` |
-| AUTH-018 | Capture delivery works locally and is rejected in production | `_planned_` |
+| AUTH-018 | Preview store/delivery work locally and are rejected in production | `auth/auth_test.go::TestNew_RejectsPreviewBackendsInProduction` |
 
 ## Migrations
 

@@ -37,6 +37,16 @@ with their milestone rather than split into sections. Cutting a version is
 
 ### Added
 
+- **Email OTP authentication core.** The new `auth` package generates 80-bit
+  codes with `crypto/rand`, stores only domain-separated HMAC verifiers, and
+  delegates atomic resend budgets, one-time consumption, and identity creation
+  to a consumer-owned `Store`. The included concurrency-safe `MemoryStore` and
+  `CaptureDelivery` make tests and local previews runnable; production
+  construction rejects both. Defaults are a ten-minute window, five attempts,
+  and three sends, and resend preserves the original window and attempt budget.
+  Production still requires distributed storage, external delivery, and the
+  remaining transport/session controls in the approved threat model. ([#110])
+
 - **Typed PostgreSQL Create/Get generation from the model declaration.** The new
   `ormgen.Generate` validates the complete input before returning deterministic,
   gofmt-formatted source containing row types and context-aware queries over a

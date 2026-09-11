@@ -278,19 +278,22 @@ versions.
 
 ## F4 — Auth
 
-- [~] **Threat model proposed for human security review before implementation.**
+- [x] **Threat model approved before implementation.**
       It fixes OTP entropy and protected storage, expiry/attempt/send budgets,
       atomic consume, resend, enumeration resistance, browser/native sessions,
       fixation, cookie defaults, CSRF, revocation, fail-closed authorization,
       recovery, invitations, audit, key rotation, dependency failures, and the
       capture-backend production guard. AUTH-001…018 are executable acceptance
-      rows and remain planned until their exact tests land. Password KDF and
+      rows; implemented rows name their exact tests. Password KDF and
       upgrade rules are recorded for a future release; v1 does not ship
       passwords. ([threat model](security/AUTH_THREAT_MODEL.md),
       [#80](https://github.com/usefabrin/fabrin/issues/80), FR-AUTH-1…5)
-- [ ] Email OTP core with consumer-owned store/delivery ports and capture
-      backend; identity appears only after atomic verification. (FR-AUTH-1,
-      FR-AUTH-5, #110)
+- [x] Email OTP core with consumer-owned atomic store/delivery ports, 80-bit
+      challenges, protected verifiers, bounded resend/attempt windows, and
+      capture/in-memory preview backends; identity appears only after successful
+      consume. Preview backends reject production construction; distributed
+      storage and enumeration-safe transport remain required before production.
+      (FR-AUTH-1, FR-AUTH-5, AUTH-001…005, AUTH-018, #110)
 - [ ] Secure browser-cookie and revocable native-bearer sessions, login/logout,
       CSRF integration, and key rotation. (FR-AUTH-2, FR-AUTH-5, #112)
 - [ ] Permissions, groups, and ownership callbacks shared by REST and admin.

@@ -23,6 +23,7 @@ Anything a user needs is a **root-level package**. Putting a user-facing type in
 ```
 fabrin/                  package fabrin — App, Module, Router, Context/HandlerFunc
 ├── admin/               private CRUD seam proof — exports nothing yet
+├── auth/                email OTP core over consumer Store/Delivery ports
 ├── cli/                 Command + Dispatch         (Django: manage.py commands)
 ├── config/              layered settings           (Django: settings.py)
 ├── health/              liveness + readiness       (Django: system checks)
@@ -48,8 +49,23 @@ their `go.sum` to run a tool they will never invoke. A library's dependency list
 is part of its cost to adopt, so dev tooling gets its own module.
 
 Anything under `tools/` that a user might want at runtime is in the wrong place.
-Planned packages such as rendering, forms, auth, signals, and tasks live in the
+Planned packages such as rendering, forms, signals, and tasks live in the
 roadmap, not this current package map.
+
+### Why `auth/` owns no transport or database
+
+The authentication core generates and verifies email challenges while the
+application supplies atomic storage and secret delivery. Its `Store` boundary
+places resend budgets, one-time consumption, and identity creation in operations
+a production adapter can implement transactionally. `MemoryStore` and
+`CaptureDelivery` make the behavior runnable in tests and local previews, and
+`WithProduction` rejects either backend. Depguard keeps the package independent
+of Gin, `net/http`, `database/sql`, the root package, and sibling packages.
+
+This slice does not make authentication production-ready by itself. A production
+application still needs distributed durable storage, external delivery,
+enumeration-safe transport, sessions, CSRF, authorization, audit, and key
+rotation from the remaining F4 work.
 
 ### Why `admin/` exports nothing yet
 

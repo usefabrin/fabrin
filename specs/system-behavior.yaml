@@ -465,34 +465,39 @@ behaviours:
 
   # ── Authentication security contract ────────────────────────────────────────
   - id: AUTH-001
-    what: OTP challenge and session secrets come from crypto/rand with the reviewed minimum entropy, and only domain-separated keyed digests are stored.
+    what: OTP challenge secrets come from crypto/rand with the reviewed minimum entropy, and only domain-separated keyed digests are stored.
     why: Predictable secrets permit online guessing; plaintext database values turn a database-only disclosure into immediate account takeover.
     requirement: FR-AUTH-1
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestService_ProtectsVerifierAndGeneratesHighEntropyCode
 
   - id: AUTH-002
     what: A challenge expires after the bounded lifetime and locks after the bounded verification-attempt count; expiry and lock transitions are atomic.
     why: Unlimited or racy attempts convert a one-time secret into a reusable low-cost password.
     requirement: FR-AUTH-1
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestService_ExpiryAttemptsAndResendShareOneBudget
 
   - id: AUTH-003
-    what: Resend rotates the verifier and invalidates the prior code without resetting first-issued time, verification attempts, or the distributed send budget.
+    what: Resend rotates the verifier and invalidates the prior code without resetting first-issued time, verification attempts, or the store-owned send budget.
     why: Resetting any budget lets an attacker loop resend to extend expiry or obtain unlimited guesses.
     requirement: FR-AUTH-1
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestService_ExpiryAttemptsAndResendShareOneBudget
 
   - id: AUTH-004
     what: Concurrent verification atomically consumes one challenge; exactly one caller succeeds and every replay fails.
     why: A read-then-write consume permits two processes to accept the same one-time credential during a race.
     requirement: FR-AUTH-1
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestService_ConcurrentVerificationHasOneWinner
 
   - id: AUTH-005
     what: No identity exists before successful challenge consumption, and identity creation is atomic with verification.
     why: Creating an account on request lets unverified addresses reserve or control identity state and leaves orphan identities after delivery failure.
     requirement: FR-AUTH-1
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestService_VerifiesOnceAndCreatesIdentityOnlyOnSuccess
 
   - id: AUTH-006
     what: Challenge request, verification, resend, and recovery responses do not reveal whether an email is known, invited, blocked, or already registered through status, schema, or network-level work.
@@ -567,10 +572,11 @@ behaviours:
     status: planned
 
   - id: AUTH-018
-    what: The capture delivery backend works for tests and local preview and is rejected during production construction.
+    what: The in-memory store and capture delivery backend work for tests and local preview and are rejected during production construction.
     why: A backend that stores codes in process is useful evidence but silently selecting it in production makes authentication depend on local memory and exposes secrets to operators.
     requirement: FR-AUTH-5
-    status: planned
+    status: implemented
+    test: auth/auth_test.go::TestNew_RejectsPreviewBackendsInProduction
 
   # ── Migrations ──────────────────────────────────────────────────────────────
   - id: MIG-001

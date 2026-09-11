@@ -50,6 +50,11 @@ linters:
       #     rules when those dependency directions exist rather than guessing
       #     them from one proof.
       #
+      # boundary: auth — must not import the root package, a sibling, Gin,
+      #     net/http, or database/sql. The authentication core owns security
+      #     transitions and consumer-implemented Store and Delivery ports; it
+      #     must remain usable without transport or persistence construction.
+      #
       # boundary: migratediff — must not import the root package (root →
       #     migratediff is the dependency direction; makemigrations' command
       #     wiring lives in root), Gin, or net/http. Graduated from the ADR 0005
@@ -171,6 +176,20 @@ linters:
           deny:
             - pkg: "github.com/usefabrin/fabrin"
               desc: "logging must not import the root package or any other Fabrin package: it is a leaf that the root package imports (see CONTRIBUTING.md)"
+
+        auth-is-standalone:
+          files:
+            - "**/auth/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: "github.com/usefabrin/fabrin"
+              desc: "auth must not import the root package or another Fabrin package: consumers satisfy its ports"
+            - pkg: "github.com/gin-gonic/gin"
+              desc: "auth core must stay transport-free"
+            - pkg: "net/http"
+              desc: "auth core must stay transport-free"
+            - pkg: "database/sql"
+              desc: "auth core declares a Store port; applications own database adapters"
 
         # health is a leaf for the same reasons, with one extra consequence worth
         # stating: the root package imports health to declare the Checker interface

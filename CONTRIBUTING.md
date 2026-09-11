@@ -117,7 +117,8 @@ suite could not have caught: a package in the manifest with nothing recorded.
 - `fabrin/config` must not import Gin or `net/http`. Settings must load from the
   CLI, from tests, and from a migrate-only process without booting a server.
 - `fabrin/config`, `fabrin/logging`, `fabrin/health`, `fabrin/cli`, `fabrin/orm`,
-  and `fabrin/migrate` must not import the root package **or each other**. The
+  `fabrin/migrate`, and `fabrin/auth` must not import the root package **or each
+  other**. The
   root package imports the first five, so that direction is a cycle the compiler
   rejects and the rule is belt-and-braces there. It exists for the *sibling*
   import, which compiles cleanly and quietly makes a leaf depend on half the
@@ -140,6 +141,11 @@ suite could not have caught: a package in the manifest with nothing recorded.
   returned source; metadata still names no handle. See
   [ADR 0002](docs/adr/0002-database-sql-is-the-orm-seam.md) and
   [ADR 0007](docs/adr/0007-generated-stores-implement-consumer-ports.md).
+- `fabrin/auth` must not import Gin, `net/http`, or `database/sql`. Its security
+  transitions sit behind consumer-owned `Store` and `Delivery` ports, so tests,
+  workers, and native clients can use the core without constructing an HTTP or
+  database stack. Production adapters live in applications or later dedicated
+  packages.
 - `fabrin/migrate` must not import Gin, `net/http`, or a database driver.
   Migrations run from a process that mounts no routes. The engine takes a
   `*sql.DB` and the application supplies the driver; the SQLite driver in

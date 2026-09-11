@@ -1,15 +1,16 @@
 # Authentication and session threat model
 
-- **Status:** Proposed for human security review
+- **Status:** Approved for implementation
 - **Date:** 2026-09-11
 - **Issue:** [#80](https://github.com/usefabrin/fabrin/issues/80)
 - **Applies to:** v1 email OTP, browser sessions, native bearer sessions,
   authorization, recovery, and future password support
 
-This document is the security contract auth code must satisfy. It names the
+This document is the approved security contract auth code must satisfy. It names the
 assets, trust boundaries, attacker capabilities, defaults, failure behavior, and
-the executable acceptance rows that will hold each claim up. Implementation of
-auth issue #110 starts only after a human approves this contract.
+the executable acceptance rows that hold each claim up. Issue #110 implements
+the email-OTP core; production storage, transport, sessions, authorization, and
+the remaining acceptance rows still require their own implementation and review.
 
 ## Scope and assets
 
@@ -93,8 +94,8 @@ failure return a generic unavailable response and do not claim a code was sent.
 Whether operators receive the underlying cause is an audit/logging decision,
 never response content.
 
-The capture backend is test and local-preview only. Construction in a production
-mode fails if capture delivery is selected.
+The capture delivery and in-memory store are test and local-preview only.
+Construction in production mode fails if either is selected.
 
 ### Browser sessions and CSRF
 

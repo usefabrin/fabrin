@@ -66,6 +66,49 @@ pkg github.com/usefabrin/fabrin, var ErrDuplicateModule error
 pkg github.com/usefabrin/fabrin, var ErrNoModules error
 pkg github.com/usefabrin/fabrin, var ErrUnknownModule error
 
+pkg github.com/usefabrin/fabrin/auth, func New(store Store, delivery Delivery, key []byte, options ...Option) (*Service, error)
+pkg github.com/usefabrin/fabrin/auth, func NewCaptureDelivery() *CaptureDelivery
+pkg github.com/usefabrin/fabrin/auth, func NewMemoryStore() *MemoryStore
+pkg github.com/usefabrin/fabrin/auth, func WithAttemptLimit(limit int) Option
+pkg github.com/usefabrin/fabrin/auth, func WithChallengeTTL(ttl time.Duration) Option
+pkg github.com/usefabrin/fabrin/auth, func WithProduction() Option
+pkg github.com/usefabrin/fabrin/auth, func WithSendLimit(limit int) Option
+pkg github.com/usefabrin/fabrin/auth, method (*CaptureDelivery) Deliver(ctx context.Context, email string, challengeID string, code string) error
+pkg github.com/usefabrin/fabrin/auth, method (*CaptureDelivery) Messages() []CapturedMessage
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Consume(ctx context.Context, id string, verifier []byte, now time.Time, identityID string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, method (*MemoryStore) Issue(ctx context.Context, id string, email string, verifier []byte, issuedAt time.Time, expiresAt time.Time, attemptLimit int, sendLimit int) (time.Time, error)
+pkg github.com/usefabrin/fabrin/auth, method (*Service) Request(ctx context.Context, email string) (Challenge, error)
+pkg github.com/usefabrin/fabrin/auth, method (*Service) Verify(ctx context.Context, challengeID string, code string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, type CaptureDelivery struct
+pkg github.com/usefabrin/fabrin/auth, type CapturedMessage struct
+pkg github.com/usefabrin/fabrin/auth, type CapturedMessage struct, ChallengeID string
+pkg github.com/usefabrin/fabrin/auth, type CapturedMessage struct, Code string
+pkg github.com/usefabrin/fabrin/auth, type CapturedMessage struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ExpiresAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Challenge struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type Delivery interface
+pkg github.com/usefabrin/fabrin/auth, type Delivery interface, Deliver(ctx context.Context, email string, challengeID string, code string) error
+pkg github.com/usefabrin/fabrin/auth, type Identity struct
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, CreatedAt time.Time
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, Email string
+pkg github.com/usefabrin/fabrin/auth, type Identity struct, ID string
+pkg github.com/usefabrin/fabrin/auth, type MemoryStore struct
+pkg github.com/usefabrin/fabrin/auth, type Option func(*settings) error
+pkg github.com/usefabrin/fabrin/auth, type Service struct
+pkg github.com/usefabrin/fabrin/auth, type Store interface
+pkg github.com/usefabrin/fabrin/auth, type Store interface, Consume(ctx context.Context, id string, verifier []byte, now time.Time, identityID string) (Identity, error)
+pkg github.com/usefabrin/fabrin/auth, type Store interface, Issue(ctx context.Context, id string, email string, verifier []byte, issuedAt time.Time, expiresAt time.Time, attemptLimit int, sendLimit int) (time.Time, error)
+pkg github.com/usefabrin/fabrin/auth, var ErrDelivery error
+pkg github.com/usefabrin/fabrin/auth, var ErrExpired error
+pkg github.com/usefabrin/fabrin/auth, var ErrInvalidChallenge error
+pkg github.com/usefabrin/fabrin/auth, var ErrInvalidCode error
+pkg github.com/usefabrin/fabrin/auth, var ErrInvalidEmail error
+pkg github.com/usefabrin/fabrin/auth, var ErrLocked error
+pkg github.com/usefabrin/fabrin/auth, var ErrRateLimited error
+pkg github.com/usefabrin/fabrin/auth, var ErrStore error
+pkg github.com/usefabrin/fabrin/auth, var ErrUnsafeProduction error
+
 pkg github.com/usefabrin/fabrin/cli, func Dispatch(ctx context.Context, out io.Writer, cmds []Command, args []string) error
 pkg github.com/usefabrin/fabrin/cli, type Command struct
 pkg github.com/usefabrin/fabrin/cli, type Command struct, Flags func(*flag.FlagSet)

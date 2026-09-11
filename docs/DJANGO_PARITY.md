@@ -204,8 +204,8 @@ your binary.
 
 | Django | Fabrin | Status |
 |---|---|---|
-| `django.contrib.auth` | `fabrin/auth`: reviewed-contract-first email OTP for v1; passwords/social/passkeys deferred | 📝 v1 threat model proposed |
-| `User` model, swappable | Framework-owned identity with application-owned related profile rows | 📋 v1 |
+| `django.contrib.auth` | `fabrin/auth`: reviewed-contract-first email OTP for v1; passwords/social/passkeys deferred | 🚧 OTP core implemented; production adapters/transport pending |
+| `User` model, swappable | Framework-owned identity with application-owned related profile rows | 🚧 identity created atomically after verified email |
 | Permissions and groups | Groups, permissions, and resource ownership shared by REST/admin | 📋 v1 |
 | Sessions | Revocable browser-cookie and native-bearer sessions over an atomic pluggable store | 📋 v1 |
 | `forms.Form` / `ModelForm` | `fabrin/forms` | 📋 F3 |
@@ -223,9 +223,11 @@ DSL.
 verification, session revocation, audit, groups, and admin need one stable
 subject identifier. Making that row replaceable moves security invariants into
 every application adapter. Application attributes still vary, so they belong in
-related profile tables rather than in Fabrin's credential record. The proposed
+related profile tables rather than in Fabrin's credential record. The approved
 [auth threat model](security/AUTH_THREAT_MODEL.md) fixes the boundary and its
-AUTH-001…018 acceptance rows before implementation begins.
+AUTH-001…018 acceptance rows. The first Go slice uses consumer-owned `Store` and
+`Delivery` ports: an atomic consume creates or resolves one stable identity,
+while process-local storage and captured delivery are explicitly preview-only.
 
 ## Signals, tasks, caching
 
